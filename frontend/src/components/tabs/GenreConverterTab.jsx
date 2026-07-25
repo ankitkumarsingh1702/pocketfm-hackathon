@@ -4,6 +4,7 @@ import { MAX_CHARS, MIN_CHARS, SAMPLE_SOURCE } from '../../config/genre'
 import { useGenreConverter } from '../../controllers/useGenreConverter'
 import FidelityReport from '../genre/FidelityReport'
 import GenrePicker from '../genre/GenrePicker'
+import LiveScenes from '../genre/LiveScenes'
 import RewriteView from '../genre/RewriteView'
 import RunStatus from '../genre/RunStatus'
 import SkeletonView from '../genre/SkeletonView'
@@ -42,6 +43,10 @@ export default function GenreConverterTab() {
 
   const overLimit = c.tooLong
   const counterColor = c.tooShort || overLimit ? 'var(--accent-text-sm)' : 'var(--muted)'
+
+  // Live pieces stay up while the job runs and after it fails; the finished
+  // view replaces them only once there is a whole result to show.
+  const showLive = !c.result && (c.running || Boolean(c.error))
 
   return (
     <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 40 }}>
@@ -143,6 +148,34 @@ export default function GenreConverterTab() {
 
       {/* -------------------------------------------------------- states --- */}
       {c.running && <RunStatus job={c.job} elapsed={c.elapsed} onStop={c.stopWatching} />}
+
+      {/* ----------------------------------------------------- live work --- */}
+      {/* Shown while the job runs, and kept on screen if it fails: the pieces
+          that did finish are what make a failure legible. Once `result` lands
+          the finished view below takes over and this comes down. */}
+      {showLive && c.partial.skeleton && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>
+              Plot skeleton
+            </h3>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', maxWidth: '64ch', lineHeight: 1.6 }}>
+              Extracted from your story, with names and genre language stripped out. This is
+              the only thing the rewrite is allowed to keep.
+            </p>
+          </div>
+          <SkeletonView skeleton={c.partial.skeleton} lint={c.partial.lint} />
+        </section>
+      )}
+
+      {showLive && c.kind === 'convert' && (
+        <LiveScenes
+          plan={c.partial.scene_plan}
+          scenes={c.partial.scenes}
+          active={c.activeScene}
+          genre={c.job?.genre ?? c.genre}
+        />
+      )}
 
       {c.error && (
         <div

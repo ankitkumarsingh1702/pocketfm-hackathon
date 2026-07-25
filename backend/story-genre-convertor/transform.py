@@ -179,26 +179,58 @@ def transform(
     then moves on — a supporting beat is worth less than the wall-clock of a
     second retry, and the verifier will report it either way.
 
-    `on_progress(done, total, note)` is called after each scene, so a long-running
-    caller (the HTTP service) can report which scene it is on. Optional and
-    additive: the CLI path is unchanged.
+    `on_progress(done, total, note, detail)` fires three times around each scene:
+    when the call goes out, when a dropped pivot forces a retry, and when the
+    scene lands. The last one carries the scene's prose in `detail`, so a
+    long-running caller (the HTTP service) can show the story arriving rather
+    than a bar creeping. Optional and additive: the CLI path is unchanged.
     """
     scenes = plan_scenes(skeleton)
     prose_parts: List[str] = []
     summary = ""
 
+    def report(done: int, total: int, note: str, detail: dict) -> None:
+        if on_progress:
+            on_progress(done, total, note, detail)
+
     for index, beats in enumerate(scenes):
         ids = ",".join(b.id for b in beats)
+        number = index + 1
+        spine = [
+            {"id": b.id, "action": b.action, "load_bearing": b.load_bearing, "outcome": b.outcome}
+            for b in beats
+        ]
+        # Sent before the call, not after: a scene is 30-60 seconds of silence,
+        # and the caller should be able to name what it is waiting for.
+        report(
+            index,
+            len(scenes),
+            f"writing scene {number} of {len(scenes)}",
+            {"phase": "writing", "scene": number, "scenes": len(scenes), "beats": spine},
+        )
+
         if verbose:
-            print(f"  scene {index + 1}/{len(scenes)} [{ids}]", end="", file=sys.stderr, flush=True)
+            print(f"  scene {number}/{len(scenes)} [{ids}]", end="", file=sys.stderr, flush=True)
 
         scene = write_scene(beats, skeleton, pack, summary, index, len(scenes))
 
         covered = set(scene.beats_covered)
         dropped = [b for b in beats if b.id not in covered and b.load_bearing]
+        retried = bool(dropped)
         if dropped:
             if verbose:
                 print(f" -> missing {','.join(b.id for b in dropped)}, re-asking", end="", file=sys.stderr)
+            report(
+                index,
+                len(scenes),
+                f"scene {number} dropped {','.join(b.id for b in dropped)} — asking again",
+                {
+                    "phase": "retry",
+                    "scene": number,
+                    "scenes": len(scenes),
+                    "missing": [b.id for b in dropped],
+                },
+            )
             scene = write_scene(
                 beats, skeleton, pack, summary, index, len(scenes), missing=dropped
             )
@@ -211,14 +243,30 @@ def transform(
                 note += f"  STILL MISSING {','.join(b.id for b in dropped)}"
             print(note, file=sys.stderr)
 
-        prose_parts.append(scene.prose.strip())
+        prose = scene.prose.strip()
+        prose_parts.append(prose)
         summary = scene.summary_for_next
 
-        if on_progress:
-            note = f"scene {index + 1}/{len(scenes)}"
-            if dropped:
-                note += f" (missing {','.join(b.id for b in dropped)})"
-            on_progress(index + 1, len(scenes), note)
+        note = f"scene {number} of {len(scenes)} written"
+        if dropped:
+            note += f" — {','.join(b.id for b in dropped)} still missing"
+        report(
+            number,
+            len(scenes),
+            note,
+            {
+                "phase": "written",
+                "scene": number,
+                "scenes": len(scenes),
+                "beats": spine,
+                "beats_covered": [b.id for b in beats if b.id in covered],
+                "missing": [b.id for b in dropped],
+                "retried": retried,
+                "words": len(prose.split()),
+                "prose": prose,
+                "summary": scene.summary_for_next,
+            },
+        )
 
     return "\n\n".join(prose_parts)
 

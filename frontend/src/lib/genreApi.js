@@ -10,7 +10,12 @@
 // no credential in the client. Point VITE_SGC_URL at http://localhost:8080 to
 // develop against a local `uv run uvicorn api:app`.
 
-import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS } from '../config/genre'
+import {
+  POLL_FAST_AFTER_MS,
+  POLL_INTERVAL_EARLY_MS,
+  POLL_INTERVAL_LATE_MS,
+  POLL_TIMEOUT_MS,
+} from '../config/genre'
 
 /** Deployed by .github/workflows/deploy-backend.yml (story-genre-convertor). */
 const SGC_URL = 'https://story-genre-convertor-v4c7wg52ia-uc.a.run.app'
@@ -84,7 +89,22 @@ export function getJob(id, signal) {
 }
 
 /**
+ * How long to wait before the next poll, given how long we have been watching.
+ *
+ * Slow while the job cannot plausibly be finished, then faster once it can —
+ * see POLL_INTERVAL_EARLY_MS in config/genre.js for why that way round.
+ *
+ * @param {number} watchedMs  milliseconds since polling began
+ */
+function pollDelay(watchedMs) {
+  return watchedMs < POLL_FAST_AFTER_MS ? POLL_INTERVAL_EARLY_MS : POLL_INTERVAL_LATE_MS
+}
+
+/**
  * Poll a job until it finishes, calling `onUpdate` with every fresh snapshot.
+ *
+ * The first snapshot is fetched immediately; every later one waits out
+ * `pollDelay`, so the UI still gets an instant first reading.
  *
  * Resolves with the terminal job on `done`, rejects on `error` or timeout.
  * Aborting via `signal` stops the polling only — the job keeps running on the
@@ -95,7 +115,8 @@ export function getJob(id, signal) {
  * @param {AbortSignal} [signal]             stop watching
  */
 export async function pollJob(id, onUpdate, signal) {
-  const deadline = Date.now() + POLL_TIMEOUT_MS
+  const started = Date.now()
+  const deadline = started + POLL_TIMEOUT_MS
 
   for (;;) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
@@ -114,7 +135,7 @@ export async function pollJob(id, onUpdate, signal) {
     }
 
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(resolve, POLL_INTERVAL_MS)
+      const timer = setTimeout(resolve, pollDelay(Date.now() - started))
       signal?.addEventListener(
         'abort',
         () => {

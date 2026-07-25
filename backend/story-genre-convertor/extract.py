@@ -10,7 +10,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from llm import structured
 from models import StorySkeleton
@@ -156,24 +156,72 @@ def lint_skeleton(skeleton: StorySkeleton) -> List[str]:
     return sorted(set(complaints))
 
 
-def extract_clean(story: str, verbose: bool = False) -> Tuple[StorySkeleton, List[str]]:
+def _skeleton_detail(skeleton: StorySkeleton) -> Dict[str, object]:
+    """The shape of an extracted skeleton, for a progress listener."""
+    return {
+        "logline": skeleton.logline,
+        "beats": len(skeleton.beats),
+        "load_bearing": len(skeleton.load_bearing_ids),
+        "edges": len(skeleton.causal_edges),
+        "roles": [{"slug": r.slug, "name": r.name} for r in skeleton.roles],
+    }
+
+
+def extract_clean(
+    story: str,
+    verbose: bool = False,
+    on_progress: Optional[Callable[..., None]] = None,
+) -> Tuple[StorySkeleton, List[str]]:
     """Extract, lint, and re-ask once if it leaked.
 
     Returns (skeleton, remaining_complaints). Remaining complaints after the
     retry are surfaced rather than raised — a slightly dirty skeleton is still
     usable, you just want to know.
+
+    `on_progress(done, total, note, detail)` fires around each model call and
+    around the lint. Extraction looks like one opaque step from outside, but it
+    is really up to two calls with a free check between them, and a caller
+    waiting on it deserves to see which one it is in. Optional and additive:
+    the CLI path is unchanged.
     """
+
+    def report(done: int, total: int, note: str, detail: Optional[dict] = None) -> None:
+        if on_progress:
+            on_progress(done, total, note, detail or {})
+
+    report(0, 2, "reading the story for its plot", {"characters": len(story)})
     skeleton = extract_skeleton(story)
+    report(
+        1,
+        2,
+        f"found {len(skeleton.beats)} beats, {len(skeleton.load_bearing_ids)} load-bearing",
+        _skeleton_detail(skeleton),
+    )
+
     complaints = lint_skeleton(skeleton)
     if not complaints:
+        report(2, 2, "checked for leaked names and genre words — clean", {"complaints": []})
         return skeleton, []
 
     if verbose:
         print(f"  lint failed ({len(complaints)}), re-asking once", file=sys.stderr)
 
+    report(
+        1,
+        3,
+        f"{len(complaints)} leaks found, extracting again",
+        {"complaints": complaints},
+    )
     feedback = "\n".join(f"- {c}" for c in complaints)
     skeleton = extract_skeleton(story, feedback=feedback)
-    return skeleton, lint_skeleton(skeleton)
+    remaining = lint_skeleton(skeleton)
+    report(
+        3,
+        3,
+        "second pass clean" if not remaining else f"{len(remaining)} leaks remain",
+        {**_skeleton_detail(skeleton), "complaints": remaining},
+    )
+    return skeleton, remaining
 
 
 def print_skeleton(skeleton: StorySkeleton) -> None:

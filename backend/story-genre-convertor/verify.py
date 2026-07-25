@@ -11,6 +11,8 @@ Run `python verify.py --selftest` to exercise the scoring math with no API key.
 import argparse
 import json
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -29,6 +31,17 @@ W_EDGES = 0.20
 # reproducible on its own, so it is run several times and voted. Odd numbers
 # only — an even count makes "strict majority" needlessly harsh.
 ALIGN_VOTES = int(os.environ.get("ALIGN_VOTES", "3"))
+
+# Ballots are run concurrently rather than one after another. They are
+# independent by construction — each is a cold read of the same prose, and the
+# merge functions below are pure functions of the ballot list — so the only
+# thing serial execution bought was `votes * 2` model latencies in a row, which
+# on a thinking model is two to three minutes of a six-minute job.
+#
+# The default covers a full round of ballots at ALIGN_VOTES=3 (three delivery
+# plus three link) in one wave. Lower it if Vertex starts rate-limiting; llm.py
+# retries a 429, but not being throttled is better than recovering from it.
+VERIFY_CONCURRENCY = int(os.environ.get("VERIFY_CONCURRENCY", "6"))
 
 
 class BeatMatch(BaseModel):
@@ -171,10 +184,17 @@ def align(source: StorySkeleton, candidate: StorySkeleton, votes: int = ALIGN_VO
     on separate runs at temperature 0, because the model is only near-deterministic
     — identical prompts can route differently. Averaging ballots turns the judge
     from an instrument with a 25-point swing into one worth reporting.
+
+    Run concurrently for the same reason as verify_prose's: the ballots cannot
+    see each other, and merge_votes reads the list in order, which pool.map
+    preserves regardless of who finishes first.
     """
     if votes <= 1:
         return align_once(source, candidate)
-    return merge_votes(source, [align_once(source, candidate) for _ in range(votes)])
+    workers = max(1, min(VERIFY_CONCURRENCY, votes))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="align") as pool:
+        ballots = list(pool.map(lambda _: align_once(source, candidate), range(votes)))
+    return merge_votes(source, ballots)
 
 
 def score(
@@ -377,43 +397,80 @@ def verify_prose(
     source: StorySkeleton,
     prose: str,
     votes: int = ALIGN_VOTES,
-    on_progress: Optional[Callable[[int, int, str], None]] = None,
+    on_progress: Optional[Callable[..., None]] = None,
 ) -> Dict[str, object]:
     """Score a rewrite directly against the source skeleton. The primary path.
 
-    `on_progress(done, total, note)` fires after each ballot. This stage is
-    `votes * 2` model calls at the end of a five-minute job, so a caller with no
-    visibility into it looks stalled exactly when the user is least patient.
-    Optional and additive: the CLI path is unchanged.
+    The `votes * 2` ballots run concurrently, up to VERIFY_CONCURRENCY at once.
+    They are independent by construction: each reads the same finished prose
+    cold, none can see another, and the merges below are pure functions of the
+    ballot list. Results are collected back into submission order, so the merge
+    receives exactly the list the serial version built and the score is
+    unchanged — only the wall clock moves.
+
+    `on_progress(done, total, note, detail)` fires as each ballot lands. This
+    stage sits at the end of a multi-minute job, so a caller with no visibility
+    into it looks stalled exactly when the user is least patient. `done` counts
+    completions, which now arrive out of order; `detail` names which ballot it
+    was. Optional and additive: the CLI path is unchanged.
     """
     from delivery import check_delivery, check_links
 
     edges = source.causal_edges
-    total = 2 if votes <= 1 else votes * 2
+    rounds = max(1, votes)
+    total = rounds * 2
+
+    # In the order the serial version ran them: every delivery ballot, then
+    # every link ballot. Only the order of this list reaches the merge, so the
+    # order they *finish* in cannot affect the score.
+    ballots: List[Tuple[str, int]] = [("beats", n) for n in range(1, rounds + 1)]
+    ballots += [("links", n) for n in range(1, rounds + 1)]
+
+    results: List[object] = [None] * len(ballots)
+    lock = threading.Lock()
     done = 0
 
-    def tick(note: str) -> None:
+    def describe(kind: str, number: int) -> Tuple[str, dict]:
+        if kind == "beats":
+            note = (
+                "checked every beat against the page"
+                if rounds == 1
+                else f"beat check {number} of {rounds} — are all {len(source.beats)} beats on the page?"
+            )
+            return note, {"check": "beats", "round": number, "rounds": rounds, "beats": len(source.beats)}
+        note = (
+            "checked the causal links"
+            if rounds == 1
+            else f"causal-link check {number} of {rounds} — do the {len(edges)} links still hold?"
+        )
+        return note, {"check": "links", "round": number, "rounds": rounds, "edges": len(edges)}
+
+    def run(slot: int) -> None:
         nonlocal done
-        done += 1
+        kind, number = ballots[slot]
+        results[slot] = (
+            check_delivery(prose, source.beats)
+            if kind == "beats"
+            else check_links(prose, edges, source.beats)
+        )
+        # Ballots land out of order, so `done` counts completions rather than
+        # indexing into the list. The note still names which ballot it was.
+        note, detail = describe(kind, number)
+        with lock:
+            done += 1
+            finished = done
         if on_progress:
-            on_progress(done, total, note)
+            on_progress(finished, total, note, detail)
 
-    if votes <= 1:
-        delivery = check_delivery(prose, source.beats)
-        tick("checked beats against the page")
-        links = check_links(prose, edges, source.beats)
-        tick("checked causal links")
-        return score_prose(source, delivery, links)
+    workers = max(1, min(VERIFY_CONCURRENCY, len(ballots)))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="ballot") as pool:
+        list(pool.map(run, range(len(ballots))))  # list() so a failure propagates
 
-    delivery_ballots = []
-    for round_number in range(1, votes + 1):
-        delivery_ballots.append(check_delivery(prose, source.beats))
-        tick(f"beat check {round_number}/{votes}")
+    delivery_ballots = [r for (kind, _), r in zip(ballots, results) if kind == "beats"]
+    link_ballots = [r for (kind, _), r in zip(ballots, results) if kind == "links"]
 
-    link_ballots = []
-    for round_number in range(1, votes + 1):
-        link_ballots.append(check_links(prose, edges, source.beats))
-        tick(f"causal-link check {round_number}/{votes}")
+    if rounds == 1:
+        return score_prose(source, delivery_ballots[0], link_ballots[0])
 
     delivery = merge_delivery_votes(source, delivery_ballots)
     links = merge_link_votes(edges, link_ballots)

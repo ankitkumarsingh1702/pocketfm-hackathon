@@ -15,11 +15,23 @@ export const MAX_CHARS = 60000
 /**
  * How often to ask the service how a running job is doing.
  *
- * Two seconds. The job reports real per-scene progress, so this is what sets
- * how fresh that feedback feels — a slower poll would make a finished scene sit
- * unreported. A poll is a cheap in-memory dict lookup on the service side.
+ * The rate is deliberately not constant, and deliberately not a backoff. A
+ * conversion takes five to eight minutes, so for the first stretch the answer
+ * is always "still running" — polling hard there buys nothing. Past that the
+ * job can finish at any moment, so the poll tightens and a completed scene
+ * does not sit unreported.
+ *
+ *   first 3 minutes   every 10s
+ *   after that        every 5s
+ *
+ * A poll is a cheap in-memory dict lookup on the service side, so the cost of
+ * the faster phase is bounded and small.
  */
-export const POLL_INTERVAL_MS = 2000
+export const POLL_INTERVAL_EARLY_MS = 10 * 1000
+export const POLL_INTERVAL_LATE_MS = 5 * 1000
+
+/** How long the early rate lasts before the poll switches to the late one. */
+export const POLL_FAST_AFTER_MS = 3 * 60 * 1000
 
 /**
  * Stop polling after this long. A conversion is five to eight minutes; twenty
