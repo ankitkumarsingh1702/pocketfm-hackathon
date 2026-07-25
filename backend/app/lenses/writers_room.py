@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 from collections import Counter
 
+from app.config import settings
 from app.db.firestore import save_simulation
 from app.llm.factory import get_llm
 from app.personas.loader import load_personas
@@ -52,8 +53,12 @@ async def run_writers_room(story: Story) -> WritersRoomResult:
     llm = get_llm()
 
     prompt = "Critique this audio-drama episode for craft.\n" + _story_text(story)
+    model = settings.model_for("experts")
     notes = await asyncio.gather(
-        *(llm.structured(system=e.system_prompt, prompt=prompt, schema=ExpertNote) for e in experts),
+        *(
+            llm.structured(system=e.system_prompt, prompt=prompt, schema=ExpertNote, model=model)
+            for e in experts
+        ),
         return_exceptions=True,
     )
 

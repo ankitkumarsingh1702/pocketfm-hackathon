@@ -46,6 +46,7 @@ async def run_cliffhanger(story: Story, weak_excerpt: str) -> CliffhangerResult:
             + story.text[:2000]
         ),
         schema=_Rewrite,
+        model=settings.model_for("rewrite"),
     )
 
     cache = Cache(settings.cache_dir)
@@ -58,8 +59,9 @@ async def run_cliffhanger(story: Story, weak_excerpt: str) -> CliffhangerResult:
         after_text = story.text + "\n" + rewrite.rewrite
     after_story = Story(title=story.title, episode=story.episode, text=after_text)
 
-    before_pairs = await run_reactions(panel, before_story, llm, cache)
-    after_pairs = await run_reactions(panel, after_story, llm, cache)
+    audience_model = settings.model_for("audience")
+    before_pairs = await run_reactions(panel, before_story, llm, cache, model=audience_model)
+    after_pairs = await run_reactions(panel, after_story, llm, cache, model=audience_model)
 
     before_score = _mean_hook(before_pairs)
     after_score = _mean_hook(after_pairs)

@@ -52,6 +52,7 @@ class ClaudeVertexClient:
         prompt: str,
         schema: type[T],
         temperature: float | None = None,
+        model: str | None = None,
     ) -> T:
         """Generate JSON matching ``schema`` and return a validated instance."""
         client = self._get_client()
@@ -62,7 +63,7 @@ class ClaudeVertexClient:
             + json.dumps(schema.model_json_schema())
         )
         msg = await client.messages.create(
-            model=settings.claude_model,
+            model=model or settings.claude_model,
             max_tokens=settings.max_output_tokens,
             temperature=(temperature or settings.temperature),
             system=system2,

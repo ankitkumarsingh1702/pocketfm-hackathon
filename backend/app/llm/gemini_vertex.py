@@ -54,11 +54,12 @@ class GeminiVertexClient:
         prompt: str,
         schema: type[T],
         temperature: float | None = None,
+        model: str | None = None,
     ) -> T:
         """Generate JSON matching ``schema`` and return a validated instance."""
         client = self._get_client()
         resp = await client.aio.models.generate_content(
-            model=settings.gemini_model,
+            model=model or settings.gemini_model,
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system,
