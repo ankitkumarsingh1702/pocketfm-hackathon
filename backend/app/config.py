@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     """Runtime configuration. Override any field via environment or backend/.env."""
 
     # --- GCP / Vertex AI -----------------------------------------------------
-    google_cloud_project: str = "hushh-pda-uat"
+    google_cloud_project: str = "pocketfm-hackathon"
     # Gemini-on-Vertex works in most regions incl. us-central1 and "global".
     vertex_location: str = "us-central1"
 
