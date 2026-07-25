@@ -12,6 +12,7 @@ export const TABS = [
   { id: 'room', label: 'Writers Room' },
   { id: 'canon', label: 'Story Canon' },
   { id: 'db', label: 'DB / Memory' },
+  { id: 'genre', label: 'Genre Converter' },
 ]
 
 export const DEFAULT_TAB = 'sim'
@@ -37,6 +38,7 @@ export const SUPERPOWERS = [
   { label: 'Cliffhanger Optimizer', live: true },
   { label: 'AI Writers Room', live: true },
   { label: 'Plot Hole Hunter', live: true },
+  { label: 'Genre Converter', live: true },
   { label: 'AI Producer', live: false },
   { label: 'AI Rewrite Engine', live: false },
 ]

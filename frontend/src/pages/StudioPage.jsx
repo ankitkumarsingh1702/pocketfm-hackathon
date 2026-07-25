@@ -7,6 +7,7 @@ import { Tabs } from '../components/primitives'
 import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
 import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
 import DbMemoryTab from '../components/tabs/DbMemoryTab'
+import GenreConverterTab from '../components/tabs/GenreConverterTab'
 import StoryCanonTab from '../components/tabs/StoryCanonTab'
 import WritersRoom from '../WritersRoom'
 
@@ -37,17 +38,21 @@ export default function StudioPage() {
       </div>
 
       <main style={{ ...shell, padding: '28px clamp(20px,4vw,56px) 80px' }}>
-        {/* The Writers Room and Story Canon tabs have their own composers, so
-            the shared story input is only shown for the other lenses. */}
-        {activeTab !== 'room' && activeTab !== 'canon' && activeTab !== 'db' && (
-          <StoryInput
-            value={story}
-            onChange={setStory}
-            onRun={run}
-            loading={isLoading}
-            canRun={canRun}
-          />
-        )}
+        {/* The Writers Room, Story Canon, DB / Memory, and Genre Converter tabs
+            have their own composers, so the shared story input is only shown
+            for the other lenses. */}
+        {activeTab !== 'room' &&
+          activeTab !== 'canon' &&
+          activeTab !== 'db' &&
+          activeTab !== 'genre' && (
+            <StoryInput
+              value={story}
+              onChange={setStory}
+              onRun={run}
+              loading={isLoading}
+              canRun={canRun}
+            />
+          )}
 
         <div style={{ marginTop: 40 }}>
           <Tabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
@@ -58,6 +63,7 @@ export default function StudioPage() {
         {activeTab === 'room' && <WritersRoom />}
         {activeTab === 'canon' && <StoryCanonTab {...studio.canon} />}
         {activeTab === 'db' && <DbMemoryTab {...studio.dbMemory} />}
+        {activeTab === 'genre' && <GenreConverterTab />}
       </main>
     </div>
   )
