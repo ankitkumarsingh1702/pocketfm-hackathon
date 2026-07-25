@@ -1,16 +1,59 @@
-# React + Vite
+# PocketFM Hackathon
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + Vite (JavaScript) app for the hackathon.
 
-Currently, two official plugins are available:
+## Getting started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Scripts: `dev`, `build`, `preview`, `lint`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Team workflow (3 devs)
 
-## Expanding the Oxlint configuration
+We use a simple two-branch flow. **`develop` is the default branch — all work merges here first.**
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- **`main`** — stable / demo-ready. Never push directly.
+- **`develop`** — integration branch. **All PRs target `develop`.**
+
+### Day-to-day
+
+1. Always branch off the latest `develop`:
+   ```bash
+   git checkout develop
+   git pull
+   git checkout -b feat/<your-name>/<short-description>
+   ```
+2. Commit your work and push the branch:
+   ```bash
+   git push -u origin feat/<your-name>/<short-description>
+   ```
+3. Open a Pull Request **into `develop`** (it's the default base, so this is automatic):
+   ```bash
+   gh pr create --base develop --fill
+   ```
+4. Get **1 review** from another dev, then squash-merge into `develop`.
+5. When `develop` is stable (e.g. before the demo), we merge `develop` → `main` via a PR.
+
+### Rules of thumb
+
+- One feature = one branch = one PR. Keep PRs small.
+- Never commit directly to `main` or `develop` — always go through a PR.
+- Pull `develop` before starting new work to avoid conflicts.
+- Branch names: `feat/...`, `fix/...`, `chore/...`.
+
+> Note: This is a private repo on a free plan, so GitHub's automatic branch
+> protection isn't available. The rules above are enforced by team convention.
+> If we upgrade to GitHub Pro (free via GitHub Education) or make the repo
+> public, we can enforce "PR + 1 review required" automatically.
+
+---
+
+## Vite / React notes
+
+This project uses [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react) with [Oxlint](https://oxc.rs).
+
+- **React Compiler** is not enabled by default (impacts dev/build perf). To add it, see the [docs](https://react.dev/learn/react-compiler/installation).
+- For a production app, consider the [TypeScript template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) with type-aware lint rules.
