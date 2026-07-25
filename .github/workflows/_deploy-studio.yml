@@ -1,42 +1,28 @@
-name: deploy
+name: _deploy-studio
 
-# Production deploy of Simulated Studio (single Cloud Run service — FastAPI
-# serves the built React SPA).
+# Reusable build & deploy of the Simulated Studio Cloud Run service.
 #
-# Auth is keyless via Workload Identity Federation — no service-account JSON key
-# is stored in GitHub. Run scripts/setup-cicd.sh once to create the WIF pool +
-# deployer service account and set the repo variables this workflow reads.
+# The frontend and the backend ship in the SAME container image — the root
+# Dockerfile builds the Vite SPA and FastAPI serves it as static files. So a
+# "frontend deploy" and a "backend deploy" are the same build; only the reason
+# for running it differs. This lives in one reusable workflow so the two entry
+# points (deploy-frontend.yml, deploy-backend.yml) cannot drift apart on flags,
+# secrets, or smoke tests.
 #
-# Triggers:
-#   1. push to develop (i.e. a merged PR) that touches app code -> auto-deploy
-#   2. workflow_dispatch -> any developer can deploy on demand ("Run workflow")
+# Not runnable on its own — it has no push or dispatch trigger.
 
 on:
-  push:
-    branches: [develop]
-    paths:
-      - "backend/**"
-      - "frontend/**"
-      - "skills/**"
-      - "data/**"
-      - "Dockerfile"
-      - ".github/workflows/deploy.yml"
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      component:
-        description: "Component to deploy (one service currently serves both)"
-        type: choice
-        options: [all, backend, frontend]
-        default: all
-      reason:
-        description: "Why are you deploying? (shown in the run log)"
+      trigger:
+        description: "Human-readable reason, echoed into the run log"
         type: string
         required: false
-
-# Never let two deploys of the same service race; newer waits for older.
-concurrency:
-  group: deploy-simulated-studio
-  cancel-in-progress: false
+        default: ""
+    outputs:
+      url:
+        description: "Public URL of the deployed service"
+        value: ${{ jobs.deploy.outputs.url }}
 
 permissions:
   contents: read
@@ -44,10 +30,17 @@ permissions:
 
 jobs:
   deploy:
-    name: Build & deploy to Cloud Run
+    name: Build & deploy Simulated Studio
     runs-on: ubuntu-latest
+    # Shared across both entry points on purpose: a frontend deploy and a
+    # backend deploy target one service and must never overlap.
+    concurrency:
+      group: deploy-simulated-studio
+      cancel-in-progress: false
     environment:
       name: production
+      url: ${{ steps.deploy.outputs.url }}
+    outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - name: Checkout
@@ -64,11 +57,10 @@ jobs:
 
       - name: Deploy context
         run: |
-          echo "Trigger:   ${{ github.event_name }}"
-          echo "Component: ${{ github.event.inputs.component || 'all (push to develop)' }}"
-          echo "Reason:    ${{ github.event.inputs.reason || 'merge to develop' }}"
-          echo "Actor:     ${{ github.actor }}"
-          echo "Commit:    ${{ github.sha }}"
+          echo "Service: ${{ vars.CLOUD_RUN_SERVICE }}"
+          echo "Trigger: ${{ inputs.trigger || github.event_name }}"
+          echo "Actor:   ${{ github.actor }}"
+          echo "Commit:  ${{ github.sha }}"
 
       - name: Deploy to Cloud Run
         id: deploy
@@ -97,12 +89,12 @@ jobs:
             --format 'value(status.url)')"
           echo "url=${URL}" >> "$GITHUB_OUTPUT"
           {
-            echo "### Deployed to Cloud Run"
+            echo "### Simulated Studio deployed to Cloud Run"
             echo ""
             echo "- Service: \`${{ vars.CLOUD_RUN_SERVICE }}\`"
             echo "- URL: ${URL}"
             echo "- Commit: \`${{ github.sha }}\`"
-            echo "- Triggered by: ${{ github.actor }} (${{ github.event_name }})"
+            echo "- Trigger: ${{ inputs.trigger || github.event_name }} (${{ github.actor }})"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Smoke test /health

@@ -1,0 +1,37 @@
+name: deploy frontend
+
+# Frontend entry point. Runs when the SPA changes, on its own so a UI tweak has
+# a deploy of its own in the Actions list rather than hiding inside a generic
+# "deploy" run.
+#
+# Note what this does NOT mean: the SPA has no separate hosting. The root
+# Dockerfile builds it into the Simulated Studio image, so this rebuilds and
+# redeploys that whole service — see _deploy-studio.yml.
+#
+# Auth is keyless via Workload Identity Federation. Run scripts/setup-cicd.sh
+# once to create the WIF pool + deployer SA and set the repo variables.
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
+      - ".github/workflows/_deploy-studio.yml"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why are you deploying? (shown in the run log)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation
+
+jobs:
+  studio:
+    name: Frontend
+    uses: ./.github/workflows/_deploy-studio.yml
+    with:
+      trigger: frontend — ${{ github.event.inputs.reason || 'push to develop' }}
