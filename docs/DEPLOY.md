@@ -99,14 +99,22 @@ CDN) for static assets; not worth it yet.
 `story-genre-convertor` **is** genuinely independent: its own directory,
 Dockerfile, image, service, and Cloud Run flags.
 
-## Known gap: the SPA cannot reach the convertor in production
+## How the SPA reaches the convertor
 
-`frontend/src/lib/genreApi.js` defaults to same-origin `/sgc`, which exists only
-as a Vite dev proxy (`frontend/vite.config.js`). The deployed studio has no
-`/sgc` route, so in production those calls fall through to the SPA catch-all.
-Deploying the convertor does not fix this on its own. Two ways to close it:
+`frontend/src/lib/genreApi.js` calls the convertor's own Cloud Run origin
+directly:
 
-1. Build the SPA with `VITE_SGC_URL=<convertor URL>` so it calls the service
-   directly — works today: the convertor is deployed `--allow-unauthenticated`
-   and its CORS defaults to `*`.
-2. Add a real `/sgc` reverse proxy to `backend/app`, keeping one origin.
+```
+https://story-genre-convertor-v4c7wg52ia-uc.a.run.app
+```
+
+The same URL is used in dev and in production. It works because the service is
+deployed `--allow-unauthenticated` and answers CORS with `*`, so the browser can
+call it cross-origin with no credential and no proxy. Set `VITE_SGC_URL` to
+override it — point it at `http://localhost:8080` to develop against a local
+`uv run uvicorn api:app`.
+
+> The URL is baked into the image at build time, so a rebuild is needed if the
+> convertor ever moves. It is stable as long as the service keeps its name,
+> project, and region. If the service ever loses its public invoker binding the
+> lens fails with an auth message rather than a bare 403.
