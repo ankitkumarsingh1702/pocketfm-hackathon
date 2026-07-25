@@ -6,6 +6,7 @@
  * styles, so visual changes happen here, not scattered across the tree.
  */
 
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap');
 @import './styles/fonts.css';
 
 /* ---------------------------------------------------------------- reset --- */
@@ -19,7 +20,9 @@
 
 /* ------------------------------------------------------- font families --- */
 :root {
-  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Lexend is the mandated brand typeface for all UI text (headings, body,
+     labels, inputs, buttons). Geist Mono is retained only for tabular numerals. */
+  --font-sans: 'Lexend', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, Consolas, monospace;
 }
 
@@ -36,9 +39,11 @@
   --grey-600: #8a8a8a;
 
   /* semantic aliases */
-  --accent: var(--red-600);
-  --accent-press: var(--red-700);
-  --accent-text-sm: var(--red-700); /* small red text on white must darken for AA */
+  /* Soft-red brand accent (mandated). Kept as a supporting highlight — never
+     allowed to compete with the black primary CTA. */
+  --accent: #e96b6b;
+  --accent-press: #d15a5a;
+  --accent-text-sm: #a93636; /* small red text on white must darken for AA */
   --ink: var(--black-900);
   --canvas: var(--white);
   --surface: var(--grey-100);

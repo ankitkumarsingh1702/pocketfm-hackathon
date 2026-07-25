@@ -6,7 +6,7 @@ import SuperpowersStrip from '../components/SuperpowersStrip'
 import { Tabs } from '../components/primitives'
 import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
 import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
-import WritersRoomTab from '../components/tabs/WritersRoomTab'
+import WritersRoom from '../WritersRoom'
 
 /**
  * Simulated Studio page — pure composition.
@@ -35,21 +35,25 @@ export default function StudioPage() {
       </div>
 
       <main style={{ ...shell, padding: '28px clamp(20px,4vw,56px) 80px' }}>
-        <StoryInput
-          value={story}
-          onChange={setStory}
-          onRun={run}
-          loading={isLoading}
-          canRun={canRun}
-        />
+        {/* The Writers Room owns its own composer + Run/Stop, so the shared
+            story input is shown only for the lenses that consume it. */}
+        {activeTab !== 'room' && (
+          <StoryInput
+            value={story}
+            onChange={setStory}
+            onRun={run}
+            loading={isLoading}
+            canRun={canRun}
+          />
+        )}
 
-        <div style={{ marginTop: 40 }}>
+        <div style={{ marginTop: activeTab === 'room' ? 8 : 40 }}>
           <Tabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
         </div>
 
         {activeTab === 'sim' && <AudienceSimulatorTab {...studio.audience} />}
         {activeTab === 'opt' && <CliffhangerOptimizerTab {...studio.cliffhanger} />}
-        {activeTab === 'room' && <WritersRoomTab {...studio.writersRoom} />}
+        {activeTab === 'room' && <WritersRoom />}
       </main>
     </div>
   )

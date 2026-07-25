@@ -1,50 +1,50 @@
-@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap");
-:root { color-scheme: light; --ui-bg:#ffffff; --ui-ink:#111111; --ui-ink-muted:#626262; --ui-ink-subtle:#8a8a8a; --ui-surface:#f8f8f6; --ui-line:#e8e8e5; --ui-red:#e96b6b; --ui-red-soft:#fdecec; --ui-red-line:#f4b8b8; --ui-red-ink:#a93636; --ui-black-hover:#292929; --ui-font:'Lexend', ui-sans-serif, system-ui, -apple-system, sans-serif; --ui-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --ui-radius-sm:0.625rem; --ui-radius-md:0.875rem; --ui-radius-lg:1.125rem; --ui-shadow-soft:0 0.5rem 1.75rem rgb(17 17 17 / 7%); }
+/**
+ * Writers Room token bridge.
+ *
+ * This file no longer defines a competing design system. It maps every --ui-*
+ * token that `writers-room.css`, `WritersRoom.jsx`, and `AgentProfile.jsx`
+ * consume onto the single source-of-truth tokens declared in `index.css`
+ * (Lexend + white / black / soft-red). Because CSS custom properties resolve at
+ * use time, `writers-room.css` renders identically while inheriting one palette
+ * and one typeface across the whole app.
+ *
+ * Lexend is loaded once, in `index.css` — do not re-import it here.
+ * `writers-room.css` is intentionally left untouched.
+ */
 
-/* ---- Reset + base ---- */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+:root {
+  color-scheme: light;
+
+  /* Surfaces + ink */
+  --ui-bg: var(--canvas);
+  --ui-ink: var(--ink);
+  --ui-ink-muted: var(--muted);
+  --ui-ink-subtle: var(--dim);
+  --ui-surface: var(--surface);
+  --ui-line: var(--border);
+
+  /* Soft-red accent family (matches --accent / --accent-* in index.css) */
+  --ui-red: var(--accent);
+  --ui-red-soft: #fdecec;
+  --ui-red-line: #f4b8b8;
+  --ui-red-ink: #a93636;
+
+  /* Near-black hover for the black primary CTA */
+  --ui-black-hover: #292929;
+
+  /* Type */
+  --ui-font: var(--font-sans);
+  --ui-mono: var(--font-mono);
+
+  /* Radii + elevation */
+  --ui-radius-sm: var(--radius-sm);
+  --ui-radius-md: var(--radius-md);
+  --ui-radius-lg: var(--radius-lg);
+  --ui-shadow-soft: var(--shadow-sm);
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background: var(--ui-bg);
-  color: var(--ui-ink);
-}
-
-body {
-  min-height: 100vh;
-  font-family: var(--ui-font);
-  font-size: 1rem;
-  line-height: 1.6;
-  font-weight: 400;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
-#root {
-  min-height: 100vh;
-}
-
-h1,
-h2,
-h3,
-h4,
-p,
-ul,
-figure {
-  margin: 0;
-}
-
+/* Base rules the shell's index.css does not set, kept here so form controls use
+   Lexend and focus is always visible (mandated). Non-conflicting with index.css. */
 button,
 input,
 textarea,
@@ -54,7 +54,7 @@ select {
 }
 
 *:focus-visible {
-  outline: 2px solid var(--ui-ink);
+  outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
 
