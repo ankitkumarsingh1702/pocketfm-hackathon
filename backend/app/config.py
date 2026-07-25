@@ -57,6 +57,20 @@ class Settings(BaseSettings):
     firestore_collection: str = "simulations"
     cache_dir: str = ".cache"       # local LLM-response cache (instant re-runs)
 
+    # --- Knowledge graph (Neo4j) ---------------------------------------------
+    # The story "canon" graph — shared, persistent agent memory across runs.
+    # Fully optional and best-effort: when the URI/password are unset the engine
+    # runs exactly as before (empty canon). Point NEO4J_URI at a Neo4j Aura
+    # instance (neo4j+s://...) or a self-hosted server; credentials come from
+    # the environment / Secret Manager, never the repo.
+    use_graph: bool = True
+    neo4j_uri: str = ""
+    neo4j_username: str = "neo4j"
+    neo4j_password: str = ""
+    neo4j_database: str = "neo4j"
+    # Upper bound on the canon-memory text injected into a persona/expert prompt.
+    canon_max_chars: int = 2000
+
     # --- Simulation ----------------------------------------------------------
     # Number of audience listeners to fan out to for a "representative 1000".
     # Keep modest for fast/cheap live demos; present as a panel of 1000.
@@ -74,6 +88,11 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def graph_configured(self) -> bool:
+        """True when Neo4j connection details are present (URI + password)."""
+        return bool(self.neo4j_uri and self.neo4j_password)
 
     def model_for(self, tier: str) -> str:
         """Resolve the model id for a lens ``tier`` ('audience'|'experts'|'rewrite').

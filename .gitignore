@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Backend local LLM response cache (not source)
+backend/.cache/
+
+# Node / build artifacts
+node_modules/
+dist/
+
+# Env / secrets (keep the examples)
+.env
+!.env.example
+
+# OS
+.DS_Store

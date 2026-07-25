@@ -10,9 +10,22 @@ export const TABS = [
   { id: 'sim', label: 'Audience Simulator' },
   { id: 'opt', label: 'Cliffhanger Optimizer' },
   { id: 'room', label: 'Writers Room' },
+  { id: 'canon', label: 'Story Canon' },
 ]
 
 export const DEFAULT_TAB = 'sim'
+
+/**
+ * Inner panels of the Story Canon tab, in display order. Each is one of the
+ * four "real agent" capabilities layered on the knowledge graph.
+ */
+export const CANON_PANELS = [
+  { id: 'graph', label: 'Canon Graph' },
+  { id: 'holes', label: 'Plot Holes' },
+  { id: 'planner', label: 'Cliffhanger Planner' },
+  { id: 'agent', label: 'Showrunner Agent' },
+  { id: 'mdp', label: 'MDP Optimizer' },
+]
 
 /**
  * The "Creator Superpowers" catalogue shown in the strip under the header.
@@ -22,7 +35,7 @@ export const SUPERPOWERS = [
   { label: 'Audience Simulator', live: true },
   { label: 'Cliffhanger Optimizer', live: true },
   { label: 'AI Writers Room', live: true },
-  { label: 'Plot Hole Hunter', live: false },
+  { label: 'Plot Hole Hunter', live: true },
   { label: 'AI Producer', live: false },
   { label: 'AI Rewrite Engine', live: false },
 ]

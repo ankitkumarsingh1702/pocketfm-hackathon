@@ -11,6 +11,7 @@ export default function HealthBadge({ online, info, error, loading }) {
   if (online) {
     text = [info.provider, info.project, info.location].filter(Boolean).join(' · ')
     if (info.firestore) text += ' · Firestore'
+    if (info.graph?.configured) text += ' · Graph'
   } else if (loading) {
     text = 'connecting…'
   } else {

@@ -13,6 +13,7 @@ from app.config import settings
 from app.db.firestore import save_simulation
 from app.engine.cache import Cache
 from app.engine.runner import run_reactions
+from app.graph.store import canon_fingerprint, fetch_canon_subgraph, render_canon_memory
 from app.llm.factory import get_llm
 from app.personas.loader import fan_out_audience, load_personas
 from app.schemas import CliffhangerResult, Persona, PersonaReaction, Story
@@ -60,8 +61,16 @@ async def run_cliffhanger(story: Story, weak_excerpt: str) -> CliffhangerResult:
     after_story = Story(title=story.title, episode=story.episode, text=after_text)
 
     audience_model = settings.model_for("audience")
-    before_pairs = await run_reactions(panel, before_story, llm, cache, model=audience_model)
-    after_pairs = await run_reactions(panel, after_story, llm, cache, model=audience_model)
+    # Same canon for both A/B runs (memory is the show's, not the excerpt's), so
+    # only the rewritten ending differs between before/after.
+    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon_fp = canon_fingerprint(canon)
+    before_pairs = await run_reactions(
+        panel, before_story, llm, cache, model=audience_model, canon=canon, canon_fp=canon_fp
+    )
+    after_pairs = await run_reactions(
+        panel, after_story, llm, cache, model=audience_model, canon=canon, canon_fp=canon_fp
+    )
 
     before_score = _mean_hook(before_pairs)
     after_score = _mean_hook(after_pairs)

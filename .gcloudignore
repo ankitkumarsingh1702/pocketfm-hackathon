@@ -1,0 +1,20 @@
+# Keep the Cloud Build source upload small. The Dockerfile rebuilds the
+# frontend and installs backend deps inside the build, so none of these are
+# needed in the upload context. Mirrors .dockerignore.
+.git
+.github
+.claude
+.agents
+
+**/node_modules
+**/.venv
+**/dist
+**/build
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.cache
+
+# Secrets — never upload real env files (keep the example).
+**/.env
+!**/.env.example

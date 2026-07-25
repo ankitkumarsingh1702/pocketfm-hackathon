@@ -707,6 +707,18 @@ wheels = [
 ]
 
 [[package]]
+name = "neo4j"
+version = "6.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytz" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ce/f4/aaa4ac19adae4b01bc742b63afd2672a77e7351566f02721e713e4b863ee/neo4j-6.2.0.tar.gz", hash = "sha256:e1e246b65b572bd8ea97f9e0e721b7d40a5ce53e53d0007c29aef63e4f9124d9", size = 241459, upload-time = "2026-05-04T07:35:41.428Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/cf/1c3795866cefaac6e648d4e98c373cafd97810f6e317c307371007ab4abb/neo4j-6.2.0-py3-none-any.whl", hash = "sha256:b87abdd13a5cc2e3bd51026926c2f20ac38fa3febe98c340520dce19e97388d0", size = 327824, upload-time = "2026-05-04T07:35:39.604Z" },
+]
+
+[[package]]
 name = "packaging"
 version = "26.2"
 source = { registry = "https://pypi.org/simple" }
@@ -733,6 +745,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "google-cloud-firestore" },
     { name = "google-genai" },
+    { name = "neo4j" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyyaml" },
@@ -751,6 +764,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "google-cloud-firestore", specifier = ">=2.19" },
     { name = "google-genai", specifier = ">=1.0" },
+    { name = "neo4j", specifier = ">=5.25" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "pyyaml", specifier = ">=6.0.2" },
@@ -996,6 +1010,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/82/ed/0301aeeac3e5353ef3d94b6ec08bbcabd04a72018415dcb29e588514bba8/python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3", size = 50135, upload-time = "2026-03-01T16:00:26.196Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a", size = 22101, upload-time = "2026-03-01T16:00:25.09Z" },
+]
+
+[[package]]
+name = "pytz"
+version = "2026.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/96/24/b0c591d81fdb795a3bf65a05ac6dd2a138b80dd0711b3fd84ee630f1fee4/pytz-2026.3.tar.gz", hash = "sha256:3a30feb7a1a04cf0fa0be1624415930843b02f012eb800380f36f906a723e4ae", size = 319698, upload-time = "2026-07-25T11:09:31.453Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/f5/6d4e606d0a64730dfb99e2096bfc443792716d630385863f9ec38d56338a/pytz-2026.3-py2.py3-none-any.whl", hash = "sha256:f2c90c10a28a593365fe42a654c5a4dc20bc48ad13451735db1c9adb94e039be", size = 508203, upload-time = "2026-07-25T11:09:29.677Z" },
 ]
 
 [[package]]

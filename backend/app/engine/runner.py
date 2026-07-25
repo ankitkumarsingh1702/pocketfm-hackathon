@@ -62,13 +62,20 @@ def persona_fingerprint(persona: Persona) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def build_reaction_prompt(persona: Persona, story: Story) -> tuple[str, str]:
+def build_reaction_prompt(
+    persona: Persona, story: Story, canon: str | None = None
+) -> tuple[str, str]:
     """Return the ``(system, user)`` prompt pair for one persona + story.
 
     A natural demographic preamble built from the persona's own fields is
     prepended to its system prompt so that edits to age/gender/city/genres
     visibly change how the listener reacts. Each fragment is guarded on its
     field, so a sparse persona still yields a clean sentence.
+
+    When ``canon`` is provided (the story-bible memory from the knowledge
+    graph), it is appended to the user turn so the listener reacts as someone
+    who remembers earlier episodes. Passing ``None`` reproduces the original,
+    memory-free prompt byte-for-byte.
     """
     # Identity sentence: "You are <name>, a <age>-year-old <gender> from <city>."
     identity = f"You are {persona.name}"
@@ -94,10 +101,10 @@ def build_reaction_prompt(persona: Persona, story: Story) -> tuple[str, str]:
         + " Answer strictly as this listener reacting to one audio-drama episode."
     )
     episode = story.episode or ""
-    user = (
-        "TITLE: " + story.title + " EPISODE: " + episode + " SCRIPT:\n" + story.text
-        + "\n\nReact now."
-    )
+    user = "TITLE: " + story.title + " EPISODE: " + episode + " SCRIPT:\n" + story.text
+    if canon:
+        user += "\n\nWHAT YOU REMEMBER SO FAR:\n" + canon
+    user += "\n\nReact now."
     return system, user
 
 
@@ -107,18 +114,25 @@ async def run_reactions(
     llm: LLMClient,
     cache: Cache | None = None,
     model: str | None = None,
+    canon: str | None = None,
+    canon_fp: str | None = None,
 ) -> list[tuple[Persona, PersonaReaction]]:
     """Collect one ``PersonaReaction`` per persona, concurrently and cached.
 
     Cache hits skip the LLM entirely. Misses call ``llm.structured`` under a
     concurrency semaphore and store the result. Exceptions from any single
     persona are swallowed and that persona is dropped from the output.
+
+    ``canon`` (story-bible memory) is injected into every prompt; ``canon_fp``
+    is folded into the cache key so injecting or changing memory never replays a
+    reaction cached under different canon.
     """
     sem = asyncio.Semaphore(settings.concurrency)
     story_hash = _story_hash(story)
+    canon_key = canon_fp or "nocanon"
 
     async def _one(persona: Persona) -> tuple[Persona, PersonaReaction]:
-        system, user = build_reaction_prompt(persona, story)
+        system, user = build_reaction_prompt(persona, story, canon)
         key = (
             cache.make_key(
                 llm.name,
@@ -126,6 +140,7 @@ async def run_reactions(
                 persona.id,
                 persona_fingerprint(persona),
                 story_hash,
+                canon_key,
                 "reaction",
             )
             if cache is not None

@@ -23,6 +23,12 @@ from app.engine.runner import (
     persona_fingerprint,
     run_reactions,
 )
+from app.graph.store import (
+    canon_fingerprint,
+    fetch_canon_subgraph,
+    render_canon_memory,
+    write_audience_verdict,
+)
 from app.llm.factory import get_llm
 from app.personas.loader import fan_out_audience, load_personas
 from app.schemas import (
@@ -154,13 +160,19 @@ async def run_writers_room(
     """
     llm = get_llm()
     experts = experts if experts is not None else load_personas("expert")
-    expert_prompt = "Critique this audio-drama episode for craft.\n" + _story_text(story)
     expert_model = settings.model_for("experts")
 
     audience_base = audience if audience is not None else load_personas("audience")
     audience_personas = fan_out_audience(audience_base, min(20, settings.audience_fanout))
     audience_model = settings.model_for("audience")
     cache = Cache(settings.cache_dir)
+
+    # Ground both panels in the story canon (knowledge-graph memory) when present.
+    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon_fp = canon_fingerprint(canon)
+    expert_prompt = "Critique this audio-drama episode for craft.\n" + _story_text(story)
+    if canon:
+        expert_prompt += "\n\nSTORY SO FAR (canon you can assume the audience knows):\n" + canon
 
     # Experts and the audience react concurrently — reuse the one LLM client.
     notes, pairs = await asyncio.gather(
@@ -177,7 +189,15 @@ async def run_writers_room(
             ),
             return_exceptions=True,
         ),
-        run_reactions(audience_personas, story, llm, cache, model=audience_model),
+        run_reactions(
+            audience_personas,
+            story,
+            llm,
+            cache,
+            model=audience_model,
+            canon=canon,
+            canon_fp=canon_fp,
+        ),
     )
 
     panel: list[ExpertFeedback] = []
@@ -191,6 +211,15 @@ async def run_writers_room(
         panel=panel, audience=verdict, consensus=_consensus(panel, verdict)
     )
     save_simulation("writers_room", story, result.model_dump())
+    if verdict is not None:
+        await write_audience_verdict(
+            story,
+            [{
+                "segment": "All listeners",
+                "following_pct": verdict.following_pct,
+                "avg_hook": verdict.avg_engagement,
+            }],
+        )
     return result
 
 
@@ -218,7 +247,13 @@ async def stream_writers_room(
     cache = Cache(settings.cache_dir)
     expert_model = settings.model_for("experts")
     audience_model = settings.model_for("audience")
+
+    # Ground both panels in the story canon (knowledge-graph memory) when present.
+    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon_key = canon_fingerprint(canon)
     expert_prompt = "Critique this audio-drama episode for craft.\n" + _story_text(story)
+    if canon:
+        expert_prompt += "\n\nSTORY SO FAR (canon you can assume the audience knows):\n" + canon
 
     t0 = time.monotonic()
 
@@ -266,13 +301,14 @@ async def stream_writers_room(
     async def _audience_event(p: Persona) -> dict:
         """Return this listener's finished event dict (done or error), cached."""
         try:
-            system, user = build_reaction_prompt(p, story)
+            system, user = build_reaction_prompt(p, story, canon)
             key = cache.make_key(
                 llm.name,
                 audience_model or "default",
                 p.id,
                 persona_fingerprint(p),
                 story_hash,
+                canon_key,
                 "reaction",
             )
             reaction: PersonaReaction | None = None
@@ -355,6 +391,14 @@ async def stream_writers_room(
     # 4) done — the full persisted result, matching the non-streaming route.
     result = WritersRoomResult(panel=panel, audience=verdict, consensus=consensus)
     save_simulation("writers_room", story, result.model_dump())
+    await write_audience_verdict(
+        story,
+        [{
+            "segment": "All listeners",
+            "following_pct": verdict.following_pct,
+            "avg_hook": verdict.avg_engagement,
+        }],
+    )
     yield {
         "type": "done",
         "result": result.model_dump(),

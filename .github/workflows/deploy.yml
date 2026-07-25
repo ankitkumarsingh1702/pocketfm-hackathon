@@ -74,6 +74,15 @@ jobs:
         id: deploy
         run: |
           set -euo pipefail
+          # Mount Neo4j knowledge-graph secrets only if they exist in Secret
+          # Manager; otherwise deploy without them (the app degrades gracefully).
+          SECRET_FLAGS=()
+          if gcloud secrets describe NEO4J_URI --project "${{ vars.GCP_PROJECT_ID }}" >/dev/null 2>&1; then
+            SECRET_FLAGS+=(--set-secrets "NEO4J_URI=NEO4J_URI:latest,NEO4J_USERNAME=NEO4J_USERNAME:latest,NEO4J_PASSWORD=NEO4J_PASSWORD:latest")
+            echo "Mounting Neo4j secrets from Secret Manager."
+          else
+            echo "No NEO4J_URI secret found — deploying without the knowledge graph."
+          fi
           gcloud run deploy "${{ vars.CLOUD_RUN_SERVICE }}" \
             --source . \
             --project "${{ vars.GCP_PROJECT_ID }}" \
@@ -81,6 +90,7 @@ jobs:
             --allow-unauthenticated \
             --memory 1Gi --cpu 1 --timeout 300 \
             --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }}" \
+            ${SECRET_FLAGS[@]+"${SECRET_FLAGS[@]}"} \
             --quiet
           URL="$(gcloud run services describe "${{ vars.CLOUD_RUN_SERVICE }}" \
             --project "${{ vars.GCP_PROJECT_ID }}" --region "${{ vars.GCP_REGION }}" \

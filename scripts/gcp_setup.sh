@@ -31,10 +31,11 @@ echo "==> Using project: ${PROJECT}"
 gcloud config set project "${PROJECT}" >/dev/null
 
 # --- 1. Enable required APIs (enable is a no-op if already enabled) ----------
-echo "==> Enabling required APIs (aiplatform, firestore)…"
+echo "==> Enabling required APIs (aiplatform, firestore, secretmanager)…"
 gcloud services enable \
   aiplatform.googleapis.com \
   firestore.googleapis.com \
+  secretmanager.googleapis.com \
   --project "${PROJECT}"
 
 # --- 2. Point Application Default Credentials at this project ----------------
@@ -61,7 +62,48 @@ else
     --project "${PROJECT}"
 fi
 
-# --- 4. Next steps ----------------------------------------------------------
+# --- 4. (Optional) Neo4j knowledge-graph secrets ----------------------------
+# The story-canon knowledge graph is optional. If you have a Neo4j instance
+# (e.g. a free Neo4j Aura DB on GCP), export its details before running this
+# script and they'll be stored in Secret Manager for Cloud Run to mount:
+#
+#   export NEO4J_URI='neo4j+s://xxxx.databases.neo4j.io'
+#   export NEO4J_USERNAME='neo4j'
+#   export NEO4J_PASSWORD='••••••••'
+#   ./scripts/gcp_setup.sh
+#
+# Nothing here touches the repo — credentials live only in Secret Manager.
+if [[ -n "${NEO4J_URI:-}" && -n "${NEO4J_PASSWORD:-}" ]]; then
+  echo "==> Storing Neo4j credentials in Secret Manager…"
+  _upsert_secret() {
+    local name="$1" value="$2"
+    if gcloud secrets describe "${name}" --project "${PROJECT}" >/dev/null 2>&1; then
+      printf '%s' "${value}" | gcloud secrets versions add "${name}" --data-file=- --project "${PROJECT}" >/dev/null
+    else
+      printf '%s' "${value}" | gcloud secrets create "${name}" \
+        --data-file=- --replication-policy=automatic --project "${PROJECT}" >/dev/null
+    fi
+  }
+  _upsert_secret NEO4J_URI "${NEO4J_URI}"
+  _upsert_secret NEO4J_USERNAME "${NEO4J_USERNAME:-neo4j}"
+  _upsert_secret NEO4J_PASSWORD "${NEO4J_PASSWORD}"
+
+  # Grant the Cloud Run runtime (default compute) SA read access to the secrets.
+  PROJ_NUM="$(gcloud projects describe "${PROJECT}" --format='value(projectNumber)')"
+  RUNTIME_SA="${PROJ_NUM}-compute@developer.gserviceaccount.com"
+  for name in NEO4J_URI NEO4J_USERNAME NEO4J_PASSWORD; do
+    gcloud secrets add-iam-policy-binding "${name}" \
+      --member="serviceAccount:${RUNTIME_SA}" \
+      --role="roles/secretmanager.secretAccessor" \
+      --project "${PROJECT}" >/dev/null 2>&1 || true
+  done
+  echo "    Neo4j secrets stored and runtime SA (${RUNTIME_SA}) granted access."
+else
+  echo "==> Skipping Neo4j secrets (NEO4J_URI/NEO4J_PASSWORD not set) — the"
+  echo "    knowledge graph stays off and the app runs with an empty canon."
+fi
+
+# --- 5. Next steps ----------------------------------------------------------
 cat <<EOF
 
 ============================================================
