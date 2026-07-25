@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MAX_CHARS, MIN_CHARS } from '../config/genre'
 import * as genreApi from '../lib/genreApi'
+
+// Stable identities, so a poll that changes nothing does not re-render the
+// timeline and the scene list along with it.
+const NO_EVENTS = []
+const NO_PARTIAL = {}
 
 /**
  * Controller for the Genre Converter lens.
@@ -131,6 +136,26 @@ export function useGenreConverter() {
 
   useEffect(() => () => abortRef.current?.abort(), [])
 
+  // --- what the job has finished so far -------------------------------------
+
+  const events = job?.events ?? NO_EVENTS
+  const partial = job?.partial ?? NO_PARTIAL
+
+  /**
+   * The scene currently being written, or null.
+   *
+   * Derived from the plan and the scenes already delivered rather than from
+   * `job.step`, because the two disagree for the length of a retry: `step`
+   * stays put while the service re-asks, and a row that stops saying "writing
+   * now" for a minute is exactly the disconnection this is meant to remove.
+   */
+  const activeScene = useMemo(() => {
+    if (!running || job?.stage !== 'transform') return null
+    const plan = partial.scene_plan ?? []
+    const done = new Set((partial.scenes ?? []).map((s) => s.scene))
+    return plan.find((entry) => !done.has(entry.scene))?.scene ?? null
+  }, [running, job?.stage, partial])
+
   return {
     // input
     source,
@@ -155,5 +180,9 @@ export function useGenreConverter() {
     result,
     kind,
     error,
+    // live detail, published by the service before the job ends
+    events,
+    partial,
+    activeScene,
   }
 }

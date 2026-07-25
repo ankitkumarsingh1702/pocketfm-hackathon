@@ -1,5 +1,6 @@
 import { STAGE_LABELS, STAGE_ORDER, STAGE_SHORT } from '../../config/genre'
 import { ProgressLine } from '../primitives'
+import ActivityLog from './ActivityLog'
 
 /** mm:ss for the elapsed clock. */
 function clock(seconds) {
@@ -38,9 +39,14 @@ function StageMarker({ name, state }) {
  * Live state of a running job.
  *
  * A conversion is five to eight minutes, which is long enough that silence
- * reads as failure. Four independent signals say it is still alive: which stage
- * the pipeline is in, the service's own note ("scene 4/7"), a determinate bar
- * driven by the job's `percent`, and a running clock.
+ * reads as failure. Five independent signals say it is still alive: which stage
+ * the pipeline is in, the service's own note ("scene 4 of 7"), a determinate bar
+ * driven by the job's `percent`, a running clock, and the full activity log of
+ * everything done so far.
+ *
+ * Only the current-step line is a live region. The log below it grows on every
+ * poll, and announcing the whole thing each time would bury the one line that
+ * changed.
  */
 export default function RunStatus({ job, elapsed, onStop }) {
   const queued = !job || job.status === 'queued'
@@ -52,7 +58,6 @@ export default function RunStatus({ job, elapsed, onStop }) {
 
   return (
     <section
-      aria-live="polite"
       style={{
         marginTop: 32,
         padding: 'var(--space-6)',
@@ -61,11 +66,11 @@ export default function RunStatus({ job, elapsed, onStop }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 18,
-        maxWidth: 640,
+        maxWidth: 720,
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div>
+        <div aria-live="polite">
           <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>
             {queued ? 'Waiting for a worker' : label}
           </div>
@@ -108,6 +113,8 @@ export default function RunStatus({ job, elapsed, onStop }) {
           ))}
         </div>
       )}
+
+      <ActivityLog events={job?.events} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, flex: '1 1 260px' }}>

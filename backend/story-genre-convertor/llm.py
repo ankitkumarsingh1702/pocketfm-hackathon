@@ -13,6 +13,8 @@ the defaults below match backend/.env.example.
 """
 
 import os
+import random
+import time
 from functools import lru_cache
 from typing import Optional, Type, TypeVar
 
@@ -38,6 +40,15 @@ MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
 # persona variety, and sourcing it must not silently loosen extraction.
 SKELETON_TEMPERATURE = float(os.environ.get("SKELETON_TEMPERATURE", "0"))
 
+# Rate limits, and nothing else, are retried. verify.py issues its ballots
+# concurrently now, so six requests can land where one used to; a 429 that was
+# nearly impossible against a serial caller is merely unlikely against this one,
+# and losing a six-minute job to a few seconds of congestion is the worse
+# outcome by far. A 401 or a 404 will not come good on a second attempt, so
+# they still fail immediately.
+RATE_LIMIT_RETRIES = int(os.environ.get("RATE_LIMIT_RETRIES", "4"))
+RATE_LIMIT_BACKOFF = float(os.environ.get("RATE_LIMIT_BACKOFF", "2.0"))
+
 T = TypeVar("T", bound=BaseModel)
 
 ADC_HINT = (
@@ -58,6 +69,39 @@ def client() -> "genai.Client":
         raise RuntimeError(ADC_HINT) from exc
 
 
+def _translate(exc: errors.ClientError) -> Exception:
+    """Turn a Vertex client error into something the reader can act on.
+
+    Returns the exception to raise. Anything unrecognised comes back unchanged,
+    so an unexpected code surfaces with its own message rather than a guess.
+    """
+    # A quota 429 and a rate-limit 429 read identically unless you look at
+    # the message, and the two want opposite responses (raise quota vs wait).
+    if exc.code == 429:
+        return RuntimeError(
+            f"Vertex AI rate-limited or quota-capped {MODEL} in {LOCATION}, and it did "
+            f"not clear across {RATE_LIMIT_RETRIES} retries. Wait and re-run — "
+            "calibrate.py caches completed extractions in .cache/, so a re-run resumes "
+            "rather than restarts. If it persists, request more quota, move "
+            "VERTEX_LOCATION to another region, or lower VERIFY_CONCURRENCY."
+        )
+    if exc.code in (401, 403):
+        return RuntimeError(
+            f"Vertex AI rejected the credentials (HTTP {exc.code}) for project "
+            f"{PROJECT!r}. Refresh ADC (gcloud auth application-default login), and "
+            "check the account has the Vertex AI User role and that "
+            "aiplatform.googleapis.com is enabled — ../../scripts/gcp_setup.sh does "
+            "the last two."
+        )
+    if exc.code == 404:
+        return RuntimeError(
+            f"Vertex AI serves no model {MODEL!r} in {LOCATION!r}. Set GEMINI_MODEL "
+            "to a model available there, or move VERTEX_LOCATION to a region that "
+            "carries it."
+        )
+    return exc
+
+
 def structured(
     system: str,
     prompt: str,
@@ -71,50 +115,40 @@ def structured(
     alignment) want that 0; the transform stage is creative writing and passes
     its own, so the two never have to share a setting.
 
+    Retries on 429 and on nothing else — see RATE_LIMIT_RETRIES. Safe to call
+    from several threads at once: verify.py does, and the only shared state is
+    the client, which the SDK supports using concurrently.
+
     Raises with a readable message rather than returning None, because every
     caller in this pipeline treats a missing skeleton as fatal anyway.
     """
-    try:
-        response = client().models.generate_content(
-            model=MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system,
-                temperature=SKELETON_TEMPERATURE if temperature is None else temperature,
-                response_mime_type="application/json",
-                response_schema=schema,
-                max_output_tokens=max_output_tokens,
-            ),
-        )
-    except auth_errors.DefaultCredentialsError as exc:
-        # Credentials can fail to resolve on first use rather than at client
-        # construction, so the same hint has to live on both paths.
-        raise RuntimeError(ADC_HINT) from exc
-    except errors.ClientError as exc:
-        # A quota 429 and a rate-limit 429 read identically unless you look at
-        # the message, and the two want opposite responses (raise quota vs wait).
-        if exc.code == 429:
-            raise RuntimeError(
-                f"Vertex AI rate-limited or quota-capped {MODEL} in {LOCATION}. Wait "
-                "and re-run — calibrate.py caches completed extractions in .cache/, so "
-                "a re-run resumes rather than restarts. If it persists, request more "
-                "quota or point VERTEX_LOCATION at another region."
-            ) from exc
-        if exc.code in (401, 403):
-            raise RuntimeError(
-                f"Vertex AI rejected the credentials (HTTP {exc.code}) for project "
-                f"{PROJECT!r}. Refresh ADC (gcloud auth application-default login), and "
-                "check the account has the Vertex AI User role and that "
-                "aiplatform.googleapis.com is enabled — ../../scripts/gcp_setup.sh does "
-                "the last two."
-            ) from exc
-        if exc.code == 404:
-            raise RuntimeError(
-                f"Vertex AI serves no model {MODEL!r} in {LOCATION!r}. Set GEMINI_MODEL "
-                "to a model available there, or move VERTEX_LOCATION to a region that "
-                "carries it."
-            ) from exc
-        raise
+    config = types.GenerateContentConfig(
+        system_instruction=system,
+        temperature=SKELETON_TEMPERATURE if temperature is None else temperature,
+        response_mime_type="application/json",
+        response_schema=schema,
+        max_output_tokens=max_output_tokens,
+    )
+
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        try:
+            response = client().models.generate_content(
+                model=MODEL, contents=prompt, config=config
+            )
+            break
+        except auth_errors.DefaultCredentialsError as exc:
+            # Credentials can fail to resolve on first use rather than at client
+            # construction, so the same hint has to live on both paths.
+            raise RuntimeError(ADC_HINT) from exc
+        except errors.ClientError as exc:
+            if exc.code != 429 or attempt == RATE_LIMIT_RETRIES:
+                translated = _translate(exc)
+                if translated is exc:
+                    raise
+                raise translated from exc
+            # Jittered, so a set of ballots rate-limited together does not come
+            # back in lockstep and recreate the burst that caused it.
+            time.sleep(RATE_LIMIT_BACKOFF * (2**attempt) + random.uniform(0, 1))
 
     parsed = response.parsed
     if isinstance(parsed, schema):
