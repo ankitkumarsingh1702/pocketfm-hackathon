@@ -1,0 +1,13 @@
+# Cached skeletons and rewrites — regenerated, and large.
+.cache/
+.venv/
+__pycache__/
+*.pyc
+
+# Local secrets. Cloud Run gets config from --set-env-vars.
+.env
+
+# Docs and dev tooling have no business in the image.
+*.md
+.claude/
+.gitignore

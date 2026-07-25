@@ -1,0 +1,24 @@
+{
+  "name": "romance",
+  "premise": "Every plot obstacle is also an obstacle between two people who want to be closer.",
+  "obligatory_beats": [
+    "a first moment of real attention, where one person is properly seen",
+    "a misreading neither party corrects in time",
+    "a cost paid to close the distance, or a decision to stop paying it"
+  ],
+  "pacing_curve": "Alternating pull and retreat. Slow the prose down at contact — proximity, hesitation, the beat before speech.",
+  "sensory_palette": [
+    "hands, and what they are doing while people talk",
+    "the distance between two bodies measured in inches",
+    "warmth, weather, shared food",
+    "what someone smells like from close up"
+  ],
+  "pov_distance": "Close third with interiority. We know what the POV character wants and why they will not say it.",
+  "dialogue_register": "Charged subtext. The important sentence is the one neither says. Deflection, teasing, sudden directness.",
+  "taboo_moves": [
+    "stating the feeling outright when a gesture would carry it",
+    "an obstacle that is pure misunderstanding and could be cleared by one honest sentence",
+    "cruelty played as passion",
+    "resolving the tension before the last movement"
+  ]
+}

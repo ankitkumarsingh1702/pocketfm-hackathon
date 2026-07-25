@@ -1,0 +1,7 @@
+google-genai>=1.47.0
+pydantic>=2.7
+
+# HTTP service (api.py). The CLI does not need these.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+python-multipart>=0.0.9

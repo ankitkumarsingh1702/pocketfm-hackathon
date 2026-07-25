@@ -1,0 +1,24 @@
+{
+  "name": "thriller",
+  "premise": "Someone competent is a step behind someone equally competent, and the clock is not neutral.",
+  "obligatory_beats": [
+    "the protagonist establishes competence at something specific before needing it",
+    "a countermeasure that works, and reveals the opponent adapting to it",
+    "a choice made with incomplete information under time pressure"
+  ],
+  "pacing_curve": "Short scenes, hard cuts. Every scene ends on a change of position. Withhold the opponent's reasoning until it costs something.",
+  "sensory_palette": [
+    "procedure, documents, the exact names of things",
+    "geography — routes, exits, sightlines",
+    "time of day as a constraint",
+    "hands doing precise work"
+  ],
+  "pov_distance": "Tight third, present-tense attention. Interiority is tactical, not emotional.",
+  "dialogue_register": "Compressed and functional. Professionals under pressure; nobody explains what both speakers already know.",
+  "taboo_moves": [
+    "an opponent who makes an unforced error to let the plot proceed",
+    "coincidence resolving a bind the protagonist created",
+    "withholding information from the reader that the POV character already has",
+    "action described so fast the geography stops being legible"
+  ]
+}

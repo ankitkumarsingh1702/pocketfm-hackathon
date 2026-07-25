@@ -1,0 +1,9 @@
+# What NOT to upload to Cloud Build. Without this, gcloud falls back to
+# .gitignore semantics and the cached rewrites go up with the source.
+.cache/
+.venv/
+__pycache__/
+*.pyc
+.env
+.claude/
+*.md
