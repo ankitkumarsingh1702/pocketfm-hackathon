@@ -1,15 +1,75 @@
-# PocketFM Hackathon
+# Simulated Studio
 
-React + Vite (JavaScript) app for the hackathon.
+**One persona-simulation engine, many lenses** — built for a PocketFM hackathon.
 
-## Getting started
+Simulated Studio simulates a representative panel of listeners (and expert
+critics) reacting to an audio-drama episode, then views those reactions through
+different **lenses**:
 
-```bash
-npm install
-npm run dev
+- **Audience Simulator** — fan out a story to a panel of listener personas and
+  measure binge rate, hook score, a stage-by-stage retention curve, and the top
+  reasons people drop off — segmented by audience type.
+- **Writers Room** — a panel of expert-critic personas gives craft feedback
+  (verdict, score, strengths, issues, a concrete fix) plus a local consensus.
+- **Cliffhanger Optimizer** — rewrite a weak ending into a gripping cliffhanger
+  and A/B test it against the original with the audience panel to measure lift.
+
+All three are thin lenses over **one** persona-simulation engine running on
+**Google Vertex AI** — Gemini by default, Claude optional — with results
+optionally persisted to Firestore.
+
+## Repo layout
+
+```
+.
+├── frontend/     # React + Vite (JavaScript) UI — StudioPanel + API client
+├── backend/      # FastAPI engine, lenses, Vertex LLM clients, Firestore (uv)
+├── skills/       # Persona / agent definitions (YAML) — audience + experts
+├── data/         # Sample stories (e.g. "Andhera" episodes)
+└── scripts/      # gcp_setup.sh and other tooling
 ```
 
-Scripts: `dev`, `build`, `preview`, `lint`.
+## Quickstart
+
+### 0. GCP / ADC (one-time)
+
+All Vertex AI + Firestore access uses **Application Default Credentials** — no
+keys in the repo.
+
+```bash
+gcloud auth application-default login
+./scripts/gcp_setup.sh <your-project-id>   # enables APIs + creates Firestore
+```
+
+`scripts/gcp_setup.sh` is idempotent — safe to re-run.
+
+### 1. Backend (FastAPI, via uv)
+
+```bash
+cd backend
+cp .env.example .env                                # optional overrides
+uv sync
+uv run uvicorn app.main:app --reload --port 8000
+```
+
+Health check: http://localhost:8000/health · full details in
+[`backend/README.md`](backend/README.md) (endpoints, config, Gemini ⇄ Claude).
+
+### 2. Frontend (React + Vite)
+
+```bash
+cp frontend/.env.example frontend/.env              # VITE_API_URL -> backend
+npm --prefix frontend install
+npm --prefix frontend run dev
+```
+
+Open the printed URL (default http://localhost:5173). The **Simulated Studio**
+panel at the top of the page shows backend health and runs the Audience
+Simulator against the backend.
+
+Frontend scripts: `dev`, `build`, `preview`, `lint`.
+
+---
 
 ## Team workflow (3 devs)
 

@@ -1,3 +1,9 @@
+# ============ Node / frontend ============
+node_modules
+dist
+dist-ssr
+*.local
+
 # Logs
 logs
 *.log
@@ -7,12 +13,24 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# ============ Python / backend ============
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.cache/
 
-# Editor directories and files
+# ============ Env / secrets (keep *.env.example) ============
+.env
+.env.*
+!.env.example
+!*.env.example
+
+# ============ Editor / OS ============
 .vscode/*
 !.vscode/extensions.json
 .idea
