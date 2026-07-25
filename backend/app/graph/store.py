@@ -304,18 +304,26 @@ async def fetch_contradiction_candidates(
 ) -> dict:
     """Graph-traversal candidates for continuity checking. Best-effort.
 
-    Returns ``{facts, conflicts, dangling_clues, episode_count}`` where
-    ``conflicts`` are same-subject+predicate facts with different objects (the
-    structural contradictions), and ``dangling_clues`` are clues introduced but
-    never advanced/paid off. These ground the LLM plot-hole verifier.
+    Returns ``{facts, conflicts, dangling_clues, episode_count, fact_count}``
+    where ``conflicts`` are same-subject+predicate facts with different objects
+    (the structural contradictions, each carrying the two episodes it spans as
+    ``ep_a``/``ep_b``), and ``dangling_clues`` are clues introduced but never
+    advanced/paid off. ``fact_count`` is the true total (the ``facts`` list is a
+    capped sample for prompting). These ground the LLM plot-hole verifier.
     """
-    empty = {"facts": [], "conflicts": [], "dangling_clues": [], "episode_count": 0}
+    empty = {
+        "facts": [], "conflicts": [], "dangling_clues": [],
+        "episode_count": 0, "fact_count": 0,
+    }
     driver = get_driver()
     if driver is None:
         if record:
             record_activity("skipped", "fetch_contradiction_candidates", source, "graph disabled — no facts to traverse")
         return empty
-    out = {"facts": [], "conflicts": [], "dangling_clues": [], "episode_count": 0}
+    out = {
+        "facts": [], "conflicts": [], "dangling_clues": [],
+        "episode_count": 0, "fact_count": 0,
+    }
     try:
         async with driver.session(database=settings.neo4j_database) as session:
             res = await session.run(
@@ -328,17 +336,35 @@ async def fetch_contradiction_candidates(
                     {"subject": r["subject"], "predicate": r["predicate"], "object": r["object"]}
                 )
 
+            # Group facts by (subject, predicate); any group with >1 distinct
+            # object is a structural contradiction. Carry the episode each side
+            # came from (as a display label) so findings can cite "Ep 4 ↔ Ep 41"
+            # — this is the cross-episode reasoning a human can't do by hand.
+            # Ordered earliest-episode-first so ep_a precedes ep_b.
             res = await session.run(
-                "MATCH (f1:Fact), (f2:Fact) "
-                "WHERE f1.subject_key = f2.subject_key AND f1.predicate = f2.predicate "
-                "AND f1.object < f2.object "
-                "OPTIONAL MATCH (subj:Canon {key: f1.subject_key}) "
-                "RETURN coalesce(subj.name, f1.subject_key) AS subject, "
-                "f1.predicate AS predicate, f1.object AS a, f2.object AS b LIMIT 50"
+                "MATCH (f:Fact)-[:IN_EPISODE]->(e:Episode) "
+                "WITH f.subject_key AS sk, f.predicate AS pred, f.object AS obj, "
+                "  min(coalesce(e.epnum, 9999)) AS epnum, "
+                "  head(collect(coalesce(e.episode, e.name, e.title))) AS eplabel "
+                "ORDER BY epnum "
+                "WITH sk, pred, collect(obj) AS objs, collect(epnum) AS epnums, "
+                "  collect(eplabel) AS eplabels "
+                "WHERE size(objs) > 1 "
+                "OPTIONAL MATCH (subj:Canon {key: sk}) "
+                "RETURN coalesce(subj.name, sk) AS subject, pred AS predicate, "
+                "  objs[0] AS a, objs[1] AS b, "
+                "  CASE WHEN epnums[0] < 9999 THEN 'Ep ' + toString(epnums[0]) "
+                "    ELSE coalesce(eplabels[0], '?') END AS ep_a, "
+                "  CASE WHEN epnums[1] < 9999 THEN 'Ep ' + toString(epnums[1]) "
+                "    ELSE coalesce(eplabels[1], '?') END AS ep_b "
+                "LIMIT 50"
             )
             async for r in res:
                 out["conflicts"].append(
-                    {"subject": r["subject"], "predicate": r["predicate"], "a": r["a"], "b": r["b"]}
+                    {
+                        "subject": r["subject"], "predicate": r["predicate"],
+                        "a": r["a"], "b": r["b"], "ep_a": r["ep_a"], "ep_b": r["ep_b"],
+                    }
                 )
 
             # A clue is "dangling" if it has no outgoing edge other than the
@@ -354,15 +380,18 @@ async def fetch_contradiction_candidates(
 
             rec = await (await session.run("MATCH (e:Episode) RETURN count(e) AS c")).single()
             out["episode_count"] = rec["c"] if rec else 0
+            rec = await (await session.run("MATCH (f:Fact) RETURN count(f) AS c")).single()
+            out["fact_count"] = rec["c"] if rec else 0
         if record:
             record_activity(
                 "read",
                 "fetch_contradiction_candidates",
                 source,
-                f"traversed canon for contradictions — {len(out['facts'])} facts, "
-                f"{len(out['conflicts'])} conflicts, {len(out['dangling_clues'])} dangling clues",
+                f"traversed {out['fact_count']} facts across {out['episode_count']} episodes "
+                f"— {len(out['conflicts'])} contradiction(s), {len(out['dangling_clues'])} dangling clue(s)",
                 {
-                    "facts": len(out["facts"]),
+                    "facts": out["fact_count"],
+                    "episodes": out["episode_count"],
                     "conflicts": len(out["conflicts"]),
                     "dangling_clues": len(out["dangling_clues"]),
                 },

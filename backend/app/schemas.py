@@ -262,12 +262,15 @@ class PlotHole(BaseModel):
     description: str
     evidence: list[str] = Field(default_factory=list)     # supporting canon facts / quotes
     fix: str = Field(description="A concrete suggested fix.")
+    episodes: list[str] = Field(default_factory=list)     # episodes this issue spans, e.g. ["Ep 4","Ep 41"]
 
 
 class PlotHoleResult(BaseModel):
     holes: list[PlotHole] = Field(default_factory=list)
     canon_used: bool = False                              # were graph facts available?
     episodes_scanned: int = 0                             # episodes present in the canon
+    facts_scanned: int = 0                                # total canon facts cross-checked
+    pages_estimate: int = 0                               # ≈ script pages the canon represents
 
 
 class PlanCandidate(BaseModel):
