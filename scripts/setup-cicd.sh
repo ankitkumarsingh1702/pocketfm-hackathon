@@ -4,8 +4,9 @@
 # Workload Identity Federation. Safe to re-run (idempotent).
 #
 # It creates a least-privilege deployer service account, a WIF pool/provider
-# scoped to THIS repo, and sets the GitHub repo variables that
-# .github/workflows/deploy.yml reads. No JSON key is ever created.
+# scoped to THIS repo, and sets the GitHub repo variables that the deploy
+# workflows read (.github/workflows/deploy-frontend.yml, deploy-backend.yml).
+# No JSON key is ever created.
 #
 # Requires: gcloud (authenticated as a project owner) and gh (authenticated).
 # Usage:    ./scripts/setup-cicd.sh
@@ -14,6 +15,7 @@ set -euo pipefail
 PROJECT="${PROJECT:-pocketfm-hackathon}"
 REGION="${REGION:-us-central1}"
 SERVICE="${SERVICE:-simulated-studio}"
+GENRE_SERVICE="${GENRE_SERVICE:-story-genre-convertor}"
 REPO="${REPO:-ankitkumarsingh1702/pocketfm-hackathon}"
 OWNER="${REPO%%/*}"
 POOL="${POOL:-github-pool}"
@@ -30,6 +32,7 @@ echo "==> Enabling APIs"
 gcloud services enable \
   iamcredentials.googleapis.com sts.googleapis.com iam.googleapis.com \
   run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
+  aiplatform.googleapis.com \
   --project "$PROJECT"
 
 echo "==> Deployer service account"
@@ -52,6 +55,14 @@ done
 echo "==> Allow deployer to actAs the Cloud Run runtime SA (scoped to that SA only)"
 gcloud iam service-accounts add-iam-policy-binding "$RUNTIME_SA" --project "$PROJECT" \
   --member="serviceAccount:${SA_EMAIL}" --role="roles/iam.serviceAccountUser" \
+  --condition=None >/dev/null
+
+# The genre convertor calls Gemini on Vertex AI through ADC, so the runtime SA —
+# not the deployer — is the identity that needs model access. Granted here
+# because the deployer has no IAM-admin rights of its own.
+echo "==> Allow the Cloud Run runtime SA to call Vertex AI"
+gcloud projects add-iam-policy-binding "$PROJECT" \
+  --member="serviceAccount:${RUNTIME_SA}" --role="roles/aiplatform.user" \
   --condition=None >/dev/null
 
 echo "==> Workload Identity pool + OIDC provider (scoped to ${OWNER})"
@@ -80,9 +91,12 @@ gh variable set GCP_DEPLOY_SA     --repo "$REPO" --body "$SA_EMAIL"
 gh variable set GCP_PROJECT_ID    --repo "$REPO" --body "$PROJECT"
 gh variable set GCP_REGION        --repo "$REPO" --body "$REGION"
 gh variable set CLOUD_RUN_SERVICE --repo "$REPO" --body "$SERVICE"
+gh variable set GENRE_CONVERTOR_SERVICE --repo "$REPO" --body "$GENRE_SERVICE"
 
 echo ""
 echo "Done. CI/CD is ready:"
 echo "  WIF provider: ${PROVIDER_RESOURCE}"
 echo "  Deployer SA:  ${SA_EMAIL}"
-echo "  Next: merge the deploy workflow to develop, or run it from the Actions tab."
+echo "  Services:     ${SERVICE}, ${GENRE_SERVICE}"
+echo "  Next: merge the deploy workflows to develop, or run them from the Actions"
+echo "        tab — 'deploy frontend', or 'deploy backend' (pick a service)."
