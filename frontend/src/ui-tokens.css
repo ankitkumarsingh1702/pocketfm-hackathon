@@ -1,0 +1,70 @@
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap");
+:root { color-scheme: light; --ui-bg:#ffffff; --ui-ink:#111111; --ui-ink-muted:#626262; --ui-ink-subtle:#8a8a8a; --ui-surface:#f8f8f6; --ui-line:#e8e8e5; --ui-red:#e96b6b; --ui-red-soft:#fdecec; --ui-red-line:#f4b8b8; --ui-red-ink:#a93636; --ui-black-hover:#292929; --ui-font:'Lexend', ui-sans-serif, system-ui, -apple-system, sans-serif; --ui-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --ui-radius-sm:0.625rem; --ui-radius-md:0.875rem; --ui-radius-lg:1.125rem; --ui-shadow-soft:0 0.5rem 1.75rem rgb(17 17 17 / 7%); }
+
+/* ---- Reset + base ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+}
+
+body {
+  min-height: 100vh;
+  font-family: var(--ui-font);
+  font-size: 1rem;
+  line-height: 1.6;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+ul,
+figure {
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ui-ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

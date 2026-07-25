@@ -1,25 +1,24 @@
-import { useState } from 'react'
-import { writersRoom } from './lib/api'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { writersRoomStream } from './lib/api'
 
 // A short Hindi-English horror-thriller Episode 7 excerpt, deliberately written
 // with a saggy middle (repetitive corridor/room/stairs beats) and a soft,
-// tension-free ending — so the room has something real to react to.
+// tension-free ending — so the room has something real to react to. (~120 words)
 const SAMPLE_SCRIPT = `Raat ke teen baje, Meera purani haveli ke darwaze ke saamne khadi thi. Andar se ek dheemi si aawaz aa rahi thi — koi bacchi ro rahi thi. Usne kaanpte haathon se darwaza dhakela aur andar chali gayi.
 
 Andar bahut andhera tha. Meera corridor mein aage badhi. Ek kamra tha, phir doosra kamra, phir teesra. Har kamre mein sirf dhool aur khaali kursiyan. Woh chalti rahi, chalti rahi. Usne socha shayad aawaz upar se aa rahi hai. Woh seedhiyan chadhne lagi. Seedhiyan lambi thi. Woh chadhti rahi, chadhti rahi.
 
 Upar ek darwaza tha. Usne darwaza khola. Andar ek bacchi baithi thi. Bacchi mudi aur dheere se muskurayi. "Aap aa gaye," woh boli. Meera ko thoda ajeeb laga. Phir woh chup-chaap ghar wapas chali gayi.`
 
+// The six voices, shown in the empty state so the loop is legible before a run.
 const VOICES = [
   { role: 'Director', blurb: 'Pacing, tension, and how each beat plays on the ear.' },
   { role: 'Editor', blurb: 'Structure, clarity, and where the middle sags.' },
   { role: 'Critic', blurb: 'Originality and whether the payoff earns its place.' },
   { role: 'Psychologist', blurb: 'Character motivation and emotional truth.' },
   { role: 'Historian', blurb: 'Genre lineage, tropes, and cultural resonance.' },
-  { role: 'The Audience', blurb: 'Simulated listeners — do they keep pressing play?' },
+  { role: 'Audience', blurb: 'Simulated listeners — do they keep pressing play?' },
 ]
-
-const VERDICT_LABEL = { strong: 'Strong', mixed: 'Mixed', weak: 'Weak' }
 
 // Clamp any number into a 0-100 range for meter widths.
 function pct(value) {
@@ -44,201 +43,300 @@ function formatNumber(value, digits = 0) {
   return n.toFixed(digits)
 }
 
-function Meter({ label, valueText, width, tone = 'accent' }) {
+function secondsFromMs(ms) {
+  const n = Number(ms)
+  if (!Number.isFinite(n)) return '—'
+  return `${(n / 1000).toFixed(1)}s`
+}
+
+// Status is never encoded by colour alone — always glyph + word.
+const STATUS = {
+  queued: { glyph: '○', label: 'queued' },
+  running: { glyph: '⟳', label: 'running' },
+  done: { glyph: '✓', label: 'done' },
+  failed: { glyph: '✕', label: 'failed' },
+}
+
+function StatusTag({ status }) {
+  const s = STATUS[status] || STATUS.queued
   return (
-    <div className="meter">
-      <div className="meter-head">
-        <span className="meter-label">{label}</span>
-        <span className="meter-value">{valueText}</span>
-      </div>
-      <div className="meter-track" role="progressbar" aria-valuenow={Math.round(width)} aria-valuemin={0} aria-valuemax={100}>
-        <div className={`meter-fill meter-fill--${tone}`} style={{ width: `${width}%` }} />
-      </div>
-    </div>
+    <span className={`status-tag status-tag--${status}`}>
+      <span className="status-tag__glyph" aria-hidden="true">{s.glyph}</span>
+      {s.label}
+    </span>
   )
 }
 
-function AudiencePanel({ audience }) {
-  if (!audience) return null
-  const following = pct(audience.following_pct)
-  const engWidth = engagementWidth(audience.avg_engagement)
-
-  return (
-    <section className="audience-card" aria-labelledby="audience-heading">
-      <div className="audience-card__glow" aria-hidden="true" />
-      <div className="audience-card__body">
-        <div className="audience-card__title">
-          <span className="badge-star" aria-hidden="true">★</span>
-          <h2 id="audience-heading">The Audience</h2>
-          <span className="audience-card__tag">simulated listeners</span>
-        </div>
-
-        <div className="audience-meters">
-          <Meter
-            label="Still following"
-            valueText={`${formatNumber(audience.following_pct, 0)}%`}
-            width={following}
-            tone="accent"
-          />
-          <Meter
-            label="Avg. engagement"
-            valueText={formatNumber(audience.avg_engagement, 1)}
-            width={engWidth}
-            tone="warm"
-          />
-        </div>
-
-        {audience.comprehension && (
-          <p className="audience-comprehension">{audience.comprehension}</p>
-        )}
-
-        {audience.confusion_points?.length > 0 && (
-          <div className="audience-block">
-            <h3 className="audience-block__label">Where they got lost</h3>
-            <div className="chip-row">
-              {audience.confusion_points.map((point, i) => (
-                <span className="chip" key={i}>{point}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {audience.representative_quotes?.length > 0 && (
-          <div className="audience-block">
-            <h3 className="audience-block__label">In their words</h3>
-            <ul className="quote-list">
-              {audience.representative_quotes.map((quote, i) => (
-                <li className="quote" key={i}>“{quote}”</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function ExpertCard({ feedback }) {
-  const { persona, role, note } = feedback
-  const verdict = note?.verdict || 'mixed'
+// One expert row: role + name, status, verdict, score bar, fix, expandable notes.
+function ExpertRow({ expert }) {
+  const { role, name, status, note, elapsed_ms: elapsedMs, error } = expert
+  const verdict = note?.verdict
   const score = pct(note?.score)
+  const hasNotes = (note?.strengths?.length || 0) + (note?.issues?.length || 0) > 0
 
   return (
-    <article className={`expert-card expert-card--${verdict}`}>
-      <header className="expert-card__head">
-        <div className="expert-card__id">
-          <h3 className="expert-card__role">{role}</h3>
-          <p className="expert-card__persona">{persona}</p>
+    <li className="expert">
+      <div className="expert__top">
+        <div className="expert__id">
+          <p className="expert__role">{role}</p>
+          <p className="expert__name">
+            {name}
+            <span className="expert__hint"> · reads the episode as {role}</span>
+          </p>
         </div>
-        <span className={`verdict verdict--${verdict}`}>{VERDICT_LABEL[verdict] || verdict}</span>
-      </header>
-
-      <div className="score">
-        <div className="score__head">
-          <span className="score__label">Score</span>
-          <span className="score__value">{formatNumber(note?.score, 0)}<span className="score__max">/100</span></span>
-        </div>
-        <div className="score__track">
-          <div className={`score__fill score__fill--${verdict}`} style={{ width: `${score}%` }} />
+        <div className="expert__flags">
+          {verdict && status === 'done' && (
+            <span className={`verdict verdict--${verdict}`}>{verdict}</span>
+          )}
+          <StatusTag status={status} />
         </div>
       </div>
 
-      {note?.strengths?.length > 0 && (
-        <div className="expert-card__section">
-          <h4 className="expert-card__label expert-card__label--good">Strengths</h4>
-          <ul className="bullets bullets--good">
-            {note.strengths.map((s, i) => <li key={i}>{s}</li>)}
-          </ul>
-        </div>
+      {status === 'done' && note && (
+        <>
+          <div className="score" title={`Score ${formatNumber(note.score)} of 100`}>
+            <div
+              className="score__bar"
+              role="progressbar"
+              aria-label={`${role} score`}
+              aria-valuenow={Math.round(score)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div className="score__fill" style={{ width: `${score}%` }} />
+            </div>
+            <span className="score__num">{formatNumber(note.score)}<span className="score__max">/100</span></span>
+          </div>
+
+          {note.fix_suggestion && (
+            <p className="expert__fix">
+              <span className="expert__fix-label">Fix</span>
+              {note.fix_suggestion}
+            </p>
+          )}
+
+          {hasNotes && (
+            <details className="disclose">
+              <summary className="disclose__summary">Strengths and issues</summary>
+              <div className="disclose__body">
+                {note.strengths?.length > 0 && (
+                  <div className="notelist">
+                    <p className="notelist__label">Strengths</p>
+                    <ul className="notelist__items">
+                      {note.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {note.issues?.length > 0 && (
+                  <div className="notelist">
+                    <p className="notelist__label">Issues</p>
+                    <ul className="notelist__items notelist__items--issue">
+                      {note.issues.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
+          {elapsedMs != null && (
+            <p className="expert__elapsed">finished in {secondsFromMs(elapsedMs)}</p>
+          )}
+        </>
       )}
 
-      {note?.issues?.length > 0 && (
-        <div className="expert-card__section">
-          <h4 className="expert-card__label expert-card__label--warn">Issues</h4>
-          <ul className="bullets bullets--warn">
-            {note.issues.map((s, i) => <li key={i}>{s}</li>)}
-          </ul>
-        </div>
+      {status === 'failed' && (
+        <p className="expert__error">This lens didn’t return a note: {error || 'unknown error'}</p>
       )}
 
-      {note?.fix_suggestion && (
-        <div className="fix">
-          <span className="fix__label">Fix</span>
-          <p className="fix__text">{note.fix_suggestion}</p>
-        </div>
+      {status === 'queued' && (
+        <p className="expert__waiting">Waiting for the pro model to deliberate…</p>
       )}
-    </article>
+    </li>
   )
 }
 
-function EmptyState() {
-  return (
-    <section className="empty">
-      <p className="empty__lead">
-        Paste an episode, then convene the room. Six voices weigh in at once —
-        five expert lenses and a simulated audience.
-      </p>
-      <div className="voices">
-        {VOICES.map((v) => (
-          <div className="voice" key={v.role}>
-            <span className="voice__role">{v.role}</span>
-            <span className="voice__blurb">{v.blurb}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
+function audienceLineText(entry) {
+  if (entry.error) {
+    return `✕ [${entry.id}] error · ${entry.error}`
+  }
+  const r = entry.reaction || {}
+  const move = r.will_continue ? 'continues' : 'drops'
+  const reason = (r.reason || '').replace(/\s+/g, ' ').trim()
+  return `✓ [${entry.segment || 'listener'}] hook ${formatNumber(r.hook_score)} · ${move} · "${reason}"`
 }
 
 export default function WritersRoom() {
   const [title, setTitle] = useState('Andhera')
   const [episode, setEpisode] = useState('7')
   const [text, setText] = useState(SAMPLE_SCRIPT)
-  const [loading, setLoading] = useState(false)
+
+  const [streaming, setStreaming] = useState(false)
+  const [hasRun, setHasRun] = useState(false)
   const [error, setError] = useState(null)
+
+  const [runMeta, setRunMeta] = useState(null) // { audience_count, story }
+  const [experts, setExperts] = useState([])
+  const [audienceLog, setAudienceLog] = useState([])
+  const [orchestrator, setOrchestrator] = useState(null)
   const [result, setResult] = useState(null)
 
-  async function convene() {
-    setLoading(true)
-    setError(null)
-    setResult(null)
-    try {
-      const data = await writersRoom({ title, episode, text })
-      setResult(data)
-    } catch (err) {
-      setError(err?.message || 'Something went wrong reaching the studio.')
-    } finally {
-      setLoading(false)
+  const abortRef = useRef(null)
+  const abortedRef = useRef(false)
+  const logRef = useRef(null)
+
+  // Auto-scroll the console to the newest line as the audience reacts.
+  useEffect(() => {
+    const el = logRef.current
+    if (!el) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' })
+  }, [audienceLog.length])
+
+  function handleEvent(ev) {
+    switch (ev?.type) {
+      case 'run_started':
+        setRunMeta({ audience_count: ev.audience_count || 0, story: ev.story })
+        setExperts(
+          (ev.experts || []).map((e) => ({
+            id: e.id,
+            name: e.name,
+            role: e.role || 'Expert',
+            status: 'queued',
+            note: null,
+            elapsed_ms: null,
+            error: null,
+          })),
+        )
+        break
+      case 'expert_done':
+        setExperts((prev) =>
+          prev.map((e) =>
+            e.id === ev.id
+              ? { ...e, status: 'done', note: ev.note, elapsed_ms: ev.elapsed_ms, name: ev.name ?? e.name, role: ev.role ?? e.role }
+              : e,
+          ),
+        )
+        break
+      case 'expert_error':
+        setExperts((prev) =>
+          prev.map((e) =>
+            e.id === ev.id ? { ...e, status: 'failed', error: ev.error } : e,
+          ),
+        )
+        break
+      case 'audience_done':
+        setAudienceLog((prev) => [
+          ...prev,
+          { id: ev.id, name: ev.name, segment: ev.segment, reaction: ev.reaction, error: null },
+        ])
+        break
+      case 'audience_error':
+        setAudienceLog((prev) => [...prev, { id: ev.id, error: ev.error, reaction: null }])
+        break
+      case 'orchestrator':
+        setOrchestrator(ev)
+        break
+      case 'done':
+        setResult(ev)
+        break
+      case 'error':
+        // Terminal error line emitted by the backend mid-stream.
+        setError(ev.error || 'The run failed on the server.')
+        break
+      default:
+        break
     }
   }
 
-  const canRun = text.trim().length > 0 && !loading
+  async function run() {
+    if (streaming) return
+    abortedRef.current = false
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    setStreaming(true)
+    setHasRun(true)
+    setError(null)
+    setRunMeta(null)
+    setExperts([])
+    setAudienceLog([])
+    setOrchestrator(null)
+    setResult(null)
+
+    try {
+      await writersRoomStream({ title, episode, text }, handleEvent, controller.signal)
+    } catch (err) {
+      if (!abortedRef.current && err?.name !== 'AbortError') {
+        setError(err?.message || 'The stream failed. Check the backend and try again.')
+      }
+    } finally {
+      setStreaming(false)
+      abortRef.current = null
+    }
+  }
+
+  function stop() {
+    abortedRef.current = true
+    abortRef.current?.abort()
+  }
+
+  // ---- Derived live figures ------------------------------------------------
+  const expertCount = experts.length
+  const audienceTotal = runMeta?.audience_count ?? 0
+  const totalAgents = expertCount + audienceTotal
+  const expertsDone = experts.filter((e) => e.status !== 'queued').length
+  const audienceDone = audienceLog.length
+  const doneCount = expertsDone + audienceDone
+
+  const audienceStats = useMemo(() => {
+    const responded = audienceLog.filter((a) => !a.error && a.reaction)
+    const following = responded.filter((a) => a.reaction.will_continue).length
+    const hookSum = responded.reduce((sum, a) => sum + (Number(a.reaction.hook_score) || 0), 0)
+    return {
+      responded: responded.length,
+      followingPct: responded.length ? (following / responded.length) * 100 : 0,
+      avgHook: responded.length ? hookSum / responded.length : 0,
+    }
+  }, [audienceLog])
+
+  const phase = (() => {
+    if (result) return `Done in ${secondsFromMs(result.elapsed_ms)}`
+    if (orchestrator) return 'Fusing verdicts…'
+    if (!runMeta) return streaming ? 'Starting run…' : ''
+    if (doneCount === 0) return `Dispatching ${expertCount} experts + ${audienceTotal} listeners…`
+    return `${doneCount}/${totalAgents} agents done`
+  })()
+
+  const progress = result ? 100 : totalAgents ? (doneCount / totalAgents) * 100 : streaming ? 8 : 0
+  const consensus = orchestrator?.consensus || result?.result?.consensus
+  const finalAudience = orchestrator?.audience || result?.result?.audience
+  const summary = orchestrator?.expert_summary
+
+  const canRun = text.trim().length > 0 && !streaming
+  const showConsole = hasRun || streaming
+  const showEmpty = !showConsole && !error
 
   return (
     <div className="wr">
-      <header className="wr-header">
-        <div className="wr-header__inner">
-          <div className="wr-brand">
-            <span className="wr-brand__mark" aria-hidden="true">◐</span>
-            <div>
-              <h1 className="wr-brand__title">Simulated Studio</h1>
-              <p className="wr-brand__subtitle">
-                AI Writers Room — your experts and your audience, in one room.
-              </p>
-            </div>
-          </div>
-        </div>
+      <header className="wr-head">
+        <h1 className="wr-head__title">AI Writers Room</h1>
+        <p className="wr-head__sub">
+          Your experts and your audience react to an episode — live.
+        </p>
       </header>
 
-      <main className="wr-main">
-        <section className="composer" aria-label="Script input">
-          <div className="composer__meta">
+      <main className="wr-body">
+        {/* ---- Story input ---- */}
+        <section className="composer" aria-labelledby="composer-heading">
+          <h2 id="composer-heading" className="visually-hidden">Episode to run</h2>
+          <div className="composer__row">
             <label className="field">
               <span className="field__label">Title</span>
               <input
                 className="field__input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                disabled={streaming}
                 placeholder="Story title"
               />
             </label>
@@ -248,6 +346,7 @@ export default function WritersRoom() {
                 className="field__input"
                 value={episode}
                 onChange={(e) => setEpisode(e.target.value)}
+                disabled={streaming}
                 placeholder="e.g. 7"
               />
             </label>
@@ -256,81 +355,220 @@ export default function WritersRoom() {
           <label className="field">
             <span className="field__label">Script excerpt</span>
             <textarea
-              className="field__textarea"
+              className="field__area"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              rows={12}
+              disabled={streaming}
+              rows={11}
               spellCheck={false}
-              placeholder="Paste your episode script here…"
+              placeholder="Paste an episode script here…"
             />
           </label>
 
           <div className="composer__actions">
-            <button className="btn-primary" onClick={convene} disabled={!canRun}>
-              {loading ? 'Convening the room…' : 'Convene the Writers Room'}
-            </button>
-            {loading && (
-              <span className="composer__hint">
-                The pro model deliberates carefully — this usually takes 20–40 seconds.
-              </span>
+            {streaming ? (
+              <button type="button" className="btn btn--ghost" onClick={stop}>
+                Stop
+              </button>
+            ) : (
+              <button type="button" className="btn btn--primary" onClick={run} disabled={!canRun}>
+                Run the Writers Room
+              </button>
             )}
+            <span className="composer__note">
+              {streaming
+                ? 'Listeners answer first; the expert panel follows.'
+                : 'Six voices weigh in at once — five expert lenses and a simulated audience.'}
+            </span>
           </div>
         </section>
 
-        {loading && (
-          <section className="status status--loading" role="status" aria-live="polite">
-            <div className="spinner" aria-hidden="true" />
-            <div>
-              <p className="status__title">The room is in session</p>
-              <p className="status__sub">
-                Gathering five expert lenses and polling the simulated audience…
+        {/* ---- Orchestrator strip ---- */}
+        {showConsole && (
+          <section className="strip" role="status" aria-live="polite" aria-label="Run progress">
+            <div className="strip__line">
+              <span className={`strip__dot${streaming ? ' strip__dot--live' : ''}`} aria-hidden="true" />
+              <span className="strip__phase">{phase || 'Ready'}</span>
+              {totalAgents > 0 && (
+                <span className="strip__count">{doneCount}/{totalAgents} agents</span>
+              )}
+            </div>
+            <div
+              className="strip__track"
+              role="progressbar"
+              aria-label="Agents finished"
+              aria-valuenow={Math.round(progress)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div className="strip__fill" style={{ width: `${progress}%` }} />
+            </div>
+          </section>
+        )}
+
+        {/* ---- Error ---- */}
+        {error && (
+          <section className="alert" role="alert">
+            <p className="alert__title">
+              <span aria-hidden="true">✕ </span>The run couldn’t finish
+            </p>
+            <p className="alert__msg">{error}</p>
+            <p className="alert__hint">
+              Check that the backend is reachable, then run the room again.
+            </p>
+          </section>
+        )}
+
+        {/* ---- Consensus: the single highlighted insight ---- */}
+        {consensus && (
+          <section className="insight" aria-label="Consensus">
+            <p className="insight__label">Consensus</p>
+            <p className="insight__text">{consensus}</p>
+            {summary && (
+              <p className="insight__meta">
+                {summary.count} experts · avg {formatNumber(summary.avg_score, 1)}/100 ·{' '}
+                {summary.verdicts.strong} strong · {summary.verdicts.mixed} mixed ·{' '}
+                {summary.verdicts.weak} weak
               </p>
-            </div>
+            )}
           </section>
         )}
 
-        {error && !loading && (
-          <section className="status status--error" role="alert">
-            <span className="status__icon" aria-hidden="true">!</span>
-            <div>
-              <p className="status__title">The room couldn’t convene</p>
-              <p className="status__sub">{error}</p>
-            </div>
+        {/* ---- Empty state ---- */}
+        {showEmpty && (
+          <section className="empty" aria-label="How this works">
+            <p className="empty__lead">
+              Run an episode and the room convenes at once. Listeners react on the
+              fast model, the expert panel deliberates on the pro model, and an
+              orchestrator fuses both into one verdict — streamed here as each voice
+              lands.
+            </p>
+            <ul className="voices">
+              {VOICES.map((v) => (
+                <li className="voice" key={v.role}>
+                  <span className="voice__role">{v.role}</span>
+                  <span className="voice__blurb">{v.blurb}</span>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 
-        {!loading && !error && !result && <EmptyState />}
+        {/* ---- Live console: expert panel + audience stream ---- */}
+        {showConsole && (
+          <div className="console">
+            <section className="panel" aria-labelledby="experts-heading">
+              <div className="panel__head">
+                <h2 id="experts-heading" className="panel__title">Expert panel</h2>
+                <span className="panel__meta">
+                  {expertsDone}/{expertCount || '—'} done
+                </span>
+              </div>
+              {experts.length === 0 ? (
+                <p className="panel__placeholder">Assembling the panel…</p>
+              ) : (
+                <ul className="experts">
+                  {experts.map((e) => (
+                    <ExpertRow expert={e} key={e.id} />
+                  ))}
+                </ul>
+              )}
+            </section>
 
-        {result && !loading && (
-          <div className="results">
-            {result.consensus && (
-              <section className="consensus">
-                <span className="consensus__label">Consensus</span>
-                <p className="consensus__text">{result.consensus}</p>
-              </section>
+            <section className="panel" aria-labelledby="audience-heading">
+              <div className="panel__head">
+                <h2 id="audience-heading" className="panel__title">Audience stream</h2>
+                <span className="panel__meta">
+                  {audienceDone}/{audienceTotal || '—'} listeners
+                </span>
+              </div>
+
+              <div className="tallies">
+                <div className="tally">
+                  <span className="tally__label">Still following</span>
+                  <span className="tally__value">
+                    {audienceStats.responded ? `${formatNumber(audienceStats.followingPct)}%` : '—'}
+                  </span>
+                </div>
+                <div className="tally">
+                  <span className="tally__label">Avg. hook</span>
+                  <span className="tally__value">
+                    {audienceStats.responded ? formatNumber(audienceStats.avgHook, 1) : '—'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="log" ref={logRef} role="log" aria-live="polite" aria-label="Listener reactions">
+                {audienceLog.length === 0 ? (
+                  <p className="log__idle">Waiting for the first listener…</p>
+                ) : (
+                  audienceLog.map((entry, i) => (
+                    <div className={`log__line${entry.error ? ' log__line--err' : ''}`} key={`${entry.id}-${i}`}>
+                      {audienceLineText(entry)}
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* ---- Orchestrator result: audience verdict ---- */}
+        {finalAudience && (
+          <section className="verdict-block" aria-labelledby="verdict-heading">
+            <h2 id="verdict-heading" className="panel__title">Audience verdict</h2>
+            <div className="verdict-meters">
+              <div className="meter">
+                <div className="meter__head">
+                  <span className="meter__label">Still following</span>
+                  <span className="meter__value">{formatNumber(finalAudience.following_pct)}%</span>
+                </div>
+                <div className="meter__track">
+                  <div className="meter__fill" style={{ width: `${pct(finalAudience.following_pct)}%` }} />
+                </div>
+              </div>
+              <div className="meter">
+                <div className="meter__head">
+                  <span className="meter__label">Avg. engagement</span>
+                  <span className="meter__value">{formatNumber(finalAudience.avg_engagement, 1)}</span>
+                </div>
+                <div className="meter__track">
+                  <div className="meter__fill" style={{ width: `${engagementWidth(finalAudience.avg_engagement)}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {finalAudience.comprehension && (
+              <p className="verdict-comprehension">{finalAudience.comprehension}</p>
             )}
 
-            <AudiencePanel audience={result.audience} />
-
-            {result.panel?.length > 0 && (
-              <section aria-labelledby="panel-heading">
-                <div className="section-head">
-                  <h2 id="panel-heading" className="section-head__title">The Expert Panel</h2>
-                  <span className="section-head__count">{result.panel.length} voices</span>
-                </div>
-                <div className="expert-grid">
-                  {result.panel.map((feedback, i) => (
-                    <ExpertCard feedback={feedback} key={`${feedback.role}-${i}`} />
+            {finalAudience.confusion_points?.length > 0 && (
+              <div className="verdict-sub">
+                <p className="verdict-sub__label">Where they got lost</p>
+                <div className="chips">
+                  {finalAudience.confusion_points.map((c, i) => (
+                    <span className="chip" key={i}>{c}</span>
                   ))}
                 </div>
-              </section>
+              </div>
             )}
-          </div>
+
+            {finalAudience.representative_quotes?.length > 0 && (
+              <div className="verdict-sub">
+                <p className="verdict-sub__label">In their words</p>
+                <ul className="quotes">
+                  {finalAudience.representative_quotes.map((q, i) => (
+                    <li className="quote" key={i}>“{q}”</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
         )}
       </main>
 
-      <footer className="wr-footer">
-        <span>Simulated Studio · persona-simulation on Google Vertex AI</span>
+      <footer className="wr-foot">
+        Simulated Studio · persona simulation on Google Vertex AI
       </footer>
     </div>
   )

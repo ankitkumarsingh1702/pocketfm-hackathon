@@ -10,13 +10,14 @@ The consensus blends the experts' verdicts with the audience read, also locally.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import Counter
 from itertools import zip_longest
 
 from app.config import settings
 from app.db.firestore import save_simulation
 from app.engine.cache import Cache
-from app.engine.runner import run_reactions
+from app.engine.runner import _story_hash, build_reaction_prompt, run_reactions
 from app.llm.factory import get_llm
 from app.personas.loader import fan_out_audience, load_personas
 from app.schemas import (
@@ -178,3 +179,159 @@ async def run_writers_room(story: Story) -> WritersRoomResult:
     )
     save_simulation("writers_room", story, result.model_dump())
     return result
+
+
+async def stream_writers_room(story: Story):
+    """Stream the Writers' Room simulation as NDJSON-friendly event dicts.
+
+    Yields one event dict per the streaming protocol as each agent finishes:
+    ``run_started`` first, then ``expert_done``/``audience_done``/``*_error``
+    interleaved as agents complete (fast audience models tend to land before
+    the stronger expert models), then a single ``orchestrator`` summary, then
+    ``done`` carrying the full persisted result. One agent's failure never
+    aborts the stream — it yields an ``*_error`` event and the run continues.
+    """
+    experts = load_personas("expert")
+    audience = fan_out_audience(
+        load_personas("audience"), min(20, settings.audience_fanout)
+    )
+    llm = get_llm()
+    cache = Cache(settings.cache_dir)
+    expert_model = settings.model_for("experts")
+    audience_model = settings.model_for("audience")
+    expert_prompt = "Critique this audio-drama episode for craft.\n" + _story_text(story)
+
+    t0 = time.monotonic()
+
+    # 1) run_started — the roster the frontend renders placeholders for.
+    yield {
+        "type": "run_started",
+        "experts": [
+            {"id": e.id, "name": e.name, "role": e.role or "Expert"} for e in experts
+        ],
+        "audience_count": len(audience),
+        "story": {"title": story.title, "episode": story.episode},
+    }
+
+    sem = asyncio.Semaphore(settings.concurrency)
+    story_hash = _story_hash(story)
+
+    async def _expert_event(e: Persona) -> dict:
+        """Return this expert's finished event dict (done or error)."""
+        start = time.monotonic()
+        try:
+            note = await llm.structured(
+                system=e.system_prompt,
+                prompt=expert_prompt,
+                schema=ExpertNote,
+                model=expert_model,
+            )
+        except Exception as exc:  # noqa: BLE001 - report as an event, never abort
+            return {
+                "type": "expert_error",
+                "id": e.id,
+                "name": e.name,
+                "role": e.role or "Expert",
+                "error": str(exc),
+            }
+        return {
+            "type": "expert_done",
+            "id": e.id,
+            "name": e.name,
+            "role": e.role or "Expert",
+            "note": note.model_dump(),
+            "elapsed_ms": int((time.monotonic() - start) * 1000),
+        }
+
+    async def _audience_event(p: Persona) -> dict:
+        """Return this listener's finished event dict (done or error), cached."""
+        try:
+            system, user = build_reaction_prompt(p, story)
+            key = cache.make_key(
+                llm.name, audience_model or "default", p.id, story_hash, "reaction"
+            )
+            reaction: PersonaReaction | None = None
+            cached = cache.get(key)
+            if cached is not None:
+                try:
+                    reaction = PersonaReaction.model_validate(cached)
+                except Exception:
+                    reaction = None  # corrupt/stale entry — regenerate below
+            if reaction is None:
+                async with sem:
+                    reaction = await llm.structured(
+                        system, user, PersonaReaction, model=audience_model
+                    )
+                cache.set(key, reaction.model_dump())
+        except Exception as exc:  # noqa: BLE001 - report as an event, never abort
+            return {"type": "audience_error", "id": p.id, "error": str(exc)}
+        return {
+            "type": "audience_done",
+            "id": p.id,
+            "name": p.name,
+            "segment": p.segment,
+            "reaction": reaction.model_dump(),
+        }
+
+    # One task per agent; audience + experts race together.
+    tasks = [asyncio.ensure_future(_expert_event(e)) for e in experts]
+    tasks += [asyncio.ensure_future(_audience_event(p)) for p in audience]
+
+    audience_by_id = {p.id: p for p in audience}
+    expert_notes: dict[str, ExpertNote] = {}
+    pairs: list[tuple[Persona, PersonaReaction]] = []
+
+    # 2) Interleave per-agent events as each finishes; accumulate for the summary.
+    for fut in asyncio.as_completed(tasks):
+        event = await fut
+        etype = event.get("type")
+        if etype == "expert_done":
+            try:
+                expert_notes[event["id"]] = ExpertNote.model_validate(event["note"])
+            except Exception:
+                pass
+        elif etype == "audience_done":
+            persona = audience_by_id.get(event["id"])
+            if persona is not None:
+                try:
+                    pairs.append(
+                        (persona, PersonaReaction.model_validate(event["reaction"]))
+                    )
+                except Exception:
+                    pass
+        yield event
+
+    # 3) orchestrator — aggregated audience voice + expert panel summary.
+    verdict = _audience_verdict(pairs)
+    # Panel ordered by the original experts order for stable rendering.
+    panel = [
+        ExpertFeedback(persona=e.name, role=e.role or "Expert", note=expert_notes[e.id])
+        for e in experts
+        if e.id in expert_notes
+    ]
+    consensus = _consensus(panel, verdict)
+    verdict_counts = Counter(fb.note.verdict for fb in panel)
+    avg_score = sum(fb.note.score for fb in panel) / len(panel) if panel else 0.0
+    yield {
+        "type": "orchestrator",
+        "audience": verdict.model_dump(),
+        "consensus": consensus,
+        "expert_summary": {
+            "count": len(panel),
+            "avg_score": round(avg_score, 1),
+            "verdicts": {
+                "strong": verdict_counts.get("strong", 0),
+                "mixed": verdict_counts.get("mixed", 0),
+                "weak": verdict_counts.get("weak", 0),
+            },
+        },
+    }
+
+    # 4) done — the full persisted result, matching the non-streaming route.
+    result = WritersRoomResult(panel=panel, audience=verdict, consensus=consensus)
+    save_simulation("writers_room", story, result.model_dump())
+    yield {
+        "type": "done",
+        "result": result.model_dump(),
+        "elapsed_ms": int((time.monotonic() - t0) * 1000),
+    }
