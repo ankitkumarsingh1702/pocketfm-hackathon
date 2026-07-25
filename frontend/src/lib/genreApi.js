@@ -4,16 +4,20 @@
 // different origin, with a different lifecycle. Conversions take five to eight
 // minutes, so every mutating call returns a job id and the client polls.
 //
-// The base path is same-origin `/sgc` by default, which the Vite dev proxy
-// forwards to Cloud Run with an Authorization header attached (vite.config.js).
-// Set VITE_SGC_URL to call the service directly — that only works once it has a
-// public `allUsers` invoker binding.
+// Calls go straight to the convertor's own Cloud Run origin, in dev and in
+// production alike. The service is deployed `--allow-unauthenticated` and
+// answers CORS with `*`, so the browser reaches it directly — no dev proxy and
+// no credential in the client. Point VITE_SGC_URL at http://localhost:8080 to
+// develop against a local `uv run uvicorn api:app`.
 
 import { POLL_INTERVAL_MS, POLL_TIMEOUT_MS } from '../config/genre'
 
-const BASE_URL = (import.meta.env.VITE_SGC_URL ?? '/sgc').replace(/\/+$/, '')
+/** Deployed by .github/workflows/deploy-backend.yml (story-genre-convertor). */
+const SGC_URL = 'https://story-genre-convertor-v4c7wg52ia-uc.a.run.app'
 
-/** Thrown when the proxy or Cloud Run rejects us rather than the app failing. */
+const BASE_URL = (import.meta.env.VITE_SGC_URL || SGC_URL).replace(/\/+$/, '')
+
+/** Thrown when Cloud Run rejects us rather than the app failing. */
 export class AuthError extends Error {}
 
 async function request(path, { method = 'GET', body, signal } = {}) {
@@ -27,7 +31,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
     })
   } catch (err) {
     if (err.name === 'AbortError') throw err
-    throw new Error('Could not reach the converter. Is the dev server running?')
+    throw new Error('Could not reach the converter. Check your connection and retry.')
   }
 
   if (!res.ok) {
@@ -43,9 +47,9 @@ async function request(path, { method = 'GET', body, signal } = {}) {
     }
     if (res.status === 401 || res.status === 403) {
       throw new AuthError(
-        'The converter rejected the request. The hardcoded identity token has ' +
-          'probably expired — they last about an hour. Refresh it with ' +
-          '`npm run sgc:token` and restart the dev server.',
+        'The converter rejected the request. The service should be public — its ' +
+          '`allUsers` invoker binding has probably been removed. Redeploy it from ' +
+          'the deploy backend workflow.',
       )
     }
     throw new Error(detail)
