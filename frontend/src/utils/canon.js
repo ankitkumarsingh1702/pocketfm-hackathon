@@ -82,16 +82,51 @@ export function toCanonGraphView(result) {
       y2: pos[e.target].y,
     }))
 
+  // Plain, render-ready lists for the DB / Memory drill-downs (no layout).
+  const nameById = {}
+  for (const n of ordered) nameById[n.id] = n.name || n.id
+  const entities = ordered.map((n) => ({
+    id: n.id,
+    label: n.label || 'Entity',
+    name: n.name || n.id,
+    description: (n.props && n.props.description) || '',
+  }))
+  const relationships = rawEdges
+    .filter((e) => pos[e.source] && pos[e.target])
+    .map((e) => ({
+      source: nameById[e.source] || e.source,
+      target: nameById[e.target] || e.target,
+      type: e.type,
+      detail: e.detail || '',
+    }))
+
   return {
     width: CANVAS_W,
     height: CANVAS_H,
     nodes,
     edges,
     stats,
+    entities,
+    relationships,
     nodeCount: rawNodes.length,
     edgeCount: edges.length,
     factCount,
     isEmpty: rawNodes.length === 0,
+  }
+}
+
+/** Map the raw canon facts payload into a render-ready view (or null). */
+export function toFactsView(result) {
+  if (!result) return null
+  const facts = Array.isArray(result.facts) ? result.facts : []
+  const conflicts = Array.isArray(result.conflicts) ? result.conflicts : []
+  const dangling = Array.isArray(result.dangling_clues) ? result.dangling_clues : []
+  return {
+    facts,
+    conflicts,
+    dangling,
+    episodeCount: result.episode_count || 0,
+    isEmpty: facts.length === 0 && conflicts.length === 0 && dangling.length === 0,
   }
 }
 

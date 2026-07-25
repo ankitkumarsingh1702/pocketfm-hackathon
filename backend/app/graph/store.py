@@ -275,7 +275,12 @@ async def _run_graph_query(
             result = await session.run(edge_query, **params)
             async for rec in result:
                 edges.append(
-                    CanonEdgeView(source=rec["source"], target=rec["target"], type=rec["type"])
+                    CanonEdgeView(
+                        source=rec["source"],
+                        target=rec["target"],
+                        type=rec["type"],
+                        detail=rec.get("detail") or "",
+                    )
                 )
         stats["edges"] = len(edges)
         if record:
@@ -294,7 +299,9 @@ async def _run_graph_query(
         return CanonGraph()
 
 
-async def fetch_contradiction_candidates(source: str = "Plot Hole Hunter") -> dict:
+async def fetch_contradiction_candidates(
+    source: str = "Plot Hole Hunter", record: bool = True
+) -> dict:
     """Graph-traversal candidates for continuity checking. Best-effort.
 
     Returns ``{facts, conflicts, dangling_clues, episode_count}`` where
@@ -305,7 +312,8 @@ async def fetch_contradiction_candidates(source: str = "Plot Hole Hunter") -> di
     empty = {"facts": [], "conflicts": [], "dangling_clues": [], "episode_count": 0}
     driver = get_driver()
     if driver is None:
-        record_activity("skipped", "fetch_contradiction_candidates", source, "graph disabled — no facts to traverse")
+        if record:
+            record_activity("skipped", "fetch_contradiction_candidates", source, "graph disabled — no facts to traverse")
         return empty
     out = {"facts": [], "conflicts": [], "dangling_clues": [], "episode_count": 0}
     try:
@@ -346,22 +354,24 @@ async def fetch_contradiction_candidates(source: str = "Plot Hole Hunter") -> di
 
             rec = await (await session.run("MATCH (e:Episode) RETURN count(e) AS c")).single()
             out["episode_count"] = rec["c"] if rec else 0
-        record_activity(
-            "read",
-            "fetch_contradiction_candidates",
-            source,
-            f"traversed canon for contradictions — {len(out['facts'])} facts, "
-            f"{len(out['conflicts'])} conflicts, {len(out['dangling_clues'])} dangling clues",
-            {
-                "facts": len(out["facts"]),
-                "conflicts": len(out["conflicts"]),
-                "dangling_clues": len(out["dangling_clues"]),
-            },
-        )
+        if record:
+            record_activity(
+                "read",
+                "fetch_contradiction_candidates",
+                source,
+                f"traversed canon for contradictions — {len(out['facts'])} facts, "
+                f"{len(out['conflicts'])} conflicts, {len(out['dangling_clues'])} dangling clues",
+                {
+                    "facts": len(out["facts"]),
+                    "conflicts": len(out["conflicts"]),
+                    "dangling_clues": len(out["dangling_clues"]),
+                },
+            )
         return out
     except Exception as exc:  # noqa: BLE001 - best-effort
         logger.warning("Contradiction candidate query failed: %s", exc)
-        record_activity("skipped", "fetch_contradiction_candidates", source, f"traversal failed: {exc}")
+        if record:
+            record_activity("skipped", "fetch_contradiction_candidates", source, f"traversal failed: {exc}")
         return empty
 
 
@@ -376,7 +386,7 @@ async def fetch_full_graph(record: bool = False) -> CanonGraph:
         "MATCH (n:Canon) RETURN n.key AS id, coalesce(n.type,'Entity') AS label, "
         "coalesce(n.name,n.key) AS name, n.description AS description LIMIT 500",
         "MATCH (a:Canon)-[r]->(b:Canon) "
-        "RETURN a.key AS source, b.key AS target, type(r) AS type LIMIT 1500",
+        "RETURN a.key AS source, b.key AS target, type(r) AS type, r.detail AS detail LIMIT 1500",
         source="Graph View",
         fn="fetch_full_graph",
         record=record,
@@ -394,7 +404,7 @@ async def fetch_canon_subgraph(story: Story, source: str = "") -> CanonGraph:
         "RETURN n.key AS id, n.type AS label, n.name AS name, n.description AS description "
         "LIMIT 120",
         "MATCH (a:Canon)-[r]->(b:Canon) WHERE a.type IN $types AND b.type IN $types "
-        "RETURN a.key AS source, b.key AS target, type(r) AS type LIMIT 400",
+        "RETURN a.key AS source, b.key AS target, type(r) AS type, r.detail AS detail LIMIT 400",
         source=source,
         fn="fetch_canon_subgraph",
         types=_BIBLE_TYPES,

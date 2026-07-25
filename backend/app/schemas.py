@@ -212,6 +212,7 @@ class CanonEdgeView(BaseModel):
     source: str                          # source node id
     target: str                          # target node id
     type: str                            # relation type, e.g. 'APPEARS_IN'
+    detail: str = ""                     # how/why the connection was made (edge prop)
 
 
 class CanonGraph(BaseModel):

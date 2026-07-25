@@ -94,6 +94,11 @@ export function getCanonActivity(limit = 100) {
   return request(`/api/canon/activity?limit=${limit}`)
 }
 
+/** GET /api/canon/facts -> { facts[], conflicts[], dangling_clues[], episode_count } */
+export function getCanonFacts() {
+  return request('/api/canon/facts')
+}
+
 /**
  * POST /api/canon/ingest -> IngestResult
  * @param {{title:string, episode:string, text:string}} story

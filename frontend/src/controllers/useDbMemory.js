@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { canonHealth, getCanonActivity, getCanonGraph } from '../lib/api'
-import { toActivityView, toCanonGraphView } from '../utils/canon'
+import { canonHealth, getCanonActivity, getCanonFacts, getCanonGraph } from '../lib/api'
+import { toActivityView, toCanonGraphView, toFactsView } from '../utils/canon'
 import { useAsyncLens } from './useAsyncLens'
 
 const POLL_MS = 2500
@@ -26,16 +26,19 @@ export function useDbMemory(active = false) {
   const activity = useAsyncLens(getCanonActivity, toActivityView)
   const health = useAsyncLens(canonHealth, identity)
   const graph = useAsyncLens(getCanonGraph, toCanonGraphView)
+  const facts = useAsyncLens(getCanonFacts, toFactsView)
 
   const { run: runActivity } = activity
   const { run: runHealth } = health
   const { run: runGraph } = graph
+  const { run: runFacts } = facts
 
   const refresh = useCallback(() => {
     runActivity(ACTIVITY_LIMIT)
     runHealth()
     runGraph()
-  }, [runActivity, runHealth, runGraph])
+    runFacts()
+  }, [runActivity, runHealth, runGraph, runFacts])
 
   // Load immediately when the tab opens; then poll while live.
   useEffect(() => {
@@ -46,5 +49,5 @@ export function useDbMemory(active = false) {
     return () => clearInterval(id)
   }, [active, live, refresh])
 
-  return { activity, health, graph, refresh, live, setLive }
+  return { activity, health, graph, facts, refresh, live, setLive }
 }
