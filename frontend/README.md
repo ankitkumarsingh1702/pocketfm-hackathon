@@ -18,6 +18,8 @@ All three are thin lenses over **one** persona-simulation engine running on
 **Google Vertex AI** — Gemini by default, Claude optional — with results
 optionally persisted to Firestore.
 
+> 📖 **[Product & user stories → `docs/USER_STORIES.md`](docs/USER_STORIES.md)** — who we're building for and the exact user story each lens solves.
+
 ## Repo layout
 
 ```
@@ -26,6 +28,7 @@ optionally persisted to Firestore.
 ├── backend/      # FastAPI engine, lenses, Vertex LLM clients, Firestore (uv)
 ├── skills/       # Persona / agent definitions (YAML) — audience + experts
 ├── data/         # Sample stories (e.g. "Andhera" episodes)
+├── docs/         # Product docs — USER_STORIES.md
 └── scripts/      # gcp_setup.sh and other tooling
 ```
 

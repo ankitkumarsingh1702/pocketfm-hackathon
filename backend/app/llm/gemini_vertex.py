@@ -58,20 +58,29 @@ class GeminiVertexClient:
     ) -> T:
         """Generate JSON matching ``schema`` and return a validated instance."""
         client = self._get_client()
-        resp = await client.aio.models.generate_content(
-            model=model or settings.gemini_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system,
-                temperature=(
-                    temperature if temperature is not None else settings.temperature
-                ),
-                response_mime_type="application/json",
-                response_schema=schema,
-                max_output_tokens=settings.max_output_tokens,
+        model_id = model or settings.gemini_model
+
+        config = types.GenerateContentConfig(
+            system_instruction=system,
+            temperature=(
+                temperature if temperature is not None else settings.temperature
             ),
+            response_mime_type="application/json",
+            response_schema=schema,
+            max_output_tokens=settings.max_output_tokens,
+        )
+        # Gemini 2.5 models consume output tokens on internal "thinking". For the
+        # fast, high-volume flash path we disable thinking so the whole token
+        # budget goes to the JSON; pro keeps (bounded) thinking for quality.
+        if "flash" in model_id:
+            config.thinking_config = types.ThinkingConfig(thinking_budget=0)
+
+        resp = await client.aio.models.generate_content(
+            model=model_id,
+            contents=prompt,
+            config=config,
         )
         obj = resp.parsed
         if isinstance(obj, schema):
             return obj
-        return schema.model_validate(json.loads(resp.text))
+        return schema.model_validate(json.loads(resp.text or ""))

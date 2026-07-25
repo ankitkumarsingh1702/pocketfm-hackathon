@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from app.engine.aggregate import aggregate_audience
 from app.personas.loader import load_personas
-from app.schemas import DROP_STAGES, Persona, PersonaReaction
+from app.schemas import DROP_STAGES, Persona, PersonaReaction, Story
 
 
 def _persona(i: int, segment: str) -> Persona:
@@ -77,3 +77,79 @@ def test_load_personas_non_empty():
     experts = load_personas("expert")
     assert isinstance(audience, list) and len(audience) > 0
     assert isinstance(experts, list) and len(experts) > 0
+
+
+def test_audience_verdict_math_offline():
+    """The Writers' Room audience-voice helper is a pure, network-free function."""
+    from app.lenses.writers_room import _audience_verdict
+
+    pairs: list[tuple[Persona, PersonaReaction]] = [
+        (_persona(0, "Metro"), _reaction(True, 90, "finished", reason="loved the ending")),
+        (_persona(1, "Metro"), _reaction(True, 60, "climax", reason="the twist got me")),
+        (_persona(2, "Town"), _reaction(False, 40, "middle", reason="lost me in the middle")),
+        (_persona(3, "Town"), _reaction(False, 20, "hook", reason="slow open, tuned out")),
+    ]
+
+    verdict = _audience_verdict(pairs)
+
+    # 2 of 4 listeners continue -> 50%; mean of 90/60/40/20 == 52.5
+    assert verdict.following_pct == 50.0
+    assert verdict.avg_engagement == 52.5
+    # 50% following -> partial-comprehension band
+    assert "partially following" in verdict.comprehension
+
+    # Confusion points come only from pre-climax droppers (middle + hook here).
+    assert isinstance(verdict.confusion_points, list)
+    assert "lost me in the middle" in verdict.confusion_points
+    assert "slow open, tuned out" in verdict.confusion_points
+    assert len(verdict.confusion_points) <= 5
+
+    # Representative quotes mix continuers and droppers, up to 4 distinct.
+    assert isinstance(verdict.representative_quotes, list)
+    assert 0 < len(verdict.representative_quotes) <= 4
+
+
+def test_audience_verdict_empty_is_safe():
+    """No reactions -> zeros and empty lists, never a divide-by-zero."""
+    from app.lenses.writers_room import _audience_verdict
+
+    verdict = _audience_verdict([])
+    assert verdict.following_pct == 0.0
+    assert verdict.avg_engagement == 0.0
+    assert verdict.confusion_points == []
+    assert verdict.representative_quotes == []
+    assert isinstance(verdict.comprehension, str) and verdict.comprehension
+
+
+def test_reaction_prompt_demographics_and_fingerprint_offline():
+    """Edits to demographics flow into the prompt and change the cache key."""
+    from app.engine.runner import build_reaction_prompt, persona_fingerprint
+
+    persona = Persona(
+        id="demo",
+        name="Asha",
+        kind="audience",
+        segment="Metro Binge-Watcher",
+        age=30,
+        gender="Female",
+        city="Delhi",
+        genres=["thriller", "romance"],
+        system_prompt="React as this listener.",
+    )
+    story = Story(title="Test", episode="1", text="A short script.")
+
+    system, _user = build_reaction_prompt(persona, story)
+    # The demographic preamble is prepended, natural-worded, and guarded per field.
+    assert system.startswith("You are Asha, a 30-year-old woman from Delhi.")
+    assert "You mostly enjoy thriller, romance." in system
+    # The persona's own prompt and the fixed tail are preserved.
+    assert "React as this listener." in system
+    assert system.endswith(
+        "Answer strictly as this listener reacting to one audio-drama episode."
+    )
+
+    # Fingerprint is a stable 16-hex digest that changes when a field changes.
+    fp = persona_fingerprint(persona)
+    assert len(fp) == 16
+    assert fp == persona_fingerprint(persona)  # deterministic
+    assert fp != persona_fingerprint(persona.model_copy(update={"city": "Mumbai"}))

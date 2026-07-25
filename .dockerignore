@@ -1,0 +1,19 @@
+# Dependencies / build artifacts
+**/node_modules
+**/.venv
+**/dist
+**/__pycache__
+**/*.pyc
+**/.cache
+
+# VCS / tooling / agent config
+.git
+.github
+.claude
+
+# Secrets — ignore real env files but keep the example checked in
+**/.env
+!**/.env.example
+
+# Note: frontend/, backend/, skills/, data/ are intentionally NOT excluded —
+# they are required in the build context. Markdown files are kept as well.

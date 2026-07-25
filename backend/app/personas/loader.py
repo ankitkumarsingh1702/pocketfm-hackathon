@@ -7,7 +7,9 @@ works out of the box.
 
 ``fan_out_audience`` inflates a handful of base archetypes into a larger,
 lightly-varied panel — the "representative 1000" the demo talks about — by
-round-robin cloning with small age/city jitter.
+round-robin cloning with only a small age jitter. Every other field (gender,
+city, genres, segment, prompt, temperature) is preserved verbatim so a user's
+edits to a base persona are visibly respected across its clones.
 """
 
 from __future__ import annotations
@@ -18,20 +20,6 @@ import yaml
 
 from app.config import SKILLS_DIR
 from app.schemas import Persona
-
-# Cities used to sprinkle geographic variety across audience clones.
-_CITIES: list[str] = [
-    "Mumbai",
-    "Delhi",
-    "Bengaluru",
-    "Kolkata",
-    "Chennai",
-    "Pune",
-    "Jaipur",
-    "Lucknow",
-    "Hyderabad",
-    "Ahmedabad",
-]
 
 
 def _infer_kind(path: Path) -> str:
@@ -228,9 +216,11 @@ def load_personas(kind: str | None = None) -> list[Persona]:
 def fan_out_audience(base: list[Persona], n: int) -> list[Persona]:
     """Round-robin clone ``base`` up to ``n`` personas with light variety.
 
-    Each clone keeps the source's segment, genres, traits and system prompt,
-    gets a unique id (``<base-id>-<index>``), and receives small deterministic
-    age jitter and a rotating city so the panel feels like distinct listeners.
+    Each clone preserves the source's gender, city, genres, segment, traits,
+    system prompt and temperature — so a user's edits carry through — and gets
+    a unique id (``<base-id>-<index>``). Only age is lightly varied by a
+    deterministic -3..+3, clamped to [16, 70], so the panel still feels like
+    distinct listeners without overriding the chosen demographics.
     """
     if not base or n <= 0:
         return []
@@ -239,9 +229,6 @@ def fan_out_audience(base: list[Persona], n: int) -> list[Persona]:
         src = base[i % len(base)]
         age = src.age
         if age is not None:
-            age = max(13, age + ((i * 13) % 9) - 4)  # deterministic -4..+4
-        city = _CITIES[i % len(_CITIES)]
-        clones.append(
-            src.model_copy(update={"id": f"{src.id}-{i}", "age": age, "city": city})
-        )
+            age = max(16, min(70, age + ((i * 13) % 7) - 3))  # deterministic -3..+3
+        clones.append(src.model_copy(update={"id": f"{src.id}-{i}", "age": age}))
     return clones

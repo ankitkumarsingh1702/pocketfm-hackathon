@@ -36,9 +36,11 @@ class Persona(BaseModel):
     segment: str | None = None          # audience archetype label, e.g. "Metro Binge-Watcher"
     role: str | None = None             # expert role, e.g. "Director"
     age: int | None = None
+    gender: str | None = None
     city: str | None = None
     genres: list[str] = Field(default_factory=list)
     traits: list[str] = Field(default_factory=list)
+    temperature: float | None = None    # per-agent sampling override (None = provider default)
     system_prompt: str
 
 
@@ -101,8 +103,19 @@ class ExpertFeedback(BaseModel):
     note: ExpertNote
 
 
+class AudienceVerdict(BaseModel):
+    """The audience's collective voice in the Writers Room: are they following?"""
+
+    following_pct: float                 # % of listeners who stay with the story
+    avg_engagement: float                # mean hook score, 0-100
+    comprehension: str                   # plain-language read on whether they follow it
+    confusion_points: list[str]          # where the audience got lost
+    representative_quotes: list[str]     # a few raw listener reactions
+
+
 class WritersRoomResult(BaseModel):
     panel: list[ExpertFeedback]
+    audience: AudienceVerdict | None = None
     consensus: str
 
 
@@ -127,6 +140,10 @@ class SimulateRequest(BaseModel):
 
 class WritersRoomRequest(BaseModel):
     story: Story
+    # Optional edited rosters from the UI (agent profiles). When omitted, the
+    # server loads the default personas from skills/*.yaml.
+    experts: list[Persona] | None = None
+    audience: list[Persona] | None = None
 
 
 class CliffhangerRequest(BaseModel):
