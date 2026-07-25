@@ -1,0 +1,11 @@
+/** Barrel export for the presentational primitive components. */
+export { default as BarChart } from './BarChart'
+export { default as Button } from './Button'
+export { default as MetricNumber } from './MetricNumber'
+export { default as Pill } from './Pill'
+export { default as ProgressLine } from './ProgressLine'
+export { default as QuoteCard } from './QuoteCard'
+export { default as ScoreGauge } from './ScoreGauge'
+export { default as SurfaceCard } from './SurfaceCard'
+export { default as Tabs } from './Tabs'
+export { default as Wordmark } from './Wordmark'
