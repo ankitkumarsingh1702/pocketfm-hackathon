@@ -32,9 +32,17 @@ class Settings(BaseSettings):
     # Claude models to be enabled in Vertex AI Model Garden).
     llm_provider: str = "gemini"
     gemini_model: str = "gemini-2.5-flash"
-    # Claude on Vertex uses the '@'-dated ID form and is region-gated.
-    claude_model: str = "claude-haiku-4-5@20251001"
+    # Claude on Vertex: current-gen models use the bare ID; region-gated and
+    # must be enabled in Vertex AI Model Garden before use.
+    claude_model: str = "claude-sonnet-5"
     claude_location: str = "us-east5"
+
+    # --- Per-lens model tiering (Gemini) -------------------------------------
+    # Fast model for the high-volume audience fan-out; a stronger model for the
+    # low-volume, quality-critical lenses. Only used when llm_provider == 'gemini'.
+    model_audience: str = "gemini-2.5-flash"
+    model_experts: str = "gemini-2.5-pro"
+    model_rewrite: str = "gemini-2.5-pro"
 
     # --- Generation ----------------------------------------------------------
     temperature: float = 0.9        # variety across personas
@@ -64,6 +72,20 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    def model_for(self, tier: str) -> str:
+        """Resolve the model id for a lens ``tier`` ('audience'|'experts'|'rewrite').
+
+        Gemini uses per-tier models (fast for volume, strong for quality);
+        other providers fall back to their single configured model.
+        """
+        if self.llm_provider == "gemini":
+            return {
+                "audience": self.model_audience,
+                "experts": self.model_experts,
+                "rewrite": self.model_rewrite,
+            }.get(tier, self.gemini_model)
+        return self.claude_model
 
 
 settings = Settings()

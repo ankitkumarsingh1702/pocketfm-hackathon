@@ -78,6 +78,19 @@ We use a simple two-branch flow. **`develop` is the default branch — all work 
 - **`main`** — stable / demo-ready. Never push directly.
 - **`develop`** — integration branch. **All PRs target `develop`.**
 
+### Commit hygiene (enforced)
+
+Commits and PRs must not carry AI-assistant **attribution** — no
+`Co-Authored-By: Claude/Anthropic`, no "Generated with …", no 🤖. (Mentioning
+Claude/Gemini as a *model choice* is fine; only authorship attribution is
+blocked.) Enforced two ways:
+
+- **Local git hook** — run once after cloning: `./scripts/setup-hooks.sh`
+  (points `core.hooksPath` at `.githooks`; the `commit-msg` hook rejects
+  offending messages before they land).
+- **CI** — the `no-ai-attribution` workflow re-scans every PR's commits, title,
+  and body against `develop`/`main`, so it can't be bypassed locally.
+
 ### Day-to-day
 
 1. Always branch off the latest `develop`:

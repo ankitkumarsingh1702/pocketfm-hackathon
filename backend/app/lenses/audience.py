@@ -27,7 +27,9 @@ async def run_audience(story: Story, n: int | None = None) -> AudienceResult:
     llm = get_llm()
     cache = Cache(settings.cache_dir)
 
-    pairs = await run_reactions(personas, story, llm, cache)
+    pairs = await run_reactions(
+        personas, story, llm, cache, model=settings.model_for("audience")
+    )
     result = aggregate_audience(pairs)
 
     save_simulation("audience", story, result.model_dump())

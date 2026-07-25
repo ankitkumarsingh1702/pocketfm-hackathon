@@ -42,6 +42,7 @@ async def run_reactions(
     story: Story,
     llm: LLMClient,
     cache: Cache | None = None,
+    model: str | None = None,
 ) -> list[tuple[Persona, PersonaReaction]]:
     """Collect one ``PersonaReaction`` per persona, concurrently and cached.
 
@@ -55,7 +56,7 @@ async def run_reactions(
     async def _one(persona: Persona) -> tuple[Persona, PersonaReaction]:
         system, user = build_reaction_prompt(persona, story)
         key = (
-            cache.make_key(llm.name, persona.id, story_hash, "reaction")
+            cache.make_key(llm.name, model or "default", persona.id, story_hash, "reaction")
             if cache is not None
             else None
         )
@@ -70,7 +71,7 @@ async def run_reactions(
                     pass
 
         async with sem:
-            reaction = await llm.structured(system, user, PersonaReaction)
+            reaction = await llm.structured(system, user, PersonaReaction, model=model)
 
         if cache is not None and key is not None:
             cache.set(key, reaction.model_dump())

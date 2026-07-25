@@ -28,6 +28,7 @@ class LLMClient(Protocol):
         prompt: str,
         schema: type[T],
         temperature: float | None = None,
+        model: str | None = None,
     ) -> T:
         """Return a validated `schema` instance produced from `system`+`prompt`."""
         ...

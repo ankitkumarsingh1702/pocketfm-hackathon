@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Block AI-assistant AUTHORSHIP attribution in commit messages.
+#
+# This intentionally does NOT block the plain product words "claude"/"gemini"
+# (the app legitimately supports those models). It only rejects attribution
+# signatures: the robot emoji, "Generated with <tool>", "Co-Authored-By" an AI,
+# AI author identities, and known assistant tool names.
+set -euo pipefail
+
+msg_file="${1:?commit message file}"
+
+# Keep this pattern in sync with .github/workflows/no-ai-attribution.yml
+pattern='🤖|co-authored-by:.*(claude|anthropic)|noreply@anthropic\.com|generated with \[?(claude|ai|an ai)|claude[ -]?code|chatgpt|copilot'
+
+if grep -iEq "$pattern" "$msg_file"; then
+  echo "" >&2
+  echo "✖ commit blocked: AI-assistant attribution found in the commit message." >&2
+  echo "  Remove it (no 🤖, no 'Co-Authored-By: Claude/Anthropic', no 'Generated with …')." >&2
+  echo "  Guard: .githooks/commit-msg" >&2
+  echo "" >&2
+  exit 1
+fi
