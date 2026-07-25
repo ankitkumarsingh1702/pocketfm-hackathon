@@ -3,6 +3,11 @@
 # ---- Stage 1: build the React (Vite) frontend ----
 FROM node:20-slim AS frontend
 WORKDIR /fe
+# The lockfile is maintained with npm 11 (see package.json engines). The npm 10
+# bundled with node:20 computes a different optional-dependency tree and fails
+# `npm ci` with "Missing: @emnapi/... from lock file" — so the builder must run
+# the same npm major as the machines that write the lockfile.
+RUN npm install -g npm@11
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
