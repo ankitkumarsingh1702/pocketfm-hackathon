@@ -15,23 +15,24 @@ export const MAX_CHARS = 60000
 /**
  * How often to ask the service how a running job is doing.
  *
- * The rate is deliberately not constant, and deliberately not a backoff. A
- * conversion takes five to eight minutes, so for the first stretch the answer
- * is always "still running" — polling hard there buys nothing. Past that the
- * job can finish at any moment, so the poll tightens and a completed scene
- * does not sit unreported.
+ * The rate is deliberately not constant, and deliberately not a backoff — it
+ * tightens as the job approaches plausible completion. A conversion takes five
+ * to eight minutes, so early on the answer is always "still running" and
+ * polling hard buys nothing; near the end a finished scene should not sit
+ * unreported. Each tier applies until `untilMs` of watching has elapsed:
  *
- *   first 3 minutes   every 10s
+ *   first 3 minutes   every 20s
+ *   minutes 3–5       every 10s
  *   after that        every 5s
  *
  * A poll is a cheap in-memory dict lookup on the service side, so the cost of
- * the faster phase is bounded and small.
+ * the faster phases is bounded and small.
  */
-export const POLL_INTERVAL_EARLY_MS = 10 * 1000
-export const POLL_INTERVAL_LATE_MS = 5 * 1000
-
-/** How long the early rate lasts before the poll switches to the late one. */
-export const POLL_FAST_AFTER_MS = 3 * 60 * 1000
+export const POLL_SCHEDULE = [
+  { untilMs: 3 * 60 * 1000, intervalMs: 20 * 1000 },
+  { untilMs: 5 * 60 * 1000, intervalMs: 10 * 1000 },
+  { untilMs: Infinity, intervalMs: 5 * 1000 },
+]
 
 /**
  * Stop polling after this long. A conversion is five to eight minutes; twenty

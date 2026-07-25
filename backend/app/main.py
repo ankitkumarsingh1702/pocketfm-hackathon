@@ -257,9 +257,32 @@ async def mdp_optimize_stream(req: MdpRequest) -> StreamingResponse:
 # declared above. When no build is present (local dev), this is a no-op.
 import os  # noqa: E402,F401
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from app.config import BACKEND_DIR  # noqa: E402
 
 static_dir = BACKEND_DIR / "static"
+
+
+class SpaStaticFiles(StaticFiles):
+    """Static files with an SPA fallback: unknown paths serve index.html.
+
+    The frontend routes its lenses client-side (/audience, /genre, ...), so a
+    reload or deep link on any of those paths must land on the app shell
+    rather than a 404.
+    """
+
+    async def get_response(self, path: str, scope):
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            return await super().get_response("index.html", scope)
+        if response.status_code == 404:
+            return await super().get_response("index.html", scope)
+        return response
+
+
 if static_dir.is_dir():
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="spa")
+    app.mount("/", SpaStaticFiles(directory=str(static_dir), html=True), name="spa")

@@ -1,0 +1,259 @@
+/**
+ * Studio shell — sidebar navigation + routed content area.
+ *
+ * Desktop: a fixed-width white sidebar with the wordmark, one link per lens,
+ * and backend status pinned to the bottom. Mobile (<1024px): the sidebar
+ * becomes an off-canvas drawer behind a slim top bar. All colours and type
+ * come from the tokens in index.css.
+ */
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  background: var(--canvas);
+}
+
+/* Keyboard users can jump straight past the nav. */
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  z-index: 200;
+  padding: 10px 16px;
+  background: var(--ink);
+  color: var(--canvas);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top var(--dur-fast) var(--ease-standard);
+}
+.skip-link:focus-visible {
+  top: 16px;
+  color: var(--canvas);
+}
+
+/* ---------------------------------------------------------- sidebar --- */
+.sidebar {
+  flex: 0 0 264px;
+  width: 264px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 28px 18px 18px;
+  border-right: 1px solid var(--border);
+  background: var(--canvas);
+  overflow-y: auto;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.side-nav__label {
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  transition:
+    background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.side-link:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.side-link.is-active {
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+.side-link__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--dim);
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.side-link:hover .side-link__icon {
+  color: var(--muted);
+}
+.side-link.is-active .side-link__icon {
+  color: var(--accent-text-sm);
+}
+
+/* Superpowers still in the workshop — named, but not clickable. */
+.side-soon {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.side-soon__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 13.5px;
+  color: var(--dim);
+}
+.side-soon__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--grey-200);
+  flex-shrink: 0;
+  margin: 0 6px;
+}
+
+.sidebar__foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.sidebar__foot-line {
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------- mobile top bar --- */
+.topbar {
+  display: none;
+}
+
+.topbar__menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--canvas);
+  color: var(--ink);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.topbar__menu:hover {
+  border-color: var(--ink);
+}
+
+.shell-scrim {
+  display: none;
+}
+
+/* ---------------------------------------------------------- content --- */
+.content {
+  flex: 1;
+  min-width: 0;
+  padding: 40px clamp(20px, 4vw, 48px) 96px;
+}
+.content__inner {
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+.page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+.page-head__title {
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.12;
+  color: var(--ink);
+}
+.page-head__blurb {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 64ch;
+}
+
+/* Panels stay mounted so long-running work survives navigation; only the
+   active one is visible. The fade re-runs each time a panel is revealed —
+   and only for users who haven't asked for reduced motion, so the content
+   is simply there (no flash) for everyone else. */
+@media (prefers-reduced-motion: no-preference) {
+  .lens-panel {
+    animation: pfm-fade-in var(--dur-med) var(--ease-standard) both;
+  }
+}
+
+/* ------------------------------------------------------ small screens --- */
+@media (max-width: 1023px) {
+  .shell {
+    display: block;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 64px;
+    padding: 10px 16px;
+    background: var(--canvas);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar__spacer {
+    flex: 1;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 130;
+    width: min(300px, 86vw);
+    transform: translateX(-103%);
+    transition: transform var(--dur-med) var(--ease-standard);
+    box-shadow: none;
+  }
+  .sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shell-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    background: rgba(17, 17, 17, 0.38);
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .content {
+    padding: 28px 20px 80px;
+  }
+  .page-head {
+    margin-bottom: 28px;
+  }
+}

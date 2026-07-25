@@ -425,7 +425,7 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
   const toggle = (key) => setSelected((cur) => (cur === key ? null : key))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingTop: 32 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingTop: 4 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ maxWidth: 640 }}>

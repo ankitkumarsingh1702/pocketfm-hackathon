@@ -1,6 +1,7 @@
 /**
  * Primary/secondary/ghost button. Presentation only — behaviour comes from the
- * `onClick` handler the caller passes down.
+ * `onClick` handler the caller passes down. Primary is always black-on-white
+ * per the studio's design system; red never carries the main action.
  */
 export default function Button({
   children,
@@ -19,6 +20,7 @@ export default function Button({
     fontSize,
     borderRadius: 'var(--radius-sm)',
     padding: pad,
+    minHeight: size === 'sm' ? 36 : 44,
     cursor: disabled ? 'not-allowed' : 'pointer',
     border: '1px solid transparent',
     transition:
@@ -26,22 +28,31 @@ export default function Button({
     opacity: disabled ? 0.5 : 1,
     display: 'inline-flex',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     whiteSpace: 'nowrap',
     flexShrink: 0,
   }
   const variants = {
-    primary: { background: 'var(--accent)', color: '#fff' },
+    primary: { background: 'var(--cta)', color: '#fff' },
+    // Secondary is the studio's bordered CTA: white surface, black border.
     secondary: {
       background: 'var(--surface-raised)',
       color: 'var(--ink)',
-      border: '1px solid var(--border)',
+      border: '1px solid var(--ink)',
     },
     ghost: { background: 'transparent', color: 'var(--ink)' },
   }
 
-  const setBg = (bg) => (e) => {
-    if (!disabled && variant === 'primary') e.currentTarget.style.background = bg
+  const hover = (on) => (e) => {
+    if (disabled) return
+    if (variant === 'primary') {
+      e.currentTarget.style.background = on ? 'var(--cta-hover)' : 'var(--cta)'
+    } else if (variant === 'secondary') {
+      e.currentTarget.style.background = on ? 'var(--surface)' : 'var(--surface-raised)'
+    } else {
+      e.currentTarget.style.background = on ? 'var(--surface)' : 'transparent'
+    }
   }
 
   return (
@@ -50,8 +61,8 @@ export default function Button({
       disabled={disabled}
       onClick={onClick}
       style={{ ...base, ...variants[variant] }}
-      onMouseEnter={setBg('var(--accent-press)')}
-      onMouseLeave={setBg('var(--accent)')}
+      onMouseEnter={hover(true)}
+      onMouseLeave={hover(false)}
     >
       {children}
     </button>

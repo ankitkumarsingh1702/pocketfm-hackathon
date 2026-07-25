@@ -483,7 +483,7 @@ export default function StoryCanonTab(props) {
   const { activePanel, setActivePanel, graph, refresh } = props
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingTop: 32 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingTop: 4 }}>
       <CanonComposer {...props} />
 
       {CANON_PANELS.length > 1 && (
