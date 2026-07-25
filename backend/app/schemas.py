@@ -149,3 +149,184 @@ class WritersRoomRequest(BaseModel):
 class CliffhangerRequest(BaseModel):
     story: Story
     weak_excerpt: str                   # the soft ending to rewrite
+
+
+# ---------------------------------------------------------------------------
+# Knowledge graph — LLM extraction (Gemini-safe: str / Literal / int / list of
+# models only; NO free dict/Any, which the Vertex response_schema rejects)
+# ---------------------------------------------------------------------------
+
+# Node kinds in the story-canon graph.
+EntityType = Literal[
+    "Character", "PlotThread", "Clue", "Episode", "Location", "Theme", "AudienceSegment"
+]
+
+
+class ExtractedEntity(BaseModel):
+    """One entity (node) the LLM found in an episode."""
+
+    key: str = Field(description="A short id the model uses to refer to this entity in relations, e.g. 'naina'.")
+    type: EntityType
+    name: str = Field(description="Canonical human-readable name, e.g. 'Naina'.")
+    description: str = Field(default="", description="One concise sentence about this entity.")
+
+
+class ExtractedRelation(BaseModel):
+    """A directed edge between two extracted entities, referenced by their keys."""
+
+    source_key: str
+    target_key: str
+    type: str = Field(description="UPPER_SNAKE_CASE relation, e.g. APPEARS_IN, LOCATED_AT, SUSPECTS.")
+    detail: str = Field(default="", description="Short qualifier for this edge.")
+
+
+class ExtractedFact(BaseModel):
+    """An atomic, checkable claim — the raw material for contradiction search."""
+
+    subject_key: str = Field(description="Key of the entity the fact is about.")
+    predicate: str = Field(description="Snake_case attribute, e.g. 'building_floor_count', 'status'.")
+    object: str = Field(description="The asserted value as text, e.g. '5', 'sealed since 1998'.")
+
+
+class CanonExtraction(BaseModel):
+    """Everything the LLM pulled out of one episode."""
+
+    entities: list[ExtractedEntity] = Field(default_factory=list)
+    relations: list[ExtractedRelation] = Field(default_factory=list)
+    facts: list[ExtractedFact] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Knowledge graph — read models (returned by the API; free dicts allowed here)
+# ---------------------------------------------------------------------------
+
+
+class CanonNodeView(BaseModel):
+    id: str                              # stable graph key, e.g. 'Character:naina'
+    label: str                          # node type, e.g. 'Character'
+    name: str
+    props: dict[str, str] = Field(default_factory=dict)
+
+
+class CanonEdgeView(BaseModel):
+    source: str                          # source node id
+    target: str                          # target node id
+    type: str                            # relation type, e.g. 'APPEARS_IN'
+
+
+class CanonGraph(BaseModel):
+    nodes: list[CanonNodeView] = Field(default_factory=list)
+    edges: list[CanonEdgeView] = Field(default_factory=list)
+    stats: dict[str, int] = Field(default_factory=dict)   # e.g. {'Character': 4, ...}
+
+
+class IngestRequest(BaseModel):
+    story: Story
+
+
+class IngestResult(BaseModel):
+    episode_id: str
+    nodes_added: int
+    edges_added: int
+    entities: list[str] = Field(default_factory=list)     # names ingested, for the UI
+
+
+# ---------------------------------------------------------------------------
+# Planning — Tree & Graph Search (plot-hole detection + cliffhanger beam search)
+# ---------------------------------------------------------------------------
+
+
+class PlotHole(BaseModel):
+    """A continuity/consistency issue found across the canon + this episode."""
+
+    severity: Literal["high", "medium", "low"]
+    location: str = Field(description="Where it occurs, e.g. a scene or line.")
+    kind: str = Field(description="Short category, e.g. 'timeline', 'fact conflict', 'tone'.")
+    description: str
+    evidence: list[str] = Field(default_factory=list)     # supporting canon facts / quotes
+    fix: str = Field(description="A concrete suggested fix.")
+
+
+class PlotHoleResult(BaseModel):
+    holes: list[PlotHole] = Field(default_factory=list)
+    canon_used: bool = False                              # were graph facts available?
+    episodes_scanned: int = 0                             # episodes present in the canon
+
+
+class PlanCandidate(BaseModel):
+    """One node in the cliffhanger search tree."""
+
+    id: str
+    text: str
+    hook_score: float
+    delta: float                                          # hook_score - baseline
+    parent_id: str | None = None
+    depth: int = 0
+
+
+class SearchTree(BaseModel):
+    candidates: list[PlanCandidate] = Field(default_factory=list)
+    best_id: str = ""
+    rounds: int = 0
+    baseline_score: float = 0.0
+
+
+class PlotHolesRequest(BaseModel):
+    story: Story
+
+
+class PlanRequest(BaseModel):
+    story: Story
+    weak_excerpt: str
+    beam_width: int | None = None
+    depth: int | None = None
+
+
+# ---------------------------------------------------------------------------
+# Actions — State Graph (agentic showrunner loop)
+# ---------------------------------------------------------------------------
+
+
+class ShowrunnerResult(BaseModel):
+    transcript: list[dict] = Field(default_factory=list)   # node-by-node log
+    before_score: float = 0.0
+    after_score: float = 0.0
+    lift: float = 0.0
+    contradictions_found: int = 0
+    contradictions_fixed: int = 0
+    converged: bool = True
+    iterations: int = 0
+    final_text: str = ""
+
+
+class ShowrunnerRequest(BaseModel):
+    story: Story
+    weak_excerpt: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# RL — Markov Decision Process (policy search over story decisions)
+# ---------------------------------------------------------------------------
+
+
+class MdpStep(BaseModel):
+    iteration: int
+    chosen_action_id: str
+    reward: float
+    best_reward: float
+    q_values: list[float] = Field(default_factory=list)
+
+
+class MdpResult(BaseModel):
+    steps: list[MdpStep] = Field(default_factory=list)
+    baseline_reward: float = 0.0
+    final_reward: float = 0.0
+    best_action_text: str = ""
+    policy: str = "greedy"
+
+
+class MdpRequest(BaseModel):
+    story: Story
+    weak_excerpt: str
+    iterations: int | None = None
+    candidates_per_iter: int | None = None

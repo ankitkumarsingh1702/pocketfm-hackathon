@@ -13,13 +13,24 @@ from app.db.firestore import save_simulation
 from app.engine.aggregate import aggregate_audience
 from app.engine.cache import Cache
 from app.engine.runner import run_reactions
+from app.graph.store import (
+    canon_fingerprint,
+    fetch_canon_subgraph,
+    render_canon_memory,
+    write_audience_verdict,
+)
 from app.llm.factory import get_llm
 from app.personas.loader import fan_out_audience, load_personas
 from app.schemas import AudienceResult, Story
 
 
 async def run_audience(story: Story, n: int | None = None) -> AudienceResult:
-    """Run the audience simulation for `story` across `n` listeners."""
+    """Run the audience simulation for `story` across `n` listeners.
+
+    Listeners react with the story-canon memory injected (when available), so
+    they behave as returning listeners; their per-segment verdicts are written
+    back to the graph as `REACTED_TO` edges.
+    """
     personas = load_personas("audience")
     n = n or settings.audience_fanout
     personas = fan_out_audience(personas, n)
@@ -27,10 +38,24 @@ async def run_audience(story: Story, n: int | None = None) -> AudienceResult:
     llm = get_llm()
     cache = Cache(settings.cache_dir)
 
+    canon = render_canon_memory(await fetch_canon_subgraph(story))
     pairs = await run_reactions(
-        personas, story, llm, cache, model=settings.model_for("audience")
+        personas,
+        story,
+        llm,
+        cache,
+        model=settings.model_for("audience"),
+        canon=canon,
+        canon_fp=canon_fingerprint(canon),
     )
     result = aggregate_audience(pairs)
 
     save_simulation("audience", story, result.model_dump())
+    await write_audience_verdict(
+        story,
+        [
+            {"segment": s.segment, "following_pct": s.binge_pct, "avg_hook": s.avg_hook}
+            for s in result.segments
+        ],
+    )
     return result

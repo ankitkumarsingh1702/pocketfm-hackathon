@@ -39,6 +39,34 @@ Roles granted to the deployer: `run.admin`, `cloudbuild.builds.editor`,
 ./scripts/deploy_cloudrun.sh
 ```
 
+## Knowledge graph (Neo4j) — optional
+
+The **Story Canon** knowledge graph gives the agents shared, persistent memory.
+It is entirely optional: with no credentials the app runs exactly as before with
+an empty canon (graceful degradation). To turn it on:
+
+1. Create a **Neo4j Aura** instance (a free tier on GCP is fine) and note its
+   `NEO4J_URI` (`neo4j+s://…`), username, and password.
+2. Store them in Secret Manager and grant the Cloud Run runtime SA access — this
+   is scripted; just export the values and run the setup once:
+
+   ```bash
+   export NEO4J_URI='neo4j+s://xxxx.databases.neo4j.io'
+   export NEO4J_USERNAME='neo4j'
+   export NEO4J_PASSWORD='••••••••'
+   ./scripts/gcp_setup.sh
+   ```
+
+3. Deploy. Both `deploy_cloudrun.sh` and the GitHub Actions workflow **auto-mount
+   the secrets when they exist** (`--set-secrets NEO4J_URI/USERNAME/PASSWORD`)
+   and skip them otherwise, so a graph-less deploy still works unchanged.
+
+Confirm it is live: `GET /health` shows `"graph": {"configured": true, …}` and
+`GET /api/canon/health` returns `{"online": true}`.
+
+> No Neo4j credentials ever live in the repo — only in Secret Manager, mounted
+> as env vars at runtime, mirroring the ADC/no-keys model used for Vertex AI.
+
 ## Note on separate frontend/backend deploys
 
 Because one container serves both, the workflow's component choice

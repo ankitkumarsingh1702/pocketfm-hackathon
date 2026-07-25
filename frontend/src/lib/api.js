@@ -77,6 +77,63 @@ export function cliffhanger(story, weakExcerpt) {
   })
 }
 
+// --- Knowledge graph (Story Canon) -----------------------------------------
+
+/** GET /api/canon/health -> { configured, online } */
+export function canonHealth() {
+  return request('/api/canon/health')
+}
+
+/** GET /api/canon/graph -> CanonGraph { nodes[], edges[], stats } */
+export function getCanonGraph() {
+  return request('/api/canon/graph')
+}
+
+/**
+ * POST /api/canon/ingest -> IngestResult
+ * @param {{title:string, episode:string, text:string}} story
+ */
+export function ingestCanon(story) {
+  return request('/api/canon/ingest', { method: 'POST', body: { story } })
+}
+
+/** POST /api/lenses/plot-holes -> PlotHoleResult */
+export function findPlotHoles(story) {
+  return request('/api/lenses/plot-holes', { method: 'POST', body: { story } })
+}
+
+/**
+ * POST /api/plan/cliffhanger/stream -> NDJSON tree-search events.
+ * @param {{story:object, weakExcerpt:string, beamWidth?:number, depth?:number}} payload
+ */
+export function planCliffhangerStream({ story, weakExcerpt, beamWidth, depth }, onEvent, signal) {
+  const body = { story, weak_excerpt: weakExcerpt }
+  if (beamWidth) body.beam_width = beamWidth
+  if (depth) body.depth = depth
+  return ndjsonStream('/api/plan/cliffhanger/stream', body, onEvent, signal)
+}
+
+/**
+ * POST /api/agent/showrunner/stream -> NDJSON state-graph events.
+ * @param {{story:object, weakExcerpt?:string}} payload
+ */
+export function showrunnerStream({ story, weakExcerpt }, onEvent, signal) {
+  const body = { story }
+  if (weakExcerpt) body.weak_excerpt = weakExcerpt
+  return ndjsonStream('/api/agent/showrunner/stream', body, onEvent, signal)
+}
+
+/**
+ * POST /api/mdp/optimize/stream -> NDJSON policy-search events.
+ * @param {{story:object, weakExcerpt:string, iterations?:number, candidatesPerIter?:number}} payload
+ */
+export function mdpOptimizeStream({ story, weakExcerpt, iterations, candidatesPerIter }, onEvent, signal) {
+  const body = { story, weak_excerpt: weakExcerpt }
+  if (iterations) body.iterations = iterations
+  if (candidatesPerIter) body.candidates_per_iter = candidatesPerIter
+  return ndjsonStream('/api/mdp/optimize/stream', body, onEvent, signal)
+}
+
 /**
  * POST /api/lenses/writers-room/stream -> newline-delimited JSON (NDJSON).
  *
@@ -97,8 +154,23 @@ export async function writersRoomStream({ story, experts, audience }, onEvent, s
   const body = { story }
   if (Array.isArray(experts) && experts.length) body.experts = experts
   if (Array.isArray(audience) && audience.length) body.audience = audience
+  return ndjsonStream('/api/lenses/writers-room/stream', body, onEvent, signal)
+}
 
-  const res = await fetch(`${BASE_URL}/api/lenses/writers-room/stream`, {
+/**
+ * POST a JSON body and consume a newline-delimited JSON (NDJSON) response,
+ * handing each parsed event to `onEvent` as it arrives. Shared by every
+ * streaming lens (Writers Room, planner, showrunner agent, MDP optimizer).
+ *
+ * Pass an AbortSignal to cancel; aborting rejects with an AbortError.
+ *
+ * @param {string} path                        endpoint path
+ * @param {object} body                        JSON request body
+ * @param {(event: object) => void} onEvent    called once per complete event line
+ * @param {AbortSignal} [signal]               optional cancel signal
+ */
+export async function ndjsonStream(path, body, onEvent, signal) {
+  const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

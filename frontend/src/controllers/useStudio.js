@@ -7,6 +7,7 @@ import {
 } from '../config/constants'
 import { isBlank, lastScene } from '../utils/story'
 import { useAudienceSimulator } from './useAudienceSimulator'
+import { useCanon } from './useCanon'
 import { useCliffhangerOptimizer } from './useCliffhangerOptimizer'
 import { useHealth } from './useHealth'
 import { useWritersRoom } from './useWritersRoom'
@@ -28,12 +29,16 @@ export function useStudio() {
   const audience = useAudienceSimulator()
   const cliffhanger = useCliffhangerOptimizer()
   const writersRoom = useWritersRoom()
+  const canon = useCanon()
 
   const lensByTab = useMemo(
     () => ({ sim: audience, opt: cliffhanger, room: writersRoom }),
     [audience, cliffhanger, writersRoom],
   )
+  // Self-contained tabs (Writers Room, Story Canon) run their own controls, so
+  // the shared run/loading state simply doesn't apply to them.
   const activeLens = lensByTab[activeTab]
+  const activeLoading = activeLens ? activeLens.loading : false
 
   /** Assemble the request `story` object from the current inputs. */
   const buildStory = useCallback(
@@ -72,9 +77,10 @@ export function useStudio() {
     audience,
     cliffhanger,
     writersRoom,
+    canon,
     // orchestration
     run,
-    isLoading: activeLens.loading,
-    canRun: !isBlank(story) && !activeLens.loading,
+    isLoading: activeLoading,
+    canRun: !isBlank(story) && !activeLoading,
   }
 }

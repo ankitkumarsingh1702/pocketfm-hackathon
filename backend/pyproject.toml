@@ -12,6 +12,7 @@ dependencies = [
     "google-cloud-firestore>=2.19",
     "anthropic[vertex]>=0.40",
     "pyyaml>=6.0.2",
+    "neo4j>=5.25",
 ]
 
 [dependency-groups]
