@@ -101,8 +101,19 @@ class ExpertFeedback(BaseModel):
     note: ExpertNote
 
 
+class AudienceVerdict(BaseModel):
+    """The audience's collective voice in the Writers Room: are they following?"""
+
+    following_pct: float                 # % of listeners who stay with the story
+    avg_engagement: float                # mean hook score, 0-100
+    comprehension: str                   # plain-language read on whether they follow it
+    confusion_points: list[str]          # where the audience got lost
+    representative_quotes: list[str]     # a few raw listener reactions
+
+
 class WritersRoomResult(BaseModel):
     panel: list[ExpertFeedback]
+    audience: AudienceVerdict | None = None
     consensus: str
 
 

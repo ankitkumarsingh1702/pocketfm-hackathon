@@ -46,7 +46,9 @@ class Settings(BaseSettings):
 
     # --- Generation ----------------------------------------------------------
     temperature: float = 0.9        # variety across personas
-    max_output_tokens: int = 1024
+    # Gemini 2.5 spends output tokens on "thinking" — keep this generous so the
+    # thinking budget never starves the structured JSON output.
+    max_output_tokens: int = 8192
     concurrency: int = 10           # simultaneous LLM calls in the batch runner
 
     # --- Persistence ---------------------------------------------------------

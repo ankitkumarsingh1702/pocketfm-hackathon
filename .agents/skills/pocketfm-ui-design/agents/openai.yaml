@@ -1,0 +1,7 @@
+interface:
+  display_name: "PocketFM UI Design"
+  short_description: "Clean Lexend UI with black and soft-red accents"
+  brand_color: "#E96B6B"
+  default_prompt: "Use $pocketfm-ui-design to create a clean, responsive PocketFM interface that follows the shared visual system."
+policy:
+  allow_implicit_invocation: true
