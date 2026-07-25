@@ -21,7 +21,11 @@ from app.engine.search import beam_search
 from app.engine.streaming import ndjson_events
 from app.graph.driver import graph_enabled, graph_probe
 from app.graph.extract import extract_canon
-from app.graph.store import fetch_full_graph, ingest_extraction
+from app.graph.store import (
+    fetch_contradiction_candidates,
+    fetch_full_graph,
+    ingest_extraction,
+)
 from app.lenses.audience import run_audience
 from app.lenses.cliffhanger import run_cliffhanger
 from app.lenses.plot_holes import find_plot_holes
@@ -165,6 +169,16 @@ async def canon_activity(limit: int = 50) -> ActivityFeed:
     human-readable detail. Feeds the DB / Memory tab; observational only.
     """
     return ActivityFeed(events=get_recent_activity(limit))
+
+
+@app.get("/api/canon/facts")
+async def canon_facts() -> dict:
+    """Atomic canon facts + structural contradictions + dangling clues.
+
+    Powers the DB / Memory "Facts tracked" drill-down. ``record=False`` so this
+    read (which the tab polls) never pollutes the activity feed.
+    """
+    return await fetch_contradiction_candidates(source="DB / Memory", record=False)
 
 
 # ---------------------------------------------------------------------------
