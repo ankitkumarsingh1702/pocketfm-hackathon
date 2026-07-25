@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { writersRoomStream } from './lib/api'
+import { getPersonas, writersRoomStream } from './lib/api'
+import AgentProfile from './AgentProfile'
+import { audienceSummary, cloneAgent, expertSummary, segmentOptions } from './lib/agents'
 
 // A short Hindi-English horror-thriller Episode 7 excerpt, deliberately written
 // with a saggy middle (repetitive corridor/room/stairs beats) and a soft,
@@ -9,16 +11,6 @@ const SAMPLE_SCRIPT = `Raat ke teen baje, Meera purani haveli ke darwaze ke saam
 Andar bahut andhera tha. Meera corridor mein aage badhi. Ek kamra tha, phir doosra kamra, phir teesra. Har kamre mein sirf dhool aur khaali kursiyan. Woh chalti rahi, chalti rahi. Usne socha shayad aawaz upar se aa rahi hai. Woh seedhiyan chadhne lagi. Seedhiyan lambi thi. Woh chadhti rahi, chadhti rahi.
 
 Upar ek darwaza tha. Usne darwaza khola. Andar ek bacchi baithi thi. Bacchi mudi aur dheere se muskurayi. "Aap aa gaye," woh boli. Meera ko thoda ajeeb laga. Phir woh chup-chaap ghar wapas chali gayi.`
-
-// The six voices, shown in the empty state so the loop is legible before a run.
-const VOICES = [
-  { role: 'Director', blurb: 'Pacing, tension, and how each beat plays on the ear.' },
-  { role: 'Editor', blurb: 'Structure, clarity, and where the middle sags.' },
-  { role: 'Critic', blurb: 'Originality and whether the payoff earns its place.' },
-  { role: 'Psychologist', blurb: 'Character motivation and emotional truth.' },
-  { role: 'Historian', blurb: 'Genre lineage, tropes, and cultural resonance.' },
-  { role: 'Audience', blurb: 'Simulated listeners — do they keep pressing play?' },
-]
 
 // Clamp any number into a 0-100 range for meter widths.
 function pct(value) {
@@ -68,7 +60,8 @@ function StatusTag({ status }) {
 }
 
 // One expert row: role + name, status, verdict, score bar, fix, expandable notes.
-function ExpertRow({ expert }) {
+// The identity block is a button so the expert's editable profile opens on click.
+function ExpertRow({ expert, onOpen }) {
   const { role, name, status, note, elapsed_ms: elapsedMs, error } = expert
   const verdict = note?.verdict
   const score = pct(note?.score)
@@ -77,13 +70,13 @@ function ExpertRow({ expert }) {
   return (
     <li className="expert">
       <div className="expert__top">
-        <div className="expert__id">
+        <button type="button" className="expert__open" onClick={onOpen}>
           <p className="expert__role">{role}</p>
           <p className="expert__name">
             {name}
-            <span className="expert__hint"> · reads the episode as {role}</span>
+            <span className="expert__hint"> · edit profile</span>
           </p>
-        </div>
+        </button>
         <div className="expert__flags">
           {verdict && status === 'done' && (
             <span className={`verdict verdict--${verdict}`}>{verdict}</span>
@@ -165,6 +158,56 @@ function audienceLineText(entry) {
   return `✓ [${entry.segment || 'listener'}] hook ${formatNumber(r.hook_score)} · ${move} · "${reason}"`
 }
 
+// Flatten the fetched personas into one editable roster, pinning each agent's
+// kind by the bucket it arrived in so re-bucketing on edit is always reliable.
+function buildRoster(data) {
+  return [
+    ...(data?.experts || []).map((a) => cloneAgent({ ...a, kind: 'expert' })),
+    ...(data?.audience || []).map((a) => cloneAgent({ ...a, kind: 'audience' })),
+  ]
+}
+
+// A clickable roster chip: name + role/segment + a compact attribute summary.
+function RosterCard({ agent, onOpen }) {
+  const isAudience = agent.kind === 'audience'
+  const subtitle = isAudience ? agent.segment : agent.role
+  const summary = isAudience ? audienceSummary(agent) : expertSummary(agent)
+  return (
+    <button type="button" className="cast-card" onClick={onOpen}>
+      <span className="cast-card__name">{agent.name}</span>
+      {subtitle && <span className="cast-card__role">{subtitle}</span>}
+      {summary && <span className="cast-card__sum">{summary}</span>}
+    </button>
+  )
+}
+
+// One labelled roster group ('Expert panel' or 'Audience') of clickable chips.
+// The group is derived from the combined roster by the agent's current kind, so
+// flipping an agent's Type in its profile moves its chip here instantly.
+function RosterGroup({ title, agents, emptyLabel, onOpen }) {
+  return (
+    <section className="roster-group" aria-label={title}>
+      <div className="roster-group__head">
+        <h3 className="roster-group__title">{title}</h3>
+        <span className="roster-group__count">{agents.length}</span>
+      </div>
+      {agents.length === 0 ? (
+        <p className="panel__placeholder">{emptyLabel}</p>
+      ) : (
+        <div className="cast">
+          {agents.map((agent) => (
+            <RosterCard
+              agent={agent}
+              key={agent.id}
+              onOpen={() => onOpen(agent.id)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export default function WritersRoom() {
   const [title, setTitle] = useState('Andhera')
   const [episode, setEpisode] = useState('7')
@@ -180,9 +223,79 @@ export default function WritersRoom() {
   const [orchestrator, setOrchestrator] = useState(null)
   const [result, setResult] = useState(null)
 
+  // One combined, editable roster is the single source of truth. Each entry
+  // carries its own `kind` ('expert' | 'audience'); the Expert panel and the
+  // Audience group are just views derived from that field, so flipping an
+  // agent's Type in its profile re-buckets it everywhere at once — both the
+  // on-screen chips and the run payload.
+  const [roster, setRoster] = useState([])
+  const [rosterError, setRosterError] = useState(null)
+  const [activeAgentId, setActiveAgentId] = useState(null) // agent id | null
+
   const abortRef = useRef(null)
   const abortedRef = useRef(false)
   const logRef = useRef(null)
+
+  // Load the base rosters once on mount; store editable copies in one array.
+  // The source array pins each agent's kind so re-bucketing is always reliable.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const data = await getPersonas()
+        if (cancelled) return
+        setRoster(buildRoster(data))
+        setRosterError(null)
+      } catch (err) {
+        if (!cancelled) setRosterError(err?.message || 'Could not load the agents.')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function resetRosters() {
+    try {
+      const data = await getPersonas()
+      setRoster(buildRoster(data))
+      setRosterError(null)
+    } catch (err) {
+      setRosterError(err?.message || 'Could not reload the agents.')
+    }
+  }
+
+  // Views derived from the current kind of each agent.
+  const expertGroup = useMemo(() => roster.filter((a) => a.kind === 'expert'), [roster])
+  const audienceGroup = useMemo(() => roster.filter((a) => a.kind === 'audience'), [roster])
+
+  const segmentOpts = useMemo(() => segmentOptions(audienceGroup), [audienceGroup])
+
+  // Resolve a clicked agent (roster chip, expert row, or fanned-out audience
+  // log line) back to its roster entry, then open its profile. Audience log ids
+  // look like "<base-id>-<n>", so a prefix match reunites a clone with its base.
+  // Matching is kind-agnostic: we search the whole roster by id, then segment,
+  // then name.
+  function openAgent({ id, name, segment } = {}) {
+    let found = null
+    if (id) {
+      found = roster.find((a) => a.id === id) || roster.find((a) => id.startsWith(`${a.id}-`))
+    }
+    if (!found && segment) found = roster.find((a) => a.segment === segment)
+    if (!found && name) found = roster.find((a) => a.name === name)
+    if (found) setActiveAgentId(found.id)
+  }
+
+  // Apply an edit from the profile drawer back into the combined roster by id.
+  // A changed kind simply lands on the entry and the derived groups recompute.
+  function updateAgent(updated) {
+    setRoster((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+  }
+
+  const activeAgentObj = useMemo(
+    () => (activeAgentId ? roster.find((a) => a.id === activeAgentId) || null : null),
+    [activeAgentId, roster],
+  )
 
   // Auto-scroll the console to the newest line as the audience reacts.
   useEffect(() => {
@@ -264,7 +377,11 @@ export default function WritersRoom() {
     setResult(null)
 
     try {
-      await writersRoomStream({ title, episode, text }, handleEvent, controller.signal)
+      await writersRoomStream(
+        { story: { title, episode, text }, experts: expertGroup, audience: audienceGroup },
+        handleEvent,
+        controller.signal,
+      )
     } catch (err) {
       if (!abortedRef.current && err?.name !== 'AbortError') {
         setError(err?.message || 'The stream failed. Check the backend and try again.')
@@ -378,7 +495,7 @@ export default function WritersRoom() {
             <span className="composer__note">
               {streaming
                 ? 'Listeners answer first; the expert panel follows.'
-                : 'Six voices weigh in at once — five expert lenses and a simulated audience.'}
+                : 'Your expert panel and a simulated audience weigh in at once — edit any agent below.'}
             </span>
           </div>
         </section>
@@ -434,23 +551,55 @@ export default function WritersRoom() {
           </section>
         )}
 
-        {/* ---- Empty state ---- */}
+        {/* ---- Empty state: the editable cast ---- */}
         {showEmpty && (
-          <section className="empty" aria-label="How this works">
+          <section className="empty" aria-label="The room">
             <p className="empty__lead">
               Run an episode and the room convenes at once. Listeners react on the
               fast model, the expert panel deliberates on the pro model, and an
               orchestrator fuses both into one verdict — streamed here as each voice
               lands.
             </p>
-            <ul className="voices">
-              {VOICES.map((v) => (
-                <li className="voice" key={v.role}>
-                  <span className="voice__role">{v.role}</span>
-                  <span className="voice__blurb">{v.blurb}</span>
-                </li>
-              ))}
-            </ul>
+
+            <div className="roster">
+              <div className="roster__bar">
+                <p className="roster__hint">
+                  Tap any agent to edit their profile. Changes apply to the next run.
+                </p>
+                <button type="button" className="btn btn--ghost" onClick={resetRosters}>
+                  Reset to defaults
+                </button>
+              </div>
+
+              {rosterError && (
+                <p className="roster__error" role="alert">
+                  <span aria-hidden="true">✕ </span>{rosterError}
+                </p>
+              )}
+
+              <div className="roster__groups">
+                <RosterGroup
+                  title="Expert panel"
+                  agents={expertGroup}
+                  emptyLabel={
+                    roster.length === 0
+                      ? 'Loading agents…'
+                      : "No experts yet — set an agent's Type to expert."
+                  }
+                  onOpen={(id) => openAgent({ id })}
+                />
+                <RosterGroup
+                  title="Audience"
+                  agents={audienceGroup}
+                  emptyLabel={
+                    roster.length === 0
+                      ? 'Loading agents…'
+                      : "No listeners yet — set an agent's Type to audience."
+                  }
+                  onOpen={(id) => openAgent({ id })}
+                />
+              </div>
+            </div>
           </section>
         )}
 
@@ -469,7 +618,11 @@ export default function WritersRoom() {
               ) : (
                 <ul className="experts">
                   {experts.map((e) => (
-                    <ExpertRow expert={e} key={e.id} />
+                    <ExpertRow
+                      expert={e}
+                      key={e.id}
+                      onOpen={() => openAgent({ id: e.id, name: e.name })}
+                    />
                   ))}
                 </ul>
               )}
@@ -503,9 +656,20 @@ export default function WritersRoom() {
                   <p className="log__idle">Waiting for the first listener…</p>
                 ) : (
                   audienceLog.map((entry, i) => (
-                    <div className={`log__line${entry.error ? ' log__line--err' : ''}`} key={`${entry.id}-${i}`}>
+                    <button
+                      type="button"
+                      className={`log__line${entry.error ? ' log__line--err' : ''}`}
+                      key={`${entry.id}-${i}`}
+                      onClick={() =>
+                        openAgent({
+                          id: entry.id,
+                          segment: entry.segment,
+                          name: entry.name,
+                        })
+                      }
+                    >
                       {audienceLineText(entry)}
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -566,6 +730,16 @@ export default function WritersRoom() {
           </section>
         )}
       </main>
+
+      {/* ---- Agent profile drawer (edits reflect in real time) ---- */}
+      {activeAgentObj && (
+        <AgentProfile
+          agent={activeAgentObj}
+          segmentOptions={segmentOpts}
+          onChange={updateAgent}
+          onClose={() => setActiveAgentId(null)}
+        />
+      )}
 
       <footer className="wr-foot">
         Simulated Studio · persona simulation on Google Vertex AI

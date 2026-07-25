@@ -36,9 +36,11 @@ class Persona(BaseModel):
     segment: str | None = None          # audience archetype label, e.g. "Metro Binge-Watcher"
     role: str | None = None             # expert role, e.g. "Director"
     age: int | None = None
+    gender: str | None = None
     city: str | None = None
     genres: list[str] = Field(default_factory=list)
     traits: list[str] = Field(default_factory=list)
+    temperature: float | None = None    # per-agent sampling override (None = provider default)
     system_prompt: str
 
 
@@ -138,6 +140,10 @@ class SimulateRequest(BaseModel):
 
 class WritersRoomRequest(BaseModel):
     story: Story
+    # Optional edited rosters from the UI (agent profiles). When omitted, the
+    # server loads the default personas from skills/*.yaml.
+    experts: list[Persona] | None = None
+    audience: list[Persona] | None = None
 
 
 class CliffhangerRequest(BaseModel):

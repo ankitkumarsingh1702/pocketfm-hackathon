@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from app.engine.aggregate import aggregate_audience
 from app.personas.loader import load_personas
-from app.schemas import DROP_STAGES, Persona, PersonaReaction
+from app.schemas import DROP_STAGES, Persona, PersonaReaction, Story
 
 
 def _persona(i: int, segment: str) -> Persona:
@@ -119,3 +119,37 @@ def test_audience_verdict_empty_is_safe():
     assert verdict.confusion_points == []
     assert verdict.representative_quotes == []
     assert isinstance(verdict.comprehension, str) and verdict.comprehension
+
+
+def test_reaction_prompt_demographics_and_fingerprint_offline():
+    """Edits to demographics flow into the prompt and change the cache key."""
+    from app.engine.runner import build_reaction_prompt, persona_fingerprint
+
+    persona = Persona(
+        id="demo",
+        name="Asha",
+        kind="audience",
+        segment="Metro Binge-Watcher",
+        age=30,
+        gender="Female",
+        city="Delhi",
+        genres=["thriller", "romance"],
+        system_prompt="React as this listener.",
+    )
+    story = Story(title="Test", episode="1", text="A short script.")
+
+    system, _user = build_reaction_prompt(persona, story)
+    # The demographic preamble is prepended, natural-worded, and guarded per field.
+    assert system.startswith("You are Asha, a 30-year-old woman from Delhi.")
+    assert "You mostly enjoy thriller, romance." in system
+    # The persona's own prompt and the fixed tail are preserved.
+    assert "React as this listener." in system
+    assert system.endswith(
+        "Answer strictly as this listener reacting to one audio-drama episode."
+    )
+
+    # Fingerprint is a stable 16-hex digest that changes when a field changes.
+    fp = persona_fingerprint(persona)
+    assert len(fp) == 16
+    assert fp == persona_fingerprint(persona)  # deterministic
+    assert fp != persona_fingerprint(persona.model_copy(update={"city": "Mumbai"}))

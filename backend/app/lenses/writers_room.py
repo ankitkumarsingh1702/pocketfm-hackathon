@@ -17,7 +17,12 @@ from itertools import zip_longest
 from app.config import settings
 from app.db.firestore import save_simulation
 from app.engine.cache import Cache
-from app.engine.runner import _story_hash, build_reaction_prompt, run_reactions
+from app.engine.runner import (
+    _story_hash,
+    build_reaction_prompt,
+    persona_fingerprint,
+    run_reactions,
+)
 from app.llm.factory import get_llm
 from app.personas.loader import fan_out_audience, load_personas
 from app.schemas import (
@@ -137,16 +142,23 @@ def _consensus(panel: list[ExpertFeedback], verdict: AudienceVerdict | None) -> 
     return expert_part + audience_part
 
 
-async def run_writers_room(story: Story) -> WritersRoomResult:
-    """Convene the expert panel + live audience for ``story`` and summarise both."""
+async def run_writers_room(
+    story: Story,
+    experts: list[Persona] | None = None,
+    audience: list[Persona] | None = None,
+) -> WritersRoomResult:
+    """Convene the expert panel + live audience for ``story`` and summarise both.
+
+    When ``experts``/``audience`` are supplied (the UI's edited rosters) they are
+    used verbatim; otherwise the default personas from ``skills/*.yaml`` load.
+    """
     llm = get_llm()
-    experts = load_personas("expert")
+    experts = experts if experts is not None else load_personas("expert")
     expert_prompt = "Critique this audio-drama episode for craft.\n" + _story_text(story)
     expert_model = settings.model_for("experts")
 
-    audience_personas = fan_out_audience(
-        load_personas("audience"), min(20, settings.audience_fanout)
-    )
+    audience_base = audience if audience is not None else load_personas("audience")
+    audience_personas = fan_out_audience(audience_base, min(20, settings.audience_fanout))
     audience_model = settings.model_for("audience")
     cache = Cache(settings.cache_dir)
 
@@ -158,6 +170,7 @@ async def run_writers_room(story: Story) -> WritersRoomResult:
                     system=e.system_prompt,
                     prompt=expert_prompt,
                     schema=ExpertNote,
+                    temperature=e.temperature,
                     model=expert_model,
                 )
                 for e in experts
@@ -181,7 +194,11 @@ async def run_writers_room(story: Story) -> WritersRoomResult:
     return result
 
 
-async def stream_writers_room(story: Story):
+async def stream_writers_room(
+    story: Story,
+    experts: list[Persona] | None = None,
+    audience: list[Persona] | None = None,
+):
     """Stream the Writers' Room simulation as NDJSON-friendly event dicts.
 
     Yields one event dict per the streaming protocol as each agent finishes:
@@ -190,11 +207,13 @@ async def stream_writers_room(story: Story):
     the stronger expert models), then a single ``orchestrator`` summary, then
     ``done`` carrying the full persisted result. One agent's failure never
     aborts the stream — it yields an ``*_error`` event and the run continues.
+
+    When ``experts``/``audience`` are supplied (the UI's edited rosters) they are
+    used verbatim; otherwise the default personas from ``skills/*.yaml`` load.
     """
-    experts = load_personas("expert")
-    audience = fan_out_audience(
-        load_personas("audience"), min(20, settings.audience_fanout)
-    )
+    experts = experts if experts is not None else load_personas("expert")
+    audience_base = audience if audience is not None else load_personas("audience")
+    audience = fan_out_audience(audience_base, min(20, settings.audience_fanout))
     llm = get_llm()
     cache = Cache(settings.cache_dir)
     expert_model = settings.model_for("experts")
@@ -224,6 +243,7 @@ async def stream_writers_room(story: Story):
                 system=e.system_prompt,
                 prompt=expert_prompt,
                 schema=ExpertNote,
+                temperature=e.temperature,
                 model=expert_model,
             )
         except Exception as exc:  # noqa: BLE001 - report as an event, never abort
@@ -248,7 +268,12 @@ async def stream_writers_room(story: Story):
         try:
             system, user = build_reaction_prompt(p, story)
             key = cache.make_key(
-                llm.name, audience_model or "default", p.id, story_hash, "reaction"
+                llm.name,
+                audience_model or "default",
+                p.id,
+                persona_fingerprint(p),
+                story_hash,
+                "reaction",
             )
             reaction: PersonaReaction | None = None
             cached = cache.get(key)
@@ -260,7 +285,7 @@ async def stream_writers_room(story: Story):
             if reaction is None:
                 async with sem:
                     reaction = await llm.structured(
-                        system, user, PersonaReaction, model=audience_model
+                        system, user, PersonaReaction, temperature=p.temperature, model=audience_model
                     )
                 cache.set(key, reaction.model_dump())
         except Exception as exc:  # noqa: BLE001 - report as an event, never abort
