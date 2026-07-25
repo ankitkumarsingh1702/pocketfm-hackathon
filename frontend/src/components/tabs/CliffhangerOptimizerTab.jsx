@@ -36,7 +36,7 @@ export default function CliffhangerOptimizerTab({ loading, error, data }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 40, paddingTop: 40 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 40, paddingTop: 8 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
         <MetricNumber value={data.before} size="lg" tone="muted" />
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 40, color: 'var(--accent)' }}>
@@ -61,11 +61,6 @@ export default function CliffhangerOptimizerTab({ loading, error, data }) {
           {signed(data.lift)}
         </span>
       </div>
-
-      <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', maxWidth: 620 }}>
-        Cliffhanger Optimizer: predicts the probability of binge-listening and suggests a
-        stronger ending.
-      </p>
 
       <div
         style={{

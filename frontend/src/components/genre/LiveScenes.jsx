@@ -1,11 +1,19 @@
+import { useState } from 'react'
+
+import { Disclosure } from '../primitives'
+
 /**
  * The rewrite arriving, scene by scene.
  *
  * The pipeline plans every scene before it writes the first one, so the whole
- * shape of the job is knowable up front: this renders that plan immediately and
- * then fills each row in as its prose lands. A reader can see what is being
- * written right now, what has already been written, and what is still to come —
- * and can start reading the story four minutes before the job finishes.
+ * shape of the job is knowable up front: this renders that plan immediately
+ * and fills each row in as its prose lands.
+ *
+ * The prose itself is behind a per-scene accordion so the run stays scannable:
+ * the scene being written and the most recently finished one are open — that
+ * is where the action is — and every earlier scene folds to a one-line summary
+ * (status, beats, word count) a reader can reopen at will. A manual toggle
+ * always beats the automatic rule, so nothing snaps shut mid-read.
  */
 
 /** One beat-id chip. Pivotal beats carry the same red dot the skeleton uses. */
@@ -59,16 +67,87 @@ function StatusTag({ state }) {
   )
 }
 
+/** The row header — all a reader needs while the scene is folded. */
+function SceneSummary({ entry, scene, state, pivots, missing }) {
+  return (
+    <span style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
+        Scene {entry.scene}
+      </span>
+      <StatusTag state={state} />
+      <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {(entry.beat_ids ?? []).map((id) => (
+          <BeatChip key={id} id={id} pivotal={pivots.has(id)} missing={missing.has(id)} />
+        ))}
+      </span>
+      {scene?.words != null && (
+        <span className="font-mono-num" style={{ fontSize: 12.5, color: 'var(--dim)' }}>
+          {scene.words} words
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** The prose and its footnotes — what the accordion folds away. */
+function SceneBody({ scene, state }) {
+  return (
+    <div style={{ paddingBottom: 8 }}>
+      {scene?.retried && (
+        <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+          The first attempt left out a load-bearing beat, so it was written again with that
+          beat quoted back.
+        </p>
+      )}
+
+      {scene?.missing?.length > 0 && (
+        <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--accent-text-sm)', fontWeight: 600 }}>
+          Still missing after the retry: {scene.missing.join(', ')}
+        </p>
+      )}
+
+      {state === 'writing' && (
+        <p style={{ margin: '2px 0 0', fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
+          Writing this scene now — roughly 200 to 350 words per beat, so it takes about a
+          minute.
+        </p>
+      )}
+
+      {scene?.prose && (
+        <article
+          style={{
+            marginTop: 6,
+            maxWidth: '68ch',
+            fontSize: 16.5,
+            lineHeight: 1.75,
+            color: 'var(--ink)',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {scene.prose}
+        </article>
+      )}
+    </div>
+  )
+}
+
 export default function LiveScenes({ plan, scenes, active, genre }) {
+  // A reader's explicit open/close beats the automatic focus rule.
+  const [overrides, setOverrides] = useState({})
+
   if (!plan?.length) return null
 
   const written = new Map((scenes ?? []).map((s) => [s.scene, s]))
   const total = plan.length
   const doneCount = written.size
   const words = (scenes ?? []).reduce((sum, s) => sum + (s.words ?? 0), 0)
+  const latestWritten = scenes?.length ? scenes[scenes.length - 1].scene : null
+
+  const isOpen = (sceneNo) =>
+    overrides[sceneNo] ?? (sceneNo === active || sceneNo === latestWritten)
 
   return (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>
           {genre ? `The rewrite, as ${genre}` : 'The rewrite'}
@@ -80,8 +159,8 @@ export default function LiveScenes({ plan, scenes, active, genre }) {
       </div>
 
       <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', maxWidth: '64ch', lineHeight: 1.6 }}>
-        Each scene is one model call, given only the beats it owns. Scenes appear
-        here as they are written — you can start reading before the job finishes.
+        Each scene is one model call, given only the beats it owns. The scene being written
+        stays open; finished ones fold up — open any of them to read while the job runs.
       </p>
 
       <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -90,66 +169,38 @@ export default function LiveScenes({ plan, scenes, active, genre }) {
           const state = scene ? 'written' : entry.scene === active ? 'writing' : 'queued'
           const pivots = new Set(entry.load_bearing ?? [])
           const missing = new Set(scene?.missing ?? [])
+          const summary = (
+            <SceneSummary entry={entry} scene={scene} state={state} pivots={pivots} missing={missing} />
+          )
 
           return (
             <li
               key={entry.scene}
               style={{
                 borderTop: '1px solid var(--border)',
-                padding: '18px 0',
+                padding: '6px 0',
                 opacity: state === 'queued' ? 0.55 : 1,
               }}
             >
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
-                  Scene {entry.scene}
-                </span>
-                <StatusTag state={state} />
-                <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {(entry.beat_ids ?? []).map((id) => (
-                    <BeatChip key={id} id={id} pivotal={pivots.has(id)} missing={missing.has(id)} />
-                  ))}
-                </span>
-                {scene?.words != null && (
-                  <span className="font-mono-num" style={{ fontSize: 12.5, color: 'var(--dim)' }}>
-                    {scene.words} words
+              {state === 'queued' ? (
+                /* Nothing to unfold yet — a static row keeps the plan visible
+                   without a control that does nothing. */
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '8px 0' }}>
+                  <span aria-hidden="true" style={{ flexShrink: 0, fontSize: 10, color: 'var(--dim)' }}>
+                    ·
                   </span>
-                )}
-              </div>
-
-              {scene?.retried && (
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-                  The first attempt left out a load-bearing beat, so it was written again with
-                  that beat quoted back.
-                </p>
-              )}
-
-              {scene?.missing?.length > 0 && (
-                <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--accent-text-sm)', fontWeight: 600 }}>
-                  Still missing after the retry: {scene.missing.join(', ')}
-                </p>
-              )}
-
-              {state === 'writing' && (
-                <p style={{ margin: '10px 0 0', fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
-                  Writing this scene now — roughly 200 to 350 words per beat, so it takes
-                  about a minute.
-                </p>
-              )}
-
-              {scene?.prose && (
-                <article
-                  style={{
-                    marginTop: 12,
-                    maxWidth: '68ch',
-                    fontSize: 16.5,
-                    lineHeight: 1.75,
-                    color: 'var(--ink)',
-                    whiteSpace: 'pre-wrap',
-                  }}
+                  {summary}
+                </div>
+              ) : (
+                <Disclosure
+                  summary={summary}
+                  open={isOpen(entry.scene)}
+                  onToggle={(next) =>
+                    setOverrides((current) => ({ ...current, [entry.scene]: next }))
+                  }
                 >
-                  {scene.prose}
-                </article>
+                  <SceneBody scene={scene} state={state} />
+                </Disclosure>
               )}
             </li>
           )

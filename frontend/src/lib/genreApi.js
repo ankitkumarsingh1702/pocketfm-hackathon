@@ -10,12 +10,7 @@
 // no credential in the client. Point VITE_SGC_URL at http://localhost:8080 to
 // develop against a local `uv run uvicorn api:app`.
 
-import {
-  POLL_FAST_AFTER_MS,
-  POLL_INTERVAL_EARLY_MS,
-  POLL_INTERVAL_LATE_MS,
-  POLL_TIMEOUT_MS,
-} from '../config/genre'
+import { POLL_SCHEDULE, POLL_TIMEOUT_MS } from '../config/genre'
 
 /** Deployed by .github/workflows/deploy-backend.yml (story-genre-convertor). */
 const SGC_URL = 'https://story-genre-convertor-v4c7wg52ia-uc.a.run.app'
@@ -89,15 +84,32 @@ export function getJob(id, signal) {
 }
 
 /**
+ * GET /api/history -> [{ id, created_at, genre, fidelity, words, chars,
+ * seconds, logline, excerpt }] — finished conversions, newest first.
+ */
+export function listHistory(signal) {
+  return request('/api/history', { signal })
+}
+
+/**
+ * GET /api/history/{id} -> the full record: source_text, source_skeleton,
+ * lint, rewritten, detail, and the run's numbers.
+ */
+export function getHistoryRecord(id, signal) {
+  return request(`/api/history/${encodeURIComponent(id)}`, { signal })
+}
+
+/**
  * How long to wait before the next poll, given how long we have been watching.
  *
- * Slow while the job cannot plausibly be finished, then faster once it can —
- * see POLL_INTERVAL_EARLY_MS in config/genre.js for why that way round.
+ * Slow while the job cannot plausibly be finished, tightening as it can — see
+ * POLL_SCHEDULE in config/genre.js for the tiers and why that way round.
  *
  * @param {number} watchedMs  milliseconds since polling began
  */
 function pollDelay(watchedMs) {
-  return watchedMs < POLL_FAST_AFTER_MS ? POLL_INTERVAL_EARLY_MS : POLL_INTERVAL_LATE_MS
+  const tier = POLL_SCHEDULE.find((t) => watchedMs < t.untilMs)
+  return (tier ?? POLL_SCHEDULE[POLL_SCHEDULE.length - 1]).intervalMs
 }
 
 /**

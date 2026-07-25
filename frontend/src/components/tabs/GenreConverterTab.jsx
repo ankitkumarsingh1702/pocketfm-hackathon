@@ -1,14 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { MAX_CHARS, MIN_CHARS, SAMPLE_SOURCE } from '../../config/genre'
+import { MAX_CHARS, MIN_CHARS } from '../../config/genre'
 import { useGenreConverter } from '../../controllers/useGenreConverter'
+import { useStatusToast } from '../../hooks/useStatusToast'
 import FidelityReport from '../genre/FidelityReport'
 import GenrePicker from '../genre/GenrePicker'
+import HistoryView from '../genre/HistoryView'
 import LiveScenes from '../genre/LiveScenes'
 import RewriteView from '../genre/RewriteView'
 import RunStatus from '../genre/RunStatus'
 import SkeletonView from '../genre/SkeletonView'
-import { Button, Tabs } from '../primitives'
+import { Button, Disclosure, Tabs } from '../primitives'
+import { useToast } from '../toast/useToast'
+
+const MODE_TABS = [
+  { id: 'convert', label: 'Convert' },
+  { id: 'history', label: 'History' },
+]
 
 const RESULT_TABS = [
   { id: 'rewrite', label: 'Rewrite' },
@@ -25,7 +33,42 @@ const RESULT_TABS = [
  */
 export default function GenreConverterTab() {
   const c = useGenreConverter()
+  const toast = useToast()
+  const [mode, setMode] = useState('convert')
   const [view, setView] = useState('rewrite')
+
+  // .txt upload: read client-side, land the text in the source box.
+  const fileInputRef = useRef(null)
+
+  async function pickFile(event) {
+    const file = event.target.files?.[0]
+    event.target.value = '' // so picking the same file again still fires
+    if (!file) return
+    if (!/\.txt$/i.test(file.name)) {
+      toast.error(`${file.name} is not a .txt file — export the story as plain text first.`)
+      return
+    }
+    try {
+      const text = await file.text()
+      c.setSource(text)
+      toast.success(`Loaded ${file.name} into the source box.`)
+    } catch {
+      toast.error(`Could not read ${file.name}. Try again or paste the text instead.`)
+    }
+  }
+
+  // Announce the job's outcomes as they land.
+  useStatusToast(c.genresError, (e) => toast.error(`Could not load the genre packs. ${e}`))
+  useStatusToast(c.error, (e) => toast.error(`The conversion failed. ${e}`))
+  useStatusToast(c.result, (r) => {
+    if (c.kind === 'extract') {
+      toast.success('Plot skeleton extracted.')
+    } else {
+      toast.success(
+        `Rewrite finished — ${Math.round((r.detail?.fidelity ?? 0) * 100)}% of the plot survived.`,
+      )
+    }
+  })
 
   // A finished extract has no rewrite to show, so land on the skeleton instead.
   useEffect(() => {
@@ -49,43 +92,27 @@ export default function GenreConverterTab() {
   const showLive = !c.result && (c.running || Boolean(c.error))
 
   return (
-    <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 40 }}>
-      <header style={{ maxWidth: '64ch' }}>
-        <h2 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 600, color: 'var(--ink)' }}>
-          Rewrite a story in another genre
-        </h2>
-        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: 'var(--muted)' }}>
-          The plot is extracted into a genre-neutral skeleton, rewritten scene by scene in
-          the target genre, then checked beat by beat against the page. You get the rewrite
-          and a number for how much of the story survived it.
-        </p>
-      </header>
+    <div style={{ paddingTop: 4, display: 'flex', flexDirection: 'column', gap: 36 }}>
+      {/* Convert / History switch. Both stay mounted so a running job's live
+          view survives a look at the history. */}
+      <Tabs tabs={MODE_TABS} active={mode} onChange={setMode} />
 
+      <div hidden={mode !== 'convert'} style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
       {/* -------------------------------------------------------- source --- */}
       <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <label htmlFor="sgc-source" className="label-upper" style={{ fontSize: 11 }}>
             Source story
           </label>
-          <button
-            type="button"
-            onClick={() => c.setSource(SAMPLE_SOURCE)}
+          <input ref={fileInputRef} type="file" accept=".txt,text/plain" onChange={pickFile} hidden />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
             disabled={c.running}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '4px 0',
-              fontSize: 13,
-              fontWeight: 600,
-              color: 'var(--ink)',
-              textDecoration: 'underline',
-              textUnderlineOffset: 3,
-              cursor: c.running ? 'not-allowed' : 'pointer',
-              opacity: c.running ? 0.5 : 1,
-            }}
           >
-            Use the sample story
-          </button>
+            Upload a .txt
+          </Button>
         </div>
 
         <textarea
@@ -117,6 +144,7 @@ export default function GenreConverterTab() {
           {c.tooShort && <span> · too short to have a plot (minimum {MIN_CHARS})</span>}
           {overLimit && <span> · over the limit for this pipeline</span>}
         </div>
+
       </section>
 
       {/* --------------------------------------------------------- genre --- */}
@@ -153,7 +181,35 @@ export default function GenreConverterTab() {
       {/* Shown while the job runs, and kept on screen if it fails: the pieces
           that did finish are what make a failure legible. Once `result` lands
           the finished view below takes over and this comes down. */}
-      {showLive && c.partial.skeleton && (
+      {showLive && c.partial.skeleton && c.kind === 'convert' && (
+        /* During a conversion the skeleton is context, not the destination —
+           it folds to one line so the scenes below keep the spotlight. */
+        <section style={{ borderTop: '1px solid var(--border)' }}>
+          <Disclosure
+            summary={
+              <span style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)' }}>
+                  Plot skeleton — extracted
+                </span>
+                <span className="font-mono-num" style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+                  {c.partial.skeleton.counts?.beats} beats ·{' '}
+                  {c.partial.skeleton.counts?.load_bearing} load-bearing
+                </span>
+              </span>
+            }
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 8 }}>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', maxWidth: '64ch', lineHeight: 1.6 }}>
+                Extracted from your story, with names and genre language stripped out. This is
+                the only thing the rewrite is allowed to keep.
+              </p>
+              <SkeletonView skeleton={c.partial.skeleton} lint={c.partial.lint} />
+            </div>
+          </Disclosure>
+        </section>
+      )}
+
+      {showLive && c.partial.skeleton && c.kind === 'extract' && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 600, color: 'var(--ink)' }}>
@@ -183,15 +239,24 @@ export default function GenreConverterTab() {
           style={{
             padding: '16px 18px',
             borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--danger)',
-            background: 'var(--danger-bg)',
+            border: '1px solid var(--accent-line)',
+            background: 'var(--accent-soft)',
             color: 'var(--ink)',
             fontSize: 14,
             lineHeight: 1.6,
             maxWidth: '64ch',
+            display: 'flex',
+            gap: 12,
+            alignItems: 'flex-start',
           }}
         >
-          <strong>The conversion failed.</strong> {c.error}
+          <span aria-hidden="true" style={{ color: 'var(--accent-text-sm)', fontWeight: 700 }}>
+            ✕
+          </span>
+          <span>
+            <strong style={{ color: 'var(--accent-text-sm)' }}>The conversion failed.</strong>{' '}
+            {c.error}
+          </span>
         </div>
       )}
 
@@ -225,23 +290,9 @@ export default function GenreConverterTab() {
                 ? 'Plot skeleton'
                 : `Rewritten as ${c.result.genre}`}
             </h3>
-            <button
-              type="button"
-              onClick={c.reset}
-              style={{
-                minHeight: 44,
-                padding: '0 18px',
-                background: 'var(--canvas)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--ink)',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
+            <Button variant="secondary" onClick={c.reset}>
               Clear result
-            </button>
+            </Button>
           </div>
 
           {c.kind === 'convert' ? (
@@ -271,6 +322,14 @@ export default function GenreConverterTab() {
           )}
         </section>
       )}
+      </div>
+
+      <div hidden={mode !== 'history'}>
+        <HistoryView
+          active={mode === 'history'}
+          refreshKey={c.kind === 'convert' ? c.result : null}
+        />
+      </div>
     </div>
   )
 }

@@ -14,23 +14,24 @@ export default function StoryInput({ value, onChange, onRun, loading, canRun }) 
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div className="label-upper" style={{ fontSize: 11 }}>
-        Episode Text
-      </div>
+      <label htmlFor="studio-story" className="label-upper" style={{ fontSize: 11 }}>
+        Episode text
+      </label>
       <textarea
+        id="studio-story"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         spellCheck={false}
         style={{
           width: '100%',
-          minHeight: 120,
+          minHeight: 140,
           boxSizing: 'border-box',
           resize: 'vertical',
           fontFamily: 'var(--font-mono)',
           fontSize: 14,
           lineHeight: 1.6,
           color: 'var(--ink)',
-          background: 'var(--surface)',
+          background: 'var(--canvas)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-md)',
           padding: 16,
@@ -50,7 +51,7 @@ export default function StoryInput({ value, onChange, onRun, loading, canRun }) 
           <code style={{ fontFamily: 'var(--font-mono)' }}>{SCENE_DELIMITER}</code>
         </span>
         <Button variant="primary" onClick={onRun} disabled={!canRun}>
-          {loading ? 'Simulating…' : 'Run Simulation'}
+          {loading ? 'Simulating…' : 'Run simulation'}
         </Button>
       </div>
     </section>

@@ -5,17 +5,70 @@
  * in one place without touching component or controller code.
  */
 
-/** Lens tabs, in display order. `id` values key into the controllers. */
-export const TABS = [
-  { id: 'sim', label: 'Audience Simulator' },
-  { id: 'opt', label: 'Cliffhanger Optimizer' },
-  { id: 'room', label: 'Writers Room' },
-  { id: 'canon', label: 'Story Canon' },
-  { id: 'db', label: 'DB / Memory' },
-  { id: 'genre', label: 'Genre Converter' },
+/**
+ * The lenses, in display order. `id` values key into the controllers; `path`
+ * is the lens's route, so every lens is a real URL that survives a reload.
+ * `icon` names an entry in the `Icon` primitive; `title`/`blurb` feed the
+ * page header.
+ */
+export const LENSES = [
+  {
+    id: 'sim',
+    path: '/audience',
+    label: 'Audience Simulator',
+    icon: 'users',
+    title: 'Audience Simulator',
+    blurb:
+      'A panel of simulated listeners reacts to your episode before a single real one hears it — continue-rate, drop-off, and reactions by segment.',
+  },
+  {
+    id: 'opt',
+    path: '/cliffhanger',
+    label: 'Cliffhanger Optimizer',
+    icon: 'zap',
+    title: 'Cliffhanger Optimizer',
+    blurb:
+      'Predicts the probability of binge-listening and rewrites your ending, then A/B tests the hook lift against the listener panel.',
+  },
+  {
+    id: 'room',
+    path: '/writers-room',
+    label: 'Writers Room',
+    icon: 'message',
+    title: 'AI Writers Room',
+    blurb: 'Your experts and your audience react to an episode — live, as each voice lands.',
+  },
+  {
+    id: 'canon',
+    path: '/canon',
+    label: 'Story Canon',
+    icon: 'book',
+    title: 'Story Canon',
+    blurb:
+      'The shared knowledge graph every agent reads before it reacts — characters, clues, and plot threads remembered across episodes.',
+  },
+  {
+    id: 'db',
+    path: '/memory',
+    label: 'DB / Memory',
+    icon: 'database',
+    title: 'DB / Memory',
+    blurb:
+      'Live proof the agents share one memory: every graph read and write, as it happens.',
+  },
+  {
+    id: 'genre',
+    path: '/genre',
+    label: 'Genre Converter',
+    icon: 'shuffle',
+    title: 'Genre Converter',
+    blurb:
+      'Rewrite a story in another genre. The plot is extracted into a genre-neutral skeleton, rewritten scene by scene, then checked beat by beat against the page.',
+  },
 ]
 
-export const DEFAULT_TAB = 'sim'
+/** Where the studio lands on `/` or an unknown path. */
+export const DEFAULT_LENS_PATH = '/audience'
 
 /**
  * Inner panels of the Story Canon tab, in display order. Each is one of the
@@ -30,18 +83,10 @@ export const CANON_PANELS = [
 ]
 
 /**
- * The "Creator Superpowers" catalogue shown in the strip under the header.
- * `live` marks lenses that are actually wired to the backend today.
+ * Superpowers announced but not yet wired to the backend, listed in the
+ * sidebar so the roadmap stays visible without pretending to be navigable.
  */
-export const SUPERPOWERS = [
-  { label: 'Audience Simulator', live: true },
-  { label: 'Cliffhanger Optimizer', live: true },
-  { label: 'AI Writers Room', live: true },
-  { label: 'Plot Hole Hunter', live: true },
-  { label: 'Genre Converter', live: true },
-  { label: 'AI Producer', live: false },
-  { label: 'AI Rewrite Engine', live: false },
-]
+export const UPCOMING_SUPERPOWERS = ['AI Producer', 'AI Rewrite Engine']
 
 /** Simulated-listener panel size advertised in the header pill. */
 export const AUDIENCE_ARMY = 1000

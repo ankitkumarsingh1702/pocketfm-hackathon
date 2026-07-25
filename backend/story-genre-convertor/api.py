@@ -14,11 +14,15 @@ service without touching this file.
     POST /api/convert/file   multipart: file, genre          -> job
     GET  /api/jobs/{id}                                      -> status / result
     GET  /api/genres                                         -> the five packs
+    GET  /api/history                                        -> finished conversions
+    GET  /api/history/{id}                                   -> one full record
     GET  /health
 """
 
 import hashlib
+import json
 import os
+import re
 import threading
 import time
 import uuid
@@ -29,7 +33,7 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from cache import cached_skeleton, cached_text
+from cache import CACHE_DIR, cached_skeleton, cached_text
 from extract import extract_clean, lint_skeleton
 from genre_pack import available_packs, load_pack
 from models import StorySkeleton
@@ -54,6 +58,16 @@ MAX_JOBS_RETAINED = 200
 # scene. This is a runaway guard, not a budget: the oldest are dropped so the
 # tail the client is actually reading always survives.
 MAX_EVENTS_RETAINED = 200
+
+# Finished conversions, one JSON file each, so the client can show a history of
+# everything converted: source, skeleton, rewrite, and score. Lives under the
+# cache dir, which shares the instance's lifetime — durable across the life of
+# the (single, min-instances=1) Cloud Run instance, gone on redeploy, exactly
+# like the job store and the artifact cache. Keyed by content hash of
+# story+genre, so re-running the same conversion updates one record instead of
+# stacking duplicates.
+HISTORY_DIR = CACHE_DIR / "history"
+MAX_HISTORY_RETAINED = int(os.environ.get("MAX_HISTORY_RETAINED", "200"))
 
 app = FastAPI(
     title="Story genre converter",
@@ -179,6 +193,61 @@ def _check_genre(genre: str) -> str:
             422, f"Unknown genre {genre!r}. Available: {', '.join(available_packs())}."
         )
     return genre
+
+
+# ---------------------------------------------------------------------------
+# conversion history
+# ---------------------------------------------------------------------------
+
+
+def _save_history(record: dict) -> None:
+    """Persist one finished conversion. Best-effort: a history write must never
+    turn a job that finished into one that reads as failed."""
+    try:
+        HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+        path = HISTORY_DIR / f"{record['id']}.json"
+        if path.exists():  # a re-run refreshes the record but keeps its birthday
+            try:
+                record["created_at"] = json.loads(path.read_text())["created_at"]
+            except Exception:
+                pass
+        path.write_text(json.dumps(record, ensure_ascii=False))
+        stale = sorted(HISTORY_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        for old in stale[:-MAX_HISTORY_RETAINED]:
+            old.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
+def _load_history() -> List[dict]:
+    """Every stored record, newest first. Corrupt files are skipped, not fatal."""
+    if not HISTORY_DIR.is_dir():
+        return []
+    records = []
+    for path in HISTORY_DIR.glob("*.json"):
+        try:
+            records.append(json.loads(path.read_text()))
+        except Exception:
+            continue
+    return sorted(records, key=lambda r: -r.get("created_at", 0))
+
+
+def _history_summary(record: dict) -> dict:
+    """The list view: enough to recognise a conversion without shipping 60k of
+    prose per row. The full text comes from /api/history/{id}."""
+    source = record.get("source_text", "")
+    excerpt = " ".join(source.split())[:160]
+    return {
+        "id": record.get("id"),
+        "created_at": record.get("created_at"),
+        "genre": record.get("genre"),
+        "fidelity": record.get("fidelity"),
+        "words": record.get("words"),
+        "chars": record.get("chars"),
+        "seconds": record.get("seconds"),
+        "logline": (record.get("source_skeleton") or {}).get("logline"),
+        "excerpt": excerpt,
+    }
 
 
 # Where each stage starts and ends on a 0-1 whole-job scale. The spans are wall
@@ -441,6 +510,23 @@ def _run(job: Job, text: str, genre: Optional[str]) -> None:
                 "seconds": round(time.time() - started, 1),
             },
         )
+
+        _save_history(
+            {
+                "id": _key(text, f"__{genre}"),
+                "created_at": time.time(),
+                "genre": genre,
+                "chars": len(text),
+                "source_text": text,
+                "source_skeleton": skeleton,
+                "lint": lint,
+                "rewritten": rewritten,
+                "words": len(rewritten.split()),
+                "seconds": round(time.time() - started, 1),
+                "fidelity": detail["fidelity"],
+                "detail": detail,
+            }
+        )
     except Exception as exc:  # surfaced to the caller rather than swallowed
         # The events and partials stay: what did finish is exactly what makes an
         # error legible, and throwing it away leaves the user with a bare string.
@@ -476,6 +562,8 @@ def root() -> dict:
             "POST /api/convert/file",
             "GET /api/jobs/{id}",
             "GET /api/genres",
+            "GET /api/history",
+            "GET /api/history/{id}",
         ],
     }
 
@@ -512,6 +600,30 @@ def convert_text(body: ConvertIn = Body(...)) -> Job:
 @app.post("/api/convert/file", response_model=Job)
 async def convert_file(file: UploadFile = File(...), genre: str = Form(...)) -> Job:
     return _submit("convert", await _read_upload(file), _check_genre(genre))
+
+
+@app.get("/api/history")
+def history(limit: int = 50) -> List[dict]:
+    """Finished conversions, newest first, as list-sized summaries."""
+    return [_history_summary(r) for r in _load_history()[: max(1, min(limit, 200))]]
+
+
+@app.get("/api/history/{record_id}")
+def history_record(record_id: str) -> dict:
+    """One conversion in full: source text, skeleton, rewrite, and scores."""
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", record_id):
+        raise HTTPException(404, f"No conversion {record_id!r}.")
+    path = HISTORY_DIR / f"{record_id}.json"
+    if not path.is_file():
+        raise HTTPException(
+            404,
+            f"No conversion {record_id!r}. History lives with the instance and "
+            "is lost on redeploy.",
+        )
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        raise HTTPException(500, f"The record {record_id!r} is unreadable.")
 
 
 @app.get("/api/jobs/{job_id}", response_model=Job)

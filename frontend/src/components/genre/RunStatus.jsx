@@ -128,7 +128,7 @@ export default function RunStatus({ job, elapsed, onStop }) {
             minHeight: 44,
             padding: '0 18px',
             background: 'var(--canvas)',
-            border: '1px solid var(--border)',
+            border: '1px solid var(--ink)',
             borderRadius: 'var(--radius-sm)',
             color: 'var(--ink)',
             fontSize: 14,

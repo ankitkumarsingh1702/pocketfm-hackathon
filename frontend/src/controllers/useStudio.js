@@ -1,10 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 
-import {
-  DEFAULT_STORY_META,
-  DEFAULT_TAB,
-  SAMPLE_STORY,
-} from '../config/constants'
+import { DEFAULT_STORY_META, SAMPLE_STORY } from '../config/constants'
 import { isBlank, lastScene } from '../utils/story'
 import { useAudienceSimulator } from './useAudienceSimulator'
 import { useCanon } from './useCanon'
@@ -16,14 +12,16 @@ import { useWritersRoom } from './useWritersRoom'
 /**
  * Top-level Simulated Studio controller.
  *
- * Owns the shared inputs (episode text, active lens tab) and composes the three
- * lens controllers plus the health probe. Its `run()` dispatches to whichever
- * lens is active, shaping the request from the current story. The page that
- * consumes this hook holds no logic of its own — it only renders state and
- * forwards callbacks.
+ * Owns the shared episode text and composes the lens controllers plus the
+ * health probe. The active lens is no longer state here — the route decides
+ * it, and the shell passes the matching lens id in as `activeTab`. `run()`
+ * dispatches to whichever lens is active, shaping the request from the
+ * current story. The shell that consumes this hook holds no logic of its own
+ * — it only renders state and forwards callbacks.
+ *
+ * @param {string|null} activeTab lens id derived from the current route
  */
-export function useStudio() {
-  const [activeTab, setActiveTab] = useState(DEFAULT_TAB)
+export function useStudio(activeTab) {
   const [story, setStory] = useState(SAMPLE_STORY)
 
   const health = useHealth()
@@ -69,8 +67,6 @@ export function useStudio() {
 
   return {
     // shared inputs
-    activeTab,
-    setActiveTab,
     story,
     setStory,
     // backend status

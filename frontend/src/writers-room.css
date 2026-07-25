@@ -15,41 +15,16 @@
   border: 0;
 }
 
+/* Embedded in the studio shell: the shell's content area owns the page
+   gutters and measure, so the room only stacks its own sections. */
 .wr {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* ---------- Header ---------- */
-.wr-head {
-  width: 100%;
-  max-width: 1160px;
-  margin: 0 auto;
-  padding: clamp(2rem, 5vw, 3.5rem) clamp(1.25rem, 4vw, 3rem) 0;
-}
-
-.wr-head__title {
-  font-size: clamp(1.75rem, 3vw, 2.75rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-
-.wr-head__sub {
-  margin-top: 0.5rem;
-  color: var(--ui-ink-muted);
-  font-size: 1.05rem;
-  max-width: 60ch;
-}
-
 /* ---------- Body layout ---------- */
 .wr-body {
-  flex: 1;
   width: 100%;
-  max-width: 1160px;
-  margin: 0 auto;
-  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1.25rem, 4vw, 3rem) 4rem;
   display: flex;
   flex-direction: column;
   gap: clamp(1.5rem, 3vw, 2.25rem);
@@ -175,11 +150,11 @@
 .btn--ghost {
   background: var(--ui-bg);
   color: var(--ui-ink);
-  border-color: var(--ui-line);
+  border-color: var(--ui-ink);
 }
 
 .btn--ghost:hover {
-  border-color: var(--ui-ink);
+  background: var(--ui-surface);
 }
 
 /* ---------- Orchestrator strip ---------- */
@@ -785,15 +760,6 @@
   color: var(--ui-ink-muted);
   padding-left: 0.85rem;
   border-left: 2px solid var(--ui-line);
-}
-
-/* ---------- Footer ---------- */
-.wr-foot {
-  border-top: 1px solid var(--ui-line);
-  color: var(--ui-ink-subtle);
-  font-size: 0.85rem;
-  text-align: center;
-  padding: 1.25rem;
 }
 
 /* ---------- Wider screens: panels side by side ---------- */

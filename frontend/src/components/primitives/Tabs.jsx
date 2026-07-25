@@ -1,10 +1,14 @@
-/** Underline tab bar. `active` is the selected tab id; `onChange(id)` switches. */
+/**
+ * Underline tab bar for switching panels inside a lens. `active` is the
+ * selected tab id; `onChange(id)` switches. The active marker is the studio's
+ * restrained red underline; hierarchy stays black-on-white.
+ */
 export default function Tabs({ tabs, active, onChange }) {
   return (
     <div
       style={{
         display: 'flex',
-        gap: 32,
+        gap: 28,
         borderBottom: '1px solid var(--border)',
         overflowX: 'auto',
         overflowY: 'hidden',
@@ -17,14 +21,16 @@ export default function Tabs({ tabs, active, onChange }) {
             key={t.id}
             type="button"
             onClick={() => onChange(t.id)}
+            aria-pressed={isActive}
             style={{
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              padding: '14px 2px 12px',
+              minHeight: 44,
+              padding: '12px 2px 10px',
               fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              fontWeight: 600,
+              fontSize: 14.5,
+              fontWeight: isActive ? 600 : 500,
               whiteSpace: 'nowrap',
               flexShrink: 0,
               color: isActive ? 'var(--ink)' : 'var(--muted)',

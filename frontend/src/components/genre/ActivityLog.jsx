@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { STAGE_SHORT } from '../../config/genre'
 
@@ -35,46 +35,101 @@ function summarise(detail) {
   return bits.length ? bits.join(' · ') : null
 }
 
+/** How many steps stay visible when the log is folded to its tail. */
+const TAIL = 3
+
 /**
- * Everything the pipeline has done, in order, with the newest at the bottom.
+ * What the pipeline is doing, as a live tail with the full story one click
+ * away.
  *
- * A percentage says a job is alive; it does not say what it is doing. Over five
- * to eight minutes that difference is the whole experience, so each step the
- * service reports is kept and shown rather than overwriting the last one.
+ * A percentage says a job is alive; it does not say what it is doing. Over
+ * five to eight minutes that difference is the whole experience — so the last
+ * few steps are always on screen, ticking over as the service reports them,
+ * and "Show all" unfolds the complete, ordered log for anyone who wants the
+ * blow-by-blow without making everyone scroll past it.
  *
- * Not a live region: the current step is already announced by the status header
- * above, and re-reading a growing log on every poll would be hostile.
+ * Not a live region: the current step is already announced by the status
+ * header above, and re-reading a growing log on every poll would be hostile.
  */
 export default function ActivityLog({ events }) {
   const scroller = useRef(null)
+  const [showAll, setShowAll] = useState(false)
   const count = events?.length ?? 0
 
-  // Follow the tail, the way a build log does.
+  // Follow the tail when the full log is open, the way a build log does.
   useEffect(() => {
     const node = scroller.current
-    if (node) node.scrollTop = node.scrollHeight
-  }, [count])
+    if (node && showAll) node.scrollTop = node.scrollHeight
+  }, [count, showAll])
 
   if (!count) return null
 
+  const visible = showAll ? events : events.slice(-TAIL)
+  const hidden = count - visible.length
+
   return (
     <div>
-      <div className="label-upper" style={{ fontSize: 11, marginBottom: 10 }}>
-        Activity
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 12,
+          marginBottom: 8,
+        }}
+      >
+        <span className="label-upper" style={{ fontSize: 11 }}>
+          Activity · {count} {count === 1 ? 'step' : 'steps'}
+        </span>
+        {count > TAIL && (
+          <button
+            type="button"
+            onClick={() => setShowAll((value) => !value)}
+            aria-expanded={showAll}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '4px 0',
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: 'var(--ink)',
+              textDecoration: 'underline',
+              textUnderlineOffset: 3,
+              cursor: 'pointer',
+            }}
+          >
+            {showAll ? 'Show recent only' : `Show all ${count} steps`}
+          </button>
+        )}
       </div>
+
+      {!showAll && hidden > 0 && (
+        <div
+          aria-hidden="true"
+          style={{
+            fontSize: 11.5,
+            color: 'var(--dim)',
+            padding: '2px 0 4px',
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          ⋯ {hidden} earlier {hidden === 1 ? 'step' : 'steps'}
+        </div>
+      )}
+
       <ol
         ref={scroller}
         style={{
           listStyle: 'none',
           margin: 0,
           padding: 0,
-          maxHeight: 260,
-          overflowY: 'auto',
-          borderTop: '1px solid var(--border)',
+          maxHeight: showAll ? 260 : 'none',
+          overflowY: showAll ? 'auto' : 'visible',
+          borderTop: showAll || hidden === 0 ? '1px solid var(--border)' : 'none',
         }}
       >
-        {events.map((event, index) => {
-          const latest = index === count - 1
+        {visible.map((event, index) => {
+          const latest = index === visible.length - 1
           const extra = summarise(event.detail)
           return (
             <li

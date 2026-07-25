@@ -3,6 +3,8 @@ import './ui-tokens.css'
 import './writers-room.css'
 import { getPersonas, writersRoomStream } from './lib/api'
 import AgentProfile from './AgentProfile'
+import { useStatusToast } from './hooks/useStatusToast'
+import { useToast } from './components/toast/useToast'
 import { audienceSummary, cloneAgent, expertSummary, segmentOptions } from './lib/agents'
 
 // A short Hindi-English horror-thriller Episode 7 excerpt, deliberately written
@@ -211,6 +213,7 @@ function RosterGroup({ title, agents, emptyLabel, onOpen }) {
 }
 
 export default function WritersRoom() {
+  const toast = useToast()
   const [title, setTitle] = useState('Andhera')
   const [episode, setEpisode] = useState('7')
   const [text, setText] = useState(SAMPLE_SCRIPT)
@@ -262,10 +265,18 @@ export default function WritersRoom() {
       const data = await getPersonas()
       setRoster(buildRoster(data))
       setRosterError(null)
+      toast.success('Agents reset to defaults.')
     } catch (err) {
       setRosterError(err?.message || 'Could not reload the agents.')
     }
   }
+
+  // Announce the room's outcomes wherever the user is in the studio.
+  useStatusToast(error, (e) => toast.error(`The Writers Room run couldn't finish. ${e}`))
+  useStatusToast(rosterError, (e) => toast.error(`Writers Room agents: ${e}`))
+  useStatusToast(result, (r) =>
+    toast.success(`The Writers Room finished in ${secondsFromMs(r.elapsed_ms)}.`),
+  )
 
   // Views derived from the current kind of each agent.
   const expertGroup = useMemo(() => roster.filter((a) => a.kind === 'expert'), [roster])
@@ -437,14 +448,7 @@ export default function WritersRoom() {
 
   return (
     <div className="wr">
-      <header className="wr-head">
-        <h1 className="wr-head__title">AI Writers Room</h1>
-        <p className="wr-head__sub">
-          Your experts and your audience react to an episode — live.
-        </p>
-      </header>
-
-      <main className="wr-body">
+      <div className="wr-body">
         {/* ---- Story input ---- */}
         <section className="composer" aria-labelledby="composer-heading">
           <h2 id="composer-heading" className="visually-hidden">Episode to run</h2>
@@ -731,7 +735,7 @@ export default function WritersRoom() {
             )}
           </section>
         )}
-      </main>
+      </div>
 
       {/* ---- Agent profile drawer (edits reflect in real time) ---- */}
       {activeAgentObj && (
@@ -742,10 +746,6 @@ export default function WritersRoom() {
           onClose={() => setActiveAgentId(null)}
         />
       )}
-
-      <footer className="wr-foot">
-        Simulated Studio · persona simulation on Google Vertex AI
-      </footer>
     </div>
   )
 }

@@ -33,7 +33,7 @@ export default function HealthBadge({ online, info, error, loading }) {
         padding: '6px 12px',
         background: 'var(--surface)',
         whiteSpace: 'nowrap',
-        maxWidth: 320,
+        maxWidth: '100%',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
       }}

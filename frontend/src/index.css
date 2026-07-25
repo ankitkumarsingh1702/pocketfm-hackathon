@@ -1,12 +1,16 @@
 /**
  * Global stylesheet — design tokens + base element styles.
  *
- * This is the single source of truth for the Simulated Studio design system.
- * Components consume these tokens through `var(--token)` in their inline
- * styles, so visual changes happen here, not scattered across the tree.
+ * This is the single source of truth for the Simulated Studio design system,
+ * aligned with the shared PocketFM interface system: Lexend everywhere, a white
+ * canvas with black ink and black primary actions, and soft red as a restrained
+ * supporting accent. Components consume these tokens through `var(--token)`, so
+ * visual changes happen here, not scattered across the tree.
  */
 
 @import './styles/fonts.css';
+@import './styles/shell.css';
+@import './styles/toast.css';
 
 /* ---------------------------------------------------------------- reset --- */
 *,
@@ -17,27 +21,36 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 /* ------------------------------------------------------- font families --- */
 :root {
-  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Lexend', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, Consolas, monospace;
 }
 
 /* -------------------------------------------------------------- palette --- */
 :root {
+  color-scheme: light;
+
   /* base palette */
-  --red-700: #b00610;
-  --red-600: #e50914;
-  --black-900: #0e0e0e;
+  --black-900: #111111;
   --white: #ffffff;
-  --grey-100: #f6f6f6;
-  --grey-200: #e6e6e6;
+  --grey-100: #f8f8f6;
+  --grey-200: #e8e8e5;
   --grey-400: #b5b5b5;
   --grey-600: #8a8a8a;
 
+  /* soft red family — supporting emphasis, never the primary CTA */
+  --red-500: #e96b6b; /* marks, icons, controlled emphasis */
+  --red-600: #d95757; /* hover/pressed for red elements */
+  --red-700: #a93636; /* accessible red ink for small text */
+
   /* semantic aliases */
-  --accent: var(--red-600);
-  --accent-press: var(--red-700);
+  --accent: var(--red-500);
+  --accent-press: var(--red-600);
   --accent-text-sm: var(--red-700); /* small red text on white must darken for AA */
   --accent-soft: #fdecec; /* pale red surface: selected, highlighted, insight */
   --accent-line: #f4b8b8; /* border for pale-red surfaces */
@@ -46,19 +59,23 @@
   --surface: var(--grey-100);
   --surface-raised: var(--white);
   --border: var(--grey-200);
-  --muted: var(--grey-600);
+  --muted: #626262;
   --dim: var(--grey-400);
 
-  /* feedback */
-  --danger: #ef4444;
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  --success: #22c55e;
-  --warning: #f59e0b;
+  /* primary action — always black, hover slightly lifted */
+  --cta: var(--black-900);
+  --cta-hover: #292929;
+
+  /* feedback — dark enough to pass AA as 11-13px label text on white */
+  --danger: #c92a2a;
+  --danger-bg: rgba(201, 42, 42, 0.08);
+  --success: #15803d;
+  --warning: #8a5a06;
 }
 
 /* --------------------------------------------------------- typography --- */
 :root {
-  --text-display: clamp(48px, 6vw, 88px);
+  --text-display: clamp(44px, 5vw, 76px);
   --text-h1: 32px;
   --text-h2: 22px;
   --text-body: 16px;
@@ -93,7 +110,8 @@
   --radius-pill: 999px;
   --border-w: 1px;
 
-  --shadow-sm: 0 1px 2px rgba(14, 14, 14, 0.04);
+  --shadow-sm: 0 1px 2px rgba(17, 17, 17, 0.04);
+  --shadow-soft: 0 8px 28px rgba(17, 17, 17, 0.07);
 
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --dur-fast: 150ms;
@@ -104,7 +122,7 @@
 /* --------------------------------------------------------- utilities --- */
 .font-display {
   font-family: var(--font-sans);
-  font-weight: var(--fw-black);
+  font-weight: var(--fw-semibold);
   letter-spacing: var(--tracking-tight);
   line-height: var(--lh-tight);
 }
@@ -144,6 +162,13 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
 a {
   color: var(--accent-text-sm);
 }
@@ -151,11 +176,17 @@ a:hover {
   color: var(--accent-press);
 }
 
+/* Every interactive element gets an unmistakable focus ring. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
 /* ------------------------------------------------------- scrollbars --- */
 :root {
   --scrollbar-size: 8px; /* down from the ~16px OS default */
-  --scrollbar-thumb: var(--accent);
-  --scrollbar-thumb-hover: var(--accent-press);
+  --scrollbar-thumb: #d8d8d4;
+  --scrollbar-thumb-hover: var(--grey-400);
   --scrollbar-track: transparent;
 }
 
@@ -213,5 +244,27 @@ html {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Entry-rise helper (wordmark and similar): pure enhancement — content is
+   fully visible from the first frame when the user prefers reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .pfm-rise {
+    animation: pfm-wordmark-in 600ms ease both;
+  }
+  .pfm-rise--late {
+    animation-delay: 120ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

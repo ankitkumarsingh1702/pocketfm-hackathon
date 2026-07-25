@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { useToast } from '../toast/useToast'
+
 /**
  * The rewritten story.
  *
@@ -8,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react'
  * so it gets prose typography instead of the dashboard's data typography.
  */
 export default function RewriteView({ text, genre }) {
+  const toast = useToast()
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -20,10 +23,12 @@ export default function RewriteView({ text, genre }) {
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
+      toast.success('Rewrite copied to the clipboard.')
     } catch {
       setCopied(false)
+      toast.error('Could not copy — select the text and copy it manually.')
     }
-  }, [text])
+  }, [text, toast])
 
   const download = useCallback(() => {
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
@@ -33,13 +38,14 @@ export default function RewriteView({ text, genre }) {
     link.download = `rewrite-${genre}.txt`
     link.click()
     URL.revokeObjectURL(url)
-  }, [text, genre])
+    toast.success(`Downloading rewrite-${genre}.txt.`)
+  }, [text, genre, toast])
 
   const action = {
     minHeight: 44,
     padding: '0 18px',
     background: 'var(--canvas)',
-    border: '1px solid var(--border)',
+    border: '1px solid var(--ink)',
     borderRadius: 'var(--radius-sm)',
     color: 'var(--ink)',
     fontSize: 14,

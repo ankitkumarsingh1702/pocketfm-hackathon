@@ -1,0 +1,84 @@
+/**
+ * Toast notifications — white surface, thin border, glyph + words for tone.
+ * Errors sit on the studio's pale-red alert surface. Bottom-right on desktop,
+ * full-width above the bottom edge on small screens.
+ */
+
+.toasts {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 40px));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation: pfm-fade-in var(--dur-med) var(--ease-standard) both;
+  }
+}
+
+.toast--success .toast__glyph {
+  color: var(--success);
+}
+
+.toast--error {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.toast--error .toast__glyph {
+  color: var(--accent-text-sm);
+}
+
+.toast__glyph {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.toast__msg {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toast__close {
+  background: none;
+  border: 0;
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.toast__close:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 1023px) {
+  .toasts {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
+  }
+}
