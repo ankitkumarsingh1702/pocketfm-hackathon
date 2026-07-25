@@ -38,7 +38,7 @@ async def run_audience(story: Story, n: int | None = None) -> AudienceResult:
     llm = get_llm()
     cache = Cache(settings.cache_dir)
 
-    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon = render_canon_memory(await fetch_canon_subgraph(story, source="Audience"))
     pairs = await run_reactions(
         personas,
         story,
@@ -57,5 +57,6 @@ async def run_audience(story: Story, n: int | None = None) -> AudienceResult:
             {"segment": s.segment, "following_pct": s.binge_pct, "avg_hook": s.avg_hook}
             for s in result.segments
         ],
+        source="Audience",
     )
     return result

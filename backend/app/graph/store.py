@@ -21,6 +21,7 @@ import logging
 import re
 
 from app.config import settings
+from app.db.activity import record_activity
 from app.graph.driver import get_driver
 from app.schemas import (
     CanonEdgeView,
@@ -71,13 +72,16 @@ def _sanitize_rel(rel_type: str) -> str:
 
 # --- write path -------------------------------------------------------------
 
-async def ingest_extraction(story: Story, extraction: CanonExtraction) -> IngestResult:
+async def ingest_extraction(
+    story: Story, extraction: CanonExtraction, source: str = "Canon Ingest"
+) -> IngestResult:
     """Merge an episode's extracted canon into Neo4j (idempotent). Best-effort."""
     epkey = _episode_id(story)
     names = [e.name for e in extraction.entities if e.type != "Episode"]
 
     driver = get_driver()
     if driver is None:
+        record_activity("skipped", "ingest_extraction", source, "graph disabled — canon not persisted")
         return IngestResult(episode_id=epkey, nodes_added=0, edges_added=0, entities=names)
 
     # Map the LLM's transient keys → our stable, deterministic node ids so the
@@ -167,20 +171,33 @@ async def ingest_extraction(story: Story, extraction: CanonExtraction) -> Ingest
                 edges_added += summary.counters.relationships_created
     except Exception as exc:  # noqa: BLE001 - persistence is strictly best-effort
         logger.warning("Canon ingest failed: %s", exc)
+        record_activity("skipped", "ingest_extraction", source, f"ingest failed: {exc}")
         return IngestResult(episode_id=epkey, nodes_added=0, edges_added=0, entities=names)
 
+    record_activity(
+        "write",
+        "ingest_extraction",
+        source,
+        f"wrote canon +{nodes_added} nodes / +{edges_added} edges from {_episode_name(story)}",
+        {"nodes_added": nodes_added, "edges_added": edges_added},
+    )
     return IngestResult(
         episode_id=epkey, nodes_added=nodes_added, edges_added=edges_added, entities=names
     )
 
 
-async def write_audience_verdict(story: Story, segments: list[dict]) -> None:
+async def write_audience_verdict(
+    story: Story, segments: list[dict], source: str = "Audience"
+) -> None:
     """Record per-segment audience verdicts as edges to the episode. Best-effort.
 
     ``segments`` items: ``{"segment": str, "following_pct": float, "avg_hook": float}``.
     """
     driver = get_driver()
-    if driver is None or not segments:
+    if driver is None:
+        record_activity("skipped", "write_audience_verdict", source, "graph disabled — verdict not persisted")
+        return
+    if not segments:
         return
     rows = [
         {
@@ -202,16 +219,41 @@ async def write_audience_verdict(story: Story, segments: list[dict]) -> None:
                 "SET r.following_pct=row.following_pct, r.avg_hook=row.avg_hook",
                 ep=_episode_id(story), en=_episode_name(story), rows=rows,
             )
+        avg_follow = round(sum(r["following_pct"] for r in rows) / len(rows), 1)
+        record_activity(
+            "write",
+            "write_audience_verdict",
+            source,
+            f"wrote audience verdict — {avg_follow}% following across {len(rows)} segment(s)",
+            {"segments": len(rows), "following_pct": avg_follow},
+        )
     except Exception as exc:  # noqa: BLE001 - best-effort
         logger.warning("Audience verdict write-back failed: %s", exc)
+        record_activity("skipped", "write_audience_verdict", source, f"write failed: {exc}")
 
 
 # --- read path --------------------------------------------------------------
 
-async def _run_graph_query(node_query: str, edge_query: str, **params) -> CanonGraph:
-    """Shared reader: run a node query + edge query into a ``CanonGraph``."""
+async def _run_graph_query(
+    node_query: str,
+    edge_query: str,
+    *,
+    source: str = "",
+    fn: str = "fetch_graph",
+    record: bool = True,
+    **params,
+) -> CanonGraph:
+    """Shared reader: run a node query + edge query into a ``CanonGraph``.
+
+    When ``record`` is true the read is logged to the activity feed (attributed
+    to ``source``). The full-graph visualization read passes ``record=False`` so
+    that polling the graph view never floods the feed — only agent memory reads
+    are surfaced.
+    """
     driver = get_driver()
     if driver is None:
+        if record:
+            record_activity("skipped", fn, source, "graph disabled — no memory to read")
         return CanonGraph()
     try:
         nodes: list[CanonNodeView] = []
@@ -236,13 +278,23 @@ async def _run_graph_query(node_query: str, edge_query: str, **params) -> CanonG
                     CanonEdgeView(source=rec["source"], target=rec["target"], type=rec["type"])
                 )
         stats["edges"] = len(edges)
+        if record:
+            record_activity(
+                "read",
+                fn,
+                source,
+                f"read {len(nodes)} nodes + {len(edges)} edges from shared memory",
+                {"nodes": len(nodes), "edges": len(edges)},
+            )
         return CanonGraph(nodes=nodes, edges=edges, stats=stats)
     except Exception as exc:  # noqa: BLE001 - reads are best-effort
         logger.warning("Canon read failed: %s", exc)
+        if record:
+            record_activity("skipped", fn, source, f"read failed: {exc}")
         return CanonGraph()
 
 
-async def fetch_contradiction_candidates() -> dict:
+async def fetch_contradiction_candidates(source: str = "Plot Hole Hunter") -> dict:
     """Graph-traversal candidates for continuity checking. Best-effort.
 
     Returns ``{facts, conflicts, dangling_clues, episode_count}`` where
@@ -253,6 +305,7 @@ async def fetch_contradiction_candidates() -> dict:
     empty = {"facts": [], "conflicts": [], "dangling_clues": [], "episode_count": 0}
     driver = get_driver()
     if driver is None:
+        record_activity("skipped", "fetch_contradiction_candidates", source, "graph disabled — no facts to traverse")
         return empty
     out = {"facts": [], "conflicts": [], "dangling_clues": [], "episode_count": 0}
     try:
@@ -293,30 +346,57 @@ async def fetch_contradiction_candidates() -> dict:
 
             rec = await (await session.run("MATCH (e:Episode) RETURN count(e) AS c")).single()
             out["episode_count"] = rec["c"] if rec else 0
+        record_activity(
+            "read",
+            "fetch_contradiction_candidates",
+            source,
+            f"traversed canon for contradictions — {len(out['facts'])} facts, "
+            f"{len(out['conflicts'])} conflicts, {len(out['dangling_clues'])} dangling clues",
+            {
+                "facts": len(out["facts"]),
+                "conflicts": len(out["conflicts"]),
+                "dangling_clues": len(out["dangling_clues"]),
+            },
+        )
         return out
     except Exception as exc:  # noqa: BLE001 - best-effort
         logger.warning("Contradiction candidate query failed: %s", exc)
+        record_activity("skipped", "fetch_contradiction_candidates", source, f"traversal failed: {exc}")
         return empty
 
 
-async def fetch_full_graph() -> CanonGraph:
-    """The entire canon graph, for the visualization tab."""
+async def fetch_full_graph(record: bool = False) -> CanonGraph:
+    """The entire canon graph, for the visualization tab.
+
+    Defaults to ``record=False`` so that the graph view (which the DB / Memory
+    tab polls continuously) never floods the activity feed — the feed is meant to
+    show agent memory reads and writes, not the visualization polling itself.
+    """
     return await _run_graph_query(
         "MATCH (n:Canon) RETURN n.key AS id, coalesce(n.type,'Entity') AS label, "
         "coalesce(n.name,n.key) AS name, n.description AS description LIMIT 500",
         "MATCH (a:Canon)-[r]->(b:Canon) "
         "RETURN a.key AS source, b.key AS target, type(r) AS type LIMIT 1500",
+        source="Graph View",
+        fn="fetch_full_graph",
+        record=record,
     )
 
 
-async def fetch_canon_subgraph(story: Story) -> CanonGraph:
-    """The story-bible slice used to ground prompts (characters/threads/clues…)."""
+async def fetch_canon_subgraph(story: Story, source: str = "") -> CanonGraph:
+    """The story-bible slice used to ground prompts (characters/threads/clues…).
+
+    ``source`` names the agent/lens reading this shared memory, so the DB / Memory
+    tab can attribute the read.
+    """
     return await _run_graph_query(
         "MATCH (n:Canon) WHERE n.type IN $types "
         "RETURN n.key AS id, n.type AS label, n.name AS name, n.description AS description "
         "LIMIT 120",
         "MATCH (a:Canon)-[r]->(b:Canon) WHERE a.type IN $types AND b.type IN $types "
         "RETURN a.key AS source, b.key AS target, type(r) AS type LIMIT 400",
+        source=source,
+        fn="fetch_canon_subgraph",
         types=_BIBLE_TYPES,
     )
 

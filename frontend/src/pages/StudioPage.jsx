@@ -6,6 +6,7 @@ import SuperpowersStrip from '../components/SuperpowersStrip'
 import { Tabs } from '../components/primitives'
 import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
 import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
+import DbMemoryTab from '../components/tabs/DbMemoryTab'
 import StoryCanonTab from '../components/tabs/StoryCanonTab'
 import WritersRoom from '../WritersRoom'
 
@@ -38,7 +39,7 @@ export default function StudioPage() {
       <main style={{ ...shell, padding: '28px clamp(20px,4vw,56px) 80px' }}>
         {/* The Writers Room and Story Canon tabs have their own composers, so
             the shared story input is only shown for the other lenses. */}
-        {activeTab !== 'room' && activeTab !== 'canon' && (
+        {activeTab !== 'room' && activeTab !== 'canon' && activeTab !== 'db' && (
           <StoryInput
             value={story}
             onChange={setStory}
@@ -56,6 +57,7 @@ export default function StudioPage() {
         {activeTab === 'opt' && <CliffhangerOptimizerTab {...studio.cliffhanger} />}
         {activeTab === 'room' && <WritersRoom />}
         {activeTab === 'canon' && <StoryCanonTab {...studio.canon} />}
+        {activeTab === 'db' && <DbMemoryTab {...studio.dbMemory} />}
       </main>
     </div>
   )

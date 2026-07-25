@@ -71,6 +71,14 @@ class Settings(BaseSettings):
     # Upper bound on the canon-memory text injected into a persona/expert prompt.
     canon_max_chars: int = 2000
 
+    # --- DB activity feed (judge-facing proof of shared memory) --------------
+    # Every graph read/write is recorded into a small in-process ring buffer so
+    # the "DB / Memory" tab can show, live, that agents read shared memory and
+    # write their verdicts back. Purely observational and best-effort — never
+    # affects engine behaviour.
+    use_activity_log: bool = True
+    activity_log_max: int = 200
+
     # --- Simulation ----------------------------------------------------------
     # Number of audience listeners to fan out to for a "representative 1000".
     # Keep modest for fast/cheap live demos; present as a panel of 1000.

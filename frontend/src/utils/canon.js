@@ -227,6 +227,26 @@ export function reduceAgent(state, ev) {
   }
 }
 
+// --- DB / Memory activity feed ---------------------------------------------
+
+/**
+ * Map the raw canon activity feed into a render-ready view (or null).
+ *
+ * The backend returns events oldest-first; the live feed shows newest-first so
+ * the most recent read/write is always at the top.
+ */
+export function toActivityView(result) {
+  if (!result) return null
+  const raw = Array.isArray(result.events) ? result.events : []
+  return {
+    events: [...raw].reverse(),
+    reads: raw.filter((e) => e.op === 'read').length,
+    writes: raw.filter((e) => e.op === 'write').length,
+    total: raw.length,
+    isEmpty: raw.length === 0,
+  }
+}
+
 // --- MDP policy search -----------------------------------------------------
 
 export function emptyMdp() {

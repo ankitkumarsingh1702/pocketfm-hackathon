@@ -9,6 +9,7 @@ import { isBlank, lastScene } from '../utils/story'
 import { useAudienceSimulator } from './useAudienceSimulator'
 import { useCanon } from './useCanon'
 import { useCliffhangerOptimizer } from './useCliffhangerOptimizer'
+import { useDbMemory } from './useDbMemory'
 import { useHealth } from './useHealth'
 import { useWritersRoom } from './useWritersRoom'
 
@@ -30,6 +31,7 @@ export function useStudio() {
   const cliffhanger = useCliffhangerOptimizer()
   const writersRoom = useWritersRoom()
   const canon = useCanon()
+  const dbMemory = useDbMemory(activeTab === 'db')
 
   const lensByTab = useMemo(
     () => ({ sim: audience, opt: cliffhanger, room: writersRoom }),
@@ -78,6 +80,7 @@ export function useStudio() {
     cliffhanger,
     writersRoom,
     canon,
+    dbMemory,
     // orchestration
     run,
     isLoading: activeLoading,

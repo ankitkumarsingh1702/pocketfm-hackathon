@@ -63,7 +63,7 @@ def _render_candidates(cand: dict) -> str:
 async def find_plot_holes(story: Story) -> PlotHoleResult:
     """Detect plot holes for ``story``, grounded in the canon graph."""
     llm = get_llm()
-    cand = await fetch_contradiction_candidates()
+    cand = await fetch_contradiction_candidates(source="Plot Hole Hunter")
     canon_used = bool(cand.get("facts") or cand.get("conflicts") or cand.get("dangling_clues"))
     rendered = _render_candidates(cand)
 
