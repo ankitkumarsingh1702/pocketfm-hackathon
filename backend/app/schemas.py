@@ -231,6 +231,22 @@ class IngestResult(BaseModel):
     entities: list[str] = Field(default_factory=list)     # names ingested, for the UI
 
 
+class ActivityEvent(BaseModel):
+    """One recorded read/write against the canon graph (for the DB / Memory tab)."""
+
+    seq: int                             # monotonic sequence number
+    ts: float                            # unix timestamp
+    op: Literal["read", "write", "skipped"]
+    fn: str                              # store function that ran
+    source: str                          # agent/lens that triggered it
+    detail: str                          # human-readable sentence
+    counts: dict[str, float] = Field(default_factory=dict)  # nodes/edges/segments…
+
+
+class ActivityFeed(BaseModel):
+    events: list[ActivityEvent] = Field(default_factory=list)
+
+
 # ---------------------------------------------------------------------------
 # Planning — Tree & Graph Search (plot-hole detection + cliffhanger beam search)
 # ---------------------------------------------------------------------------

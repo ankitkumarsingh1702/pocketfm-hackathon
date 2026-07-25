@@ -42,7 +42,7 @@ async def policy_search(
     on_event: Callable[[dict], None] | None = None,
 ) -> MdpResult:
     """Run greedy policy search; the audience simulator provides the reward."""
-    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon = render_canon_memory(await fetch_canon_subgraph(story, source="MDP Optimizer"))
     canon_fp = canon_fingerprint(canon)
     panel = fan_out_audience(load_personas("audience"), min(10, settings.audience_fanout))
     audience_model = settings.model_for("audience")

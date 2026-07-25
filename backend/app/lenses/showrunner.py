@@ -86,8 +86,8 @@ async def run_showrunner(
     # --- nodes (closures capture emit + shared context) ---
     async def ingest_node(state: dict) -> dict:
         extraction = await extract_canon(story, llm)
-        res = await ingest_extraction(story, extraction)
-        sub = await fetch_canon_subgraph(story)
+        res = await ingest_extraction(story, extraction, source="Showrunner")
+        sub = await fetch_canon_subgraph(story, source="Showrunner")
         state["canon"] = render_canon_memory(sub)
         state["canon_fp"] = canon_fingerprint(state["canon"])
         state["transcript"].append({"node": "ingest", "detail": f"canon +{res.nodes_added} nodes, +{res.edges_added} edges"})
@@ -185,5 +185,6 @@ async def run_showrunner(
         await write_audience_verdict(
             story,
             [{"segment": "All listeners", "following_pct": state["audience"]["binge_pct"], "avg_hook": after}],
+            source="Showrunner",
         )
     return result.model_dump()

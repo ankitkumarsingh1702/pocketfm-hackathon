@@ -66,7 +66,7 @@ async def beam_search(
     on_event: Callable[[dict], None] | None = None,
 ) -> SearchTree:
     """Beam-search cliffhanger rewrites, scoring each on the audience panel."""
-    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon = render_canon_memory(await fetch_canon_subgraph(story, source="Cliffhanger Planner"))
     canon_fp = canon_fingerprint(canon)
     panel = fan_out_audience(load_personas("audience"), min(12, settings.audience_fanout))
     audience_model = settings.model_for("audience")

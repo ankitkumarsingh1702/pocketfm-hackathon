@@ -11,6 +11,7 @@ export const TABS = [
   { id: 'opt', label: 'Cliffhanger Optimizer' },
   { id: 'room', label: 'Writers Room' },
   { id: 'canon', label: 'Story Canon' },
+  { id: 'db', label: 'DB / Memory' },
 ]
 
 export const DEFAULT_TAB = 'sim'

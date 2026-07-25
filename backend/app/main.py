@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
+from app.db.activity import get_recent_activity
 from app.engine.cache import Cache
 from app.engine.mdp import policy_search
 from app.engine.search import beam_search
@@ -29,6 +30,7 @@ from app.lenses.writers_room import run_writers_room, stream_writers_room
 from app.llm.factory import get_llm
 from app.personas.loader import load_personas
 from app.schemas import (
+    ActivityFeed,
     AudienceResult,
     CanonGraph,
     CliffhangerRequest,
@@ -153,6 +155,16 @@ async def canon_ingest(req: IngestRequest) -> IngestResult:
         return await ingest_extraction(req.story, extraction)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/canon/activity", response_model=ActivityFeed)
+async def canon_activity(limit: int = 50) -> ActivityFeed:
+    """Recent knowledge-graph reads/writes — live proof agents share memory.
+
+    Each event names the agent (``source``), whether it read or wrote, and a
+    human-readable detail. Feeds the DB / Memory tab; observational only.
+    """
+    return ActivityFeed(events=get_recent_activity(limit))
 
 
 # ---------------------------------------------------------------------------
