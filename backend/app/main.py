@@ -76,7 +76,7 @@ async def simulate_audience(req: SimulateRequest) -> AudienceResult:
 async def writers_room(req: WritersRoomRequest) -> WritersRoomResult:
     """Writers' Room lens: expert panel critique + consensus."""
     try:
-        return await run_writers_room(req.story)
+        return await run_writers_room(req.story, req.experts, req.audience)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -98,7 +98,7 @@ async def writers_room_stream(req: WritersRoomRequest) -> StreamingResponse:
         import json
 
         try:
-            async for event in stream_writers_room(req.story):
+            async for event in stream_writers_room(req.story, req.experts, req.audience):
                 yield (json.dumps(event) + "\n").encode("utf-8")
         except Exception as e:  # noqa: BLE001 - emit a terminal error line, never 500 mid-stream
             yield (json.dumps({"type": "error", "error": str(e)}) + "\n").encode("utf-8")

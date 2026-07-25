@@ -804,6 +804,387 @@
   }
 }
 
+/* ---------- Roster (editable cast, shown before a run) ---------- */
+.roster {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.roster__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.roster__hint {
+  color: var(--ui-ink-muted);
+  font-size: 0.95rem;
+  min-width: 0;
+}
+
+.roster__error {
+  color: var(--ui-red-ink);
+  background: var(--ui-red-soft);
+  border: 1px solid var(--ui-red-line);
+  border-radius: var(--ui-radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.roster__groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.25rem, 3vw, 2rem);
+}
+
+.roster-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.roster-group__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.roster-group__title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.roster-group__count {
+  font-family: var(--ui-mono);
+  font-size: 0.82rem;
+  color: var(--ui-ink-muted);
+}
+
+.cast {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+
+.cast-card {
+  appearance: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-height: 44px;
+  padding: 0.8rem 0.95rem;
+  text-align: left;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cast-card:hover {
+  border-color: var(--ui-ink);
+  background: var(--ui-surface);
+}
+
+.cast-card__name {
+  font-weight: 600;
+  color: var(--ui-ink);
+}
+
+.cast-card__role {
+  font-size: 0.85rem;
+  color: var(--ui-ink-muted);
+}
+
+.cast-card__sum {
+  font-size: 0.8rem;
+  color: var(--ui-ink-subtle);
+}
+
+/* Expert identity becomes a button so the profile opens on click. */
+.expert__open {
+  appearance: none;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  padding: 0.15rem 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  border-radius: var(--ui-radius-sm);
+}
+
+.expert__open:hover .expert__name {
+  color: var(--ui-ink);
+}
+
+/* Audience log lines are buttons that open the listener's profile. */
+.log__line {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  border-radius: var(--ui-radius-sm);
+  font: inherit;
+  color: inherit;
+}
+
+.log__line:hover {
+  background: var(--ui-bg);
+}
+
+/* ---------- Agent profile drawer ---------- */
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(17 17 17 / 38%);
+}
+
+.drawer__panel {
+  position: relative;
+  width: min(30rem, 100%);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--ui-bg);
+  border-left: 1px solid var(--ui-line);
+  box-shadow: var(--ui-shadow-soft);
+  animation: drawer-in 0.2s ease;
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(2rem); opacity: 0.6; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.drawer__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--ui-line);
+}
+
+.drawer__kind {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-red-ink);
+}
+
+/* Name is an editable, visually prominent text input in the drawer header. */
+.drawer__namefield {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.drawer__name-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  margin-left: -0.6rem;
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.drawer__name-input:hover {
+  border-color: var(--ui-line);
+}
+
+.drawer__name-input:focus {
+  border-color: var(--ui-ink);
+}
+
+.drawer__name-input::placeholder {
+  color: var(--ui-ink-subtle);
+  font-weight: 500;
+}
+
+.drawer__close {
+  flex: 0 0 auto;
+}
+
+.drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ---------- Profile form controls ---------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.9rem;
+}
+
+.ctl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.ctl__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ui-ink-muted);
+}
+
+.ctl__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ctl__value {
+  font-family: var(--ui-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ui-ink);
+}
+
+.ctl__select,
+.ctl__num,
+.ctl__text {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease;
+}
+
+.ctl__text::placeholder,
+.ctl__num::placeholder {
+  color: var(--ui-ink-subtle);
+}
+
+.ctl__select {
+  appearance: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%23626262' stroke-width='1.5' d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.ctl__num {
+  max-width: 6rem;
+}
+
+.ctl__select:hover,
+.ctl__num:hover,
+.ctl__text:hover {
+  border-color: var(--ui-ink-subtle);
+}
+
+.ctl__range {
+  width: 100%;
+  height: 2.75rem;
+  cursor: pointer;
+  accent-color: var(--ui-red);
+}
+
+.ctl__hint {
+  font-size: 0.8rem;
+  color: var(--ui-ink-subtle);
+}
+
+.ctl__area {
+  width: 100%;
+  min-height: 11rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm);
+  font-family: var(--ui-font);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  resize: vertical;
+  transition: border-color 0.15s ease;
+}
+
+.ctl__area:hover {
+  border-color: var(--ui-ink-subtle);
+}
+
+.checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.25rem 0.75rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+
+.check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--ui-red);
+  cursor: pointer;
+}
+
+/* At the genre cap, unchecked options are disabled but stay legible. */
+.check--locked {
+  color: var(--ui-ink-subtle);
+  cursor: not-allowed;
+}
+
+.check--locked input {
+  cursor: not-allowed;
+}
+
+/* ---------- Wider screens: roster groups side by side ---------- */
+@media (min-width: 48rem) {
+  .roster__groups {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
 /* ---------- Narrow screens ---------- */
 @media (max-width: 30rem) {
   .field--sm {
@@ -812,5 +1193,14 @@
 
   .composer__actions .btn {
     width: 100%;
+  }
+
+  .drawer__panel {
+    width: 100%;
+    border-left: 0;
+  }
+
+  .cast {
+    grid-template-columns: 1fr;
   }
 }

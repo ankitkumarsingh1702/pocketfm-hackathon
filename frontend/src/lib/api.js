@@ -85,15 +85,23 @@ export function cliffhanger(story, weakExcerpt) {
  * as it arrives so the UI can render the loop live. Pass an AbortSignal to stop
  * the run early; aborting rejects the returned promise with an AbortError.
  *
- * @param {{title:string, episode:string, text:string}} story
+ * The edited rosters are sent alongside the story so the simulation uses the
+ * agents as edited in the UI. Empty rosters are omitted so the server falls back
+ * to its default personas (skills/*.yaml) rather than running with no agents.
+ *
+ * @param {{story:{title:string,episode:string,text:string}, experts?:object[], audience?:object[]}} payload
  * @param {(event: object) => void} onEvent called once per complete event line
  * @param {AbortSignal} [signal] optional signal to cancel the stream
  */
-export async function writersRoomStream(story, onEvent, signal) {
+export async function writersRoomStream({ story, experts, audience }, onEvent, signal) {
+  const body = { story }
+  if (Array.isArray(experts) && experts.length) body.experts = experts
+  if (Array.isArray(audience) && audience.length) body.audience = audience
+
   const res = await fetch(`${BASE_URL}/api/lenses/writers-room/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ story }),
+    body: JSON.stringify(body),
     signal,
   })
 
