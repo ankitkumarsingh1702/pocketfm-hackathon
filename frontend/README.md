@@ -22,7 +22,7 @@ optionally persisted to Firestore.
 
 ```
 .
-├── frontend/     # React + Vite (JavaScript) UI — StudioPanel + API client
+├── frontend/     # React + Vite (JavaScript) UI — layered: components / controllers / utils
 ├── backend/      # FastAPI engine, lenses, Vertex LLM clients, Firestore (uv)
 ├── skills/       # Persona / agent definitions (YAML) — audience + experts
 ├── data/         # Sample stories (e.g. "Andhera" episodes)
@@ -64,10 +64,35 @@ npm --prefix frontend run dev
 ```
 
 Open the printed URL (default http://localhost:5173). The **Simulated Studio**
-panel at the top of the page shows backend health and runs the Audience
-Simulator against the backend.
+page shows backend health in the header and runs all three lenses — Audience
+Simulator, Cliffhanger Optimizer, and Writers Room — against the backend.
 
 Frontend scripts: `dev`, `build`, `preview`, `lint`.
+
+### Frontend architecture
+
+The UI is layered so that **components hold no business logic** — it lives in
+utilities and controllers instead:
+
+```
+src/
+├── pages/          # thin composition (StudioPage) — wires controllers to views
+├── components/     # presentational only (props in → JSX out, no fetch/logic)
+│   ├── primitives/ #   design-system building blocks (Button, Tabs, ScoreGauge…)
+│   └── tabs/       #   one pure view per lens
+├── controllers/    # custom hooks: own state, orchestrate API calls, build view-models
+│                   #   useStudio (top orchestrator) + one hook per lens + useHealth
+├── utils/          # pure functions: formatting, story parsing, response → view-model
+├── hooks/          # generic UI hooks (useCountUp, useScrolled)
+├── config/         # constants (tabs, sample story, labels)
+├── lib/api.js      # data-access / transport layer (fetch client)
+└── styles/         # design tokens + self-hosted Geist fonts
+```
+
+Data flow: `lib/api` fetches → a **controller** hook calls it and runs the raw
+response through a **util** transform into a view-model → a **component**
+renders that view-model. The design tokens in `index.css` are the single source
+of truth for the visual system (ported from `Design/`).
 
 ---
 

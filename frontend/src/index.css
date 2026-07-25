@@ -1,111 +1,202 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+/**
+ * Global stylesheet — design tokens + base element styles.
+ *
+ * This is the single source of truth for the Simulated Studio design system.
+ * Components consume these tokens through `var(--token)` in their inline
+ * styles, so visual changes happen here, not scattered across the tree.
+ */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@import './styles/fonts.css';
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-body {
+/* ---------------------------------------------------------------- reset --- */
+*,
+*::before,
+*::after {
   margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+  padding: 0;
   box-sizing: border-box;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* ------------------------------------------------------- font families --- */
+:root {
+  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, Consolas, monospace;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+/* -------------------------------------------------------------- palette --- */
+:root {
+  /* base palette */
+  --red-700: #b00610;
+  --red-600: #e50914;
+  --black-900: #0e0e0e;
+  --white: #ffffff;
+  --grey-100: #f6f6f6;
+  --grey-200: #e6e6e6;
+  --grey-400: #b5b5b5;
+  --grey-600: #8a8a8a;
+
+  /* semantic aliases */
+  --accent: var(--red-600);
+  --accent-press: var(--red-700);
+  --accent-text-sm: var(--red-700); /* small red text on white must darken for AA */
+  --ink: var(--black-900);
+  --canvas: var(--white);
+  --surface: var(--grey-100);
+  --surface-raised: var(--white);
+  --border: var(--grey-200);
+  --muted: var(--grey-600);
+  --dim: var(--grey-400);
+
+  /* feedback */
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --success: #22c55e;
+  --warning: #f59e0b;
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+
+/* --------------------------------------------------------- typography --- */
+:root {
+  --text-display: clamp(48px, 6vw, 88px);
+  --text-h1: 32px;
+  --text-h2: 22px;
+  --text-body: 16px;
+  --text-label: 12px;
+  --tracking-label: 0.12em;
+  --tracking-tight: -0.02em;
+  --lh-tight: 1.05;
+  --lh-body: 1.5;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-black: 800;
 }
-p {
+
+/* --------------------------------------------------------- spacing etc --- */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+  --space-10: 72px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --border-w: 1px;
+
+  --shadow-sm: 0 1px 2px rgba(14, 14, 14, 0.04);
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur-med: 320ms;
+  --dur-slow: 600ms;
+}
+
+/* --------------------------------------------------------- utilities --- */
+.font-display {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+}
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+.label-upper {
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  font-weight: var(--fw-semibold);
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------- base --- */
+body {
   margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a {
+  color: var(--accent-text-sm);
+}
+a:hover {
+  color: var(--accent-press);
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/* ------------------------------------------------------- scrollbars --- */
+:root {
+  --scrollbar-size: 8px; /* down from the ~16px OS default */
+  --scrollbar-thumb: var(--accent);
+  --scrollbar-thumb-hover: var(--accent-press);
+  --scrollbar-track: transparent;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* Firefox — `scrollbar-width`/`scrollbar-color` are inherited, so setting them
+   on the root cascades to the page and every nested scroll container. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* WebKit / Blink (Chrome, Edge, Safari, the in-app browser). The universal
+   selector styles the page scrollbar and all inner scroll areas alike. */
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-pill);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ------------------------------------------------------- animations --- */
+@keyframes pfm-progress {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+@keyframes pfm-wordmark-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pfm-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
