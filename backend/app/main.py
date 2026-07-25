@@ -87,3 +87,19 @@ async def cliffhanger(req: CliffhangerRequest) -> CliffhangerResult:
         return await run_cliffhanger(req.story, req.weak_excerpt)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Static SPA (single-service Cloud Run deploy)
+# ---------------------------------------------------------------------------
+# Serve the built frontend when it is bundled into the image. This mount MUST
+# stay LAST so its catch-all "/" never shadows /health or the /api/* routes
+# declared above. When no build is present (local dev), this is a no-op.
+import os  # noqa: E402,F401
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+from app.config import BACKEND_DIR  # noqa: E402
+
+static_dir = BACKEND_DIR / "static"
+if static_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="spa")

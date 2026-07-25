@@ -1,13 +1,15 @@
 // Tiny fetch client for the Simulated Studio backend.
 //
-// Base URL comes from Vite env (VITE_API_URL) and falls back to the local
-// FastAPI dev server. See frontend/.env.example.
+// Base URL is RELATIVE by default (empty string), so requests hit the same
+// origin and are handled by the Vite dev proxy (see vite.config.js) in
+// development and by the hosting layer in production. Override with VITE_API_URL
+// when the backend lives on a different origin. See frontend/.env.example.
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
+const BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
 
 /**
  * Core request helper. Sends/receives JSON and throws on any non-2xx response,
- * surfacing the backend's `detail` message when present.
+ * surfacing the backend's `detail` message (or raw response text) when present.
  */
 async function request(path, { method = 'GET', body } = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -18,11 +20,14 @@ async function request(path, { method = 'GET', body } = {}) {
 
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`
-    try {
-      const data = await res.json()
-      if (data && data.detail) detail = data.detail
-    } catch {
-      // response had no JSON body; keep the status-line message
+    const raw = await res.text().catch(() => '')
+    if (raw) {
+      try {
+        const data = JSON.parse(raw)
+        detail = data && data.detail ? data.detail : raw
+      } catch {
+        detail = raw
+      }
     }
     throw new Error(detail)
   }

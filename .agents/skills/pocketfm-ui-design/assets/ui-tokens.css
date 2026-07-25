@@ -1,0 +1,123 @@
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap");
+
+:root {
+  color-scheme: light;
+
+  --ui-bg: #ffffff;
+  --ui-ink: #111111;
+  --ui-ink-muted: #626262;
+  --ui-ink-subtle: #8a8a8a;
+  --ui-surface: #f8f8f6;
+  --ui-line: #e8e8e5;
+  --ui-red: #e96b6b;
+  --ui-red-soft: #fdecec;
+  --ui-red-line: #f4b8b8;
+  --ui-red-ink: #a93636;
+  --ui-black-hover: #292929;
+
+  --ui-font: "Lexend", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --ui-space-1: 0.25rem;
+  --ui-space-2: 0.5rem;
+  --ui-space-3: 0.75rem;
+  --ui-space-4: 1rem;
+  --ui-space-6: 1.5rem;
+  --ui-space-8: 2rem;
+  --ui-space-12: 3rem;
+  --ui-space-16: 4rem;
+  --ui-space-24: 6rem;
+
+  --ui-radius-sm: 0.625rem;
+  --ui-radius-md: 0.875rem;
+  --ui-radius-lg: 1.125rem;
+  --ui-shadow-soft: 0 0.5rem 1.75rem rgb(17 17 17 / 7%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+  font-family: var(--ui-font);
+  text-rendering: optimizeLegibility;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+body {
+  margin: 0;
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ui-ink);
+  outline-offset: 3px;
+}
+
+.ui-primary-action,
+.ui-secondary-action {
+  min-height: 2.75rem;
+  border-radius: var(--ui-radius-sm);
+  padding: 0.75rem 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.ui-primary-action {
+  border: 1px solid var(--ui-ink);
+  background: var(--ui-ink);
+  color: var(--ui-bg);
+}
+
+.ui-primary-action:hover {
+  border-color: var(--ui-black-hover);
+  background: var(--ui-black-hover);
+}
+
+.ui-primary-action:active,
+.ui-secondary-action:active {
+  transform: translateY(1px);
+}
+
+.ui-secondary-action {
+  border: 1px solid var(--ui-line);
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+}
+
+.ui-secondary-action:hover {
+  border-color: var(--ui-ink);
+}
+
+.ui-red-surface {
+  border: 1px solid var(--ui-red-line);
+  background: var(--ui-red-soft);
+  color: var(--ui-red-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
