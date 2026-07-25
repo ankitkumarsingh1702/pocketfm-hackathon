@@ -1,50 +1,40 @@
-@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap");
-:root { color-scheme: light; --ui-bg:#ffffff; --ui-ink:#111111; --ui-ink-muted:#626262; --ui-ink-subtle:#8a8a8a; --ui-surface:#f8f8f6; --ui-line:#e8e8e5; --ui-red:#e96b6b; --ui-red-soft:#fdecec; --ui-red-line:#f4b8b8; --ui-red-ink:#a93636; --ui-black-hover:#292929; --ui-font:'Lexend', ui-sans-serif, system-ui, -apple-system, sans-serif; --ui-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --ui-radius-sm:0.625rem; --ui-radius-md:0.875rem; --ui-radius-lg:1.125rem; --ui-shadow-soft:0 0.5rem 1.75rem rgb(17 17 17 / 7%); }
+/**
+ * Writers Room token bridge.
+ *
+ * The Writers Room console (writers-room.css, WritersRoom.jsx, AgentProfile.jsx)
+ * is written against a `--ui-*` namespace. Rather than ship a second palette,
+ * every `--ui-*` token here ALIASES onto the shell's design tokens (index.css),
+ * so the Writers Room tab automatically inherits the dashboard's palette and
+ * fonts and stays visually consistent with the rest of the studio. Fallbacks
+ * keep it safe if a shell token is ever renamed.
+ */
+:root {
+  color-scheme: light;
 
-/* ---- Reset + base ---- */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+  --ui-bg: var(--canvas, #ffffff);
+  --ui-ink: var(--ink, #0e0e0e);
+  --ui-ink-muted: var(--muted, #626262);
+  --ui-ink-subtle: var(--dim, #8a8a8a);
+  --ui-surface: var(--surface, #f6f6f6);
+  --ui-line: var(--border, #e6e6e6);
+
+  /* Accent inherits the shell's brand red; pale tints are literals for surfaces. */
+  --ui-red: var(--accent, #e50914);
+  --ui-red-soft: #fdecec;
+  --ui-red-line: #f4b8b8;
+  --ui-red-ink: var(--accent-text-sm, #b00610);
+  --ui-black-hover: #292929;
+
+  --ui-font: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  --ui-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+
+  --ui-radius-sm: var(--radius-sm, 0.625rem);
+  --ui-radius-md: var(--radius-md, 0.875rem);
+  --ui-radius-lg: var(--radius-lg, 1.125rem);
+  --ui-shadow-soft: var(--shadow-sm, 0 0.5rem 1.75rem rgb(17 17 17 / 7%));
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background: var(--ui-bg);
-  color: var(--ui-ink);
-}
-
-body {
-  min-height: 100vh;
-  font-family: var(--ui-font);
-  font-size: 1rem;
-  line-height: 1.6;
-  font-weight: 400;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
-
-#root {
-  min-height: 100vh;
-}
-
-h1,
-h2,
-h3,
-h4,
-p,
-ul,
-figure {
-  margin: 0;
-}
-
+/* Base rules the shell stylesheet doesn't already provide. */
 button,
 input,
 textarea,
