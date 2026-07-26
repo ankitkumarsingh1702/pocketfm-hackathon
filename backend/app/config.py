@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     model_audience: str = "gemini-2.5-flash"
     model_experts: str = "gemini-2.5-pro"
     model_rewrite: str = "gemini-2.5-pro"
+    # Audience Simulator ("Living Audience") reaction agents. These are genuine
+    # multi-step, vision-capable agents, so they run on the strongest Gemini
+    # (multimodal + reasoning) rather than the fast flash tier.
+    model_sim: str = "gemini-2.5-pro"
 
     # --- Generation ----------------------------------------------------------
     temperature: float = 0.9        # variety across personas
@@ -88,6 +92,16 @@ class Settings(BaseSettings):
     # Number of audience listeners to fan out to for a "representative 1000".
     # Keep modest for fast/cheap live demos; present as a panel of 1000.
     audience_fanout: int = 60
+
+    # --- Audience Simulator ("Living Audience") ------------------------------
+    # Genuine, stateful reaction agents that SEE a posted image + read the text
+    # and react like real listeners. Budget is not the constraint here — these
+    # run wider and deeper than the base audience lens.
+    sim_panel_default: int = 200    # distinct persona-agents per run by default
+    sim_panel_max: int = 2000       # hard cap on a single run's fan-out
+    sim_concurrency: int = 32       # simultaneous reaction agents in flight
+    sim_max_retries: int = 3        # retries on 429/503, with backoff + jitter
+    sim_agentic: bool = True        # run the multi-step perceive→recall→react loop
 
     # --- API -----------------------------------------------------------------
     cors_origins: str = "http://localhost:5173,http://localhost:4173"
@@ -154,6 +168,7 @@ class Settings(BaseSettings):
                 "audience": self.model_audience,
                 "experts": self.model_experts,
                 "rewrite": self.model_rewrite,
+                "sim": self.model_sim,
             }.get(tier, self.gemini_model)
         return self.claude_model
 
