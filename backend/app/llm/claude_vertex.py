@@ -13,7 +13,7 @@ import json
 from anthropic import AsyncAnthropicVertex
 
 from app.config import settings
-from app.llm.base import T
+from app.llm.base import ImageInput, T
 
 
 class ClaudeVertexClient:
@@ -53,6 +53,7 @@ class ClaudeVertexClient:
         schema: type[T],
         temperature: float | None = None,
         model: str | None = None,
+        images: list[ImageInput] | None = None,
     ) -> T:
         """Generate JSON matching ``schema`` and return a validated instance."""
         client = self._get_client()
@@ -62,12 +63,35 @@ class ClaudeVertexClient:
             + "(no prose, no code fences):\n"
             + json.dumps(schema.model_json_schema())
         )
+
+        # Text-only: send the bare prompt string (unchanged). Multimodal: send a
+        # content-block list with each image before the text, so Claude sees the
+        # picture. On Vertex there is no Files API — inline base64 is the path.
+        content: object = prompt
+        if images:
+            blocks: list[dict] = [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": img.mime_type,
+                        "data": img.data,
+                    },
+                }
+                for img in images
+            ]
+            blocks.append({"type": "text", "text": prompt})
+            content = blocks
+
+        # Current-gen Claude models (Sonnet 5 / Opus 4.7+) reject non-default
+        # sampling params with a 400, so we do not forward `temperature` here —
+        # cross-persona variety comes from each persona's distinct prompt. (This
+        # path is only used when llm_provider == 'claude'; Gemini is the default.)
         msg = await client.messages.create(
             model=model or settings.claude_model,
             max_tokens=settings.max_output_tokens,
-            temperature=(temperature or settings.temperature),
             system=system2,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": content}],
         )
         text = "".join(
             getattr(b, "text", "")

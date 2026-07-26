@@ -8,6 +8,7 @@ import { useToast } from '../components/toast/useToast'
 import Sidebar from '../components/layout/Sidebar'
 import PageHeader from '../components/layout/PageHeader'
 import StoryInput from '../components/StoryInput'
+import StoryPicker from '../components/StoryPicker'
 import { Icon, Wordmark } from '../components/primitives'
 import HealthBadge from '../components/HealthBadge'
 import AgentDirectoryTab from '../components/tabs/AgentDirectoryTab'
@@ -54,8 +55,8 @@ export default function StudioShell() {
   // run that finishes while you are on another lens still tells you.
   useStatusToast(studio.health.error, (e) => toast.error(`Backend unreachable. ${e}`))
 
-  useStatusToast(studio.audience.error, (e) => toast.error(`Audience simulation failed. ${e}`))
-  useStatusToast(studio.audience.data, () => toast.success('Audience simulation finished.'))
+  // The Audience Simulator is self-contained (its own composer + live feed +
+  // inline error surface), like the Writers Room and Genre Converter.
 
   useStatusToast(studio.cliffhanger.error, (e) =>
     toast.error(`Cliffhanger optimization failed. ${e}`),
@@ -136,7 +137,7 @@ export default function StudioShell() {
 
   if (!lens) return <Navigate to={DEFAULT_LENS_PATH} replace />
 
-  const showStoryInput = activeTab === 'sim' || activeTab === 'opt'
+  const showStoryInput = activeTab === 'opt'
 
   return (
     <div className="shell">
@@ -175,11 +176,17 @@ export default function StudioShell() {
         <div className="content__inner">
           <PageHeader lens={lens} />
 
-          {/* The Writers Room, Story Canon, DB / Memory, and Genre Converter
-              lenses have their own composers, so the shared story input only
-              shows for the two lenses that run from it. */}
+          {/* The Audience Simulator, Writers Room, Story Canon, DB / Memory, and
+              Genre Converter lenses have their own composers, so the shared story
+              input only shows for the Cliffhanger Optimizer, which runs from it. */}
           {showStoryInput && (
             <div style={{ marginBottom: 44 }}>
+              <div style={{ marginBottom: 14 }}>
+                <StoryPicker
+                  onSelect={(s) => setStory(s.text)}
+                  label="Load a ready-made story to optimize"
+                />
+              </div>
               <StoryInput
                 value={story}
                 onChange={setStory}
@@ -194,7 +201,7 @@ export default function StudioShell() {
             <AgentDirectoryTab {...studio.agentDirectory} />
           </section>
           <section className="lens-panel" hidden={activeTab !== 'sim'} aria-label="Audience Simulator">
-            <AudienceSimulatorTab {...studio.audience} />
+            <AudienceSimulatorTab />
           </section>
           <section className="lens-panel" hidden={activeTab !== 'opt'} aria-label="Cliffhanger Optimizer">
             <CliffhangerOptimizerTab {...studio.cliffhanger} />

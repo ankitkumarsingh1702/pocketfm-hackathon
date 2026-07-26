@@ -40,4 +40,11 @@ async def ndjson_events(
                 break
             yield (json.dumps(event) + "\n").encode("utf-8")
     finally:
-        await task
+        # A disconnected client must stop the expensive fan-out rather than
+        # leaving hundreds of model calls running with nobody listening.
+        if not task.done():
+            task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass

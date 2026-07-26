@@ -6,6 +6,23 @@ import { EmptyState, ErrorState, LoadingState } from '../StateViews'
 /** Build-time fallback if the backend health payload has no browser_url. */
 const NEO4J_BROWSER_FALLBACK = import.meta.env.VITE_NEO4J_BROWSER_URL || ''
 
+/**
+ * Deep-link one canon node into the Neo4j Browser with a prefilled Cypher query
+ * that pulls up the node and its neighbourhood — so a judge can click a dot and
+ * see it live in the actual database.
+ */
+function neo4jNodeUrl(browserUrl, nodeId) {
+  if (!browserUrl || !nodeId) return null
+  const key = String(nodeId).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+  const cypher = `MATCH (n:Canon {key:'${key}'})-[r]-(m) RETURN n, r, m`
+  const arg = encodeURIComponent(cypher)
+  // Hosted Browser already carries ?connectURL=…; a self-hosted origin needs
+  // the /browser/ app path added.
+  return browserUrl.includes('?')
+    ? `${browserUrl}&cmd=edit&arg=${arg}`
+    : `${browserUrl.replace(/\/+$/, '')}/browser/?cmd=edit&arg=${arg}`
+}
+
 /** Section heading in the studio's uppercase-label style. */
 function SectionLabel({ children, style }) {
   return (
@@ -438,11 +455,22 @@ const DETAIL_TITLE = {
  * (and why it was made), every fact and contradiction, and every read/write
  * with the agent that did it.
  */
-export default function DbMemoryTab({ activity, health, graph, facts, refresh, live, setLive }) {
+export default function DbMemoryTab({
+  activity,
+  health,
+  graph,
+  facts,
+  refresh,
+  live,
+  setLive,
+  scope,
+  setScope,
+}) {
   const [selected, setSelected] = useState(null)
   const a = activity.data
   const g = graph.data
   const firstLoad = !a && activity.loading
+  const browserUrl = (health.data && health.data.browser_url) || NEO4J_BROWSER_FALLBACK
 
   const tiles = [
     { key: 'nodes', value: g ? g.nodeCount : '—', label: 'Entities (nodes)', tone: 'ink' },
@@ -480,6 +508,53 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
           </Button>
         </div>
       </div>
+
+      <div
+        aria-label="Canon graph scope"
+        style={{
+          display: 'inline-flex',
+          alignSelf: 'flex-start',
+          padding: 4,
+          gap: 4,
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--surface-raised)',
+        }}
+      >
+        {[
+          ['session', 'Your story'],
+          ['full', 'Full canon'],
+        ].map(([value, label]) => {
+          const active = scope === value
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setScope(value)}
+              style={{
+                minHeight: 44,
+                padding: '8px 16px',
+                border: active ? '1px solid var(--ink)' : '1px solid transparent',
+                borderRadius: 'var(--radius-sm)',
+                background: active ? 'var(--ink)' : 'transparent',
+                color: active ? 'white' : 'var(--muted)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                fontWeight: 650,
+                cursor: 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+      <p style={{ margin: '-22px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)' }}>
+        {scope === 'session'
+          ? 'Only canon ingested in this browser tab. Seeded ANDHERA data is excluded.'
+          : 'All persisted canon, including the seeded ANDHERA demo and every session.'}
+      </p>
 
       {/* Clickable stat strip */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, flexWrap: 'wrap', marginLeft: -14 }}>
@@ -540,15 +615,27 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
             {graph.error && <ErrorState message={graph.error} />}
             {g && g.isEmpty && (
               <EmptyState
-                title="Graph is empty"
-                hint="Ingest an episode in the Story Canon tab to build the shared memory."
+                title={scope === 'session' ? 'Your story has not been ingested yet' : 'Graph is empty'}
+                hint={
+                  scope === 'session'
+                    ? 'Ingest the current episode in Story Canon. The seeded demo stays hidden here.'
+                    : 'Ingest an episode in the Story Canon tab to build shared memory.'
+                }
               />
             )}
             {g && !g.isEmpty && (
               <>
-                <GraphLegend stats={g.stats} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                  <GraphLegend stats={g.stats} />
+                  {browserUrl && (
+                    <span style={{ fontSize: 12, color: 'var(--dim)' }}>· tap a node to open it in Neo4j</span>
+                  )}
+                </div>
                 <SurfaceCard style={{ padding: 'var(--space-4)', background: 'var(--surface-raised)' }}>
-                  <GraphCanvas data={g} />
+                  <GraphCanvas
+                    data={g}
+                    nodeHref={browserUrl ? (node) => neo4jNodeUrl(browserUrl, node.id) : undefined}
+                  />
                 </SurfaceCard>
               </>
             )}

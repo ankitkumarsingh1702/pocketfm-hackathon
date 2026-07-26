@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     model_audience: str = "gemini-2.5-flash"
     model_experts: str = "gemini-2.5-pro"
     model_rewrite: str = "gemini-2.5-pro"
+    # Audience Simulator ("Living Audience") reaction agents. The social-post
+    # lens uses the stronger multimodal model; the 1000-agent cliffhanger panel
+    # uses the audience/Flash tier because statefulness comes from persisted
+    # identity + memory, not from choosing the slowest model.
+    model_sim: str = "gemini-2.5-pro"
 
     # --- Generation ----------------------------------------------------------
     temperature: float = 0.9        # variety across personas
@@ -88,6 +93,29 @@ class Settings(BaseSettings):
     # Number of audience listeners to fan out to for a "representative 1000".
     # Keep modest for fast/cheap live demos; present as a panel of 1000.
     audience_fanout: int = 60
+
+    # --- Audience Simulator ("Living Audience") ------------------------------
+    # Genuine, stateful reaction agents that SEE a posted image + read the text
+    # and react like real listeners. Budget is not the constraint here — these
+    # run wider and deeper than the base audience lens.
+    sim_panel_default: int = 200    # distinct persona-agents per run by default
+    sim_panel_max: int = 1000       # hard cap on a single expensive fan-out
+    sim_concurrency: int = 32       # simultaneous reaction agents in flight
+    sim_synthesis_concurrency: int = 6  # bounded persona-generation batches
+    sim_max_retries: int = 3        # retries on 429/503, with backoff + jitter
+    sim_agentic: bool = True        # run the multi-step perceive→recall→react loop
+    planner_panel_default: int = 1000
+    planner_scout_default: int = 100
+    planner_finalists_default: int = 3
+    # Pace the high-volume paired-comparison calls below the shared Vertex
+    # request quota. Concurrency still hides individual response latency, while
+    # start-rate pacing prevents a fast 1,000-agent burst from dropping agents.
+    planner_requests_per_second: float = 5.0
+    planner_max_retries: int = 6
+
+    # --- RL / MDP (policy search over story decisions) -----------------------
+    mdp_discount: float = 0.85
+    mdp_lookahead: int = 2
 
     # --- API -----------------------------------------------------------------
     cors_origins: str = "http://localhost:5173,http://localhost:4173"
@@ -154,6 +182,7 @@ class Settings(BaseSettings):
                 "audience": self.model_audience,
                 "experts": self.model_experts,
                 "rewrite": self.model_rewrite,
+                "sim": self.model_sim,
             }.get(tier, self.gemini_model)
         return self.claude_model
 

@@ -65,8 +65,9 @@ export function GraphLegend({ stats }) {
 const TARGET_MAX_H = 640
 
 /** The hovered node's name, on a dark chip, drawn above (or below, if clipped). */
-function HoverLabel({ node, minY }) {
-  const text = node.name.length > 32 ? `${node.name.slice(0, 30)}…` : node.name
+function HoverLabel({ node, minY, clickable }) {
+  const base = node.name.length > 32 ? `${node.name.slice(0, 30)}…` : node.name
+  const text = clickable ? `${base}  ↗` : base
   const w = text.length * 6.6 + 16
   const h = 20
   const above = node.y - node.r - 8 - h
@@ -88,7 +89,7 @@ function HoverLabel({ node, minY }) {
   )
 }
 
-export default function GraphCanvas({ data }) {
+export default function GraphCanvas({ data, nodeHref }) {
   const [hovered, setHovered] = useState(null)
   if (!data || data.isEmpty) return null
 
@@ -154,20 +155,18 @@ export default function GraphCanvas({ data }) {
           </text>
         ))}
 
-        {/* Nodes. */}
+        {/* Nodes. When `nodeHref` yields a URL, each dot links into Neo4j. */}
         {nodes.map((node) => {
           const s = styleFor(node.label)
           const active = hovered === node.id
           const dim = hovered && neighbours && !neighbours.has(node.id)
-          return (
-            <g
-              key={node.id}
-              onMouseEnter={() => setHovered(node.id)}
-              onMouseLeave={() => setHovered(null)}
-            >
+          const href = nodeHref ? nodeHref(node) : null
+          const body = (
+            <>
               <title>
                 {node.label}: {node.name}
                 {node.description ? ` — ${node.description}` : ''}
+                {href ? ' — click to open in Neo4j' : ''}
               </title>
               <circle
                 cx={node.x}
@@ -179,12 +178,34 @@ export default function GraphCanvas({ data }) {
                 opacity={dim ? 0.3 : 1}
                 style={{ transition: 'r var(--dur-fast) var(--ease-standard)' }}
               />
+            </>
+          )
+          return (
+            <g
+              key={node.id}
+              onMouseEnter={() => setHovered(node.id)}
+              onMouseLeave={() => setHovered(null)}
+              style={{ cursor: href ? 'pointer' : 'default' }}
+            >
+              {href ? (
+                <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Open ${node.name} in Neo4j`}>
+                  {body}
+                </a>
+              ) : (
+                body
+              )}
             </g>
           )
         })}
 
         {/* Hovered name, drawn last so it sits above everything. */}
-        {hoveredNode && <HoverLabel node={hoveredNode} minY={minY} />}
+        {hoveredNode && (
+          <HoverLabel
+            node={hoveredNode}
+            minY={minY}
+            clickable={Boolean(nodeHref && nodeHref(hoveredNode))}
+          />
+        )}
       </svg>
     </div>
   )
