@@ -13,6 +13,15 @@
  */
 export const LENSES = [
   {
+    id: 'agents',
+    path: '/agents',
+    label: 'Agent Directory',
+    icon: 'grid',
+    title: 'Agent Directory',
+    blurb:
+      'Every agent in the studio in one place — what each one does, the tools it runs, and the shared memory it reads and writes, updating live as they work.',
+  },
+  {
     id: 'sim',
     path: '/audience',
     label: 'Audience Simulator',
@@ -69,6 +78,124 @@ export const LENSES = [
 
 /** Where the studio lands on `/` or an unknown path. */
 export const DEFAULT_LENS_PATH = '/audience'
+
+/**
+ * The reasoning agents that make up the studio — the roster shown in the Agent
+ * Directory, in display order. This is descriptive metadata (what each agent
+ * does, the method it runs, and which shared memory it touches); the live
+ * numbers and recent activity are hydrated at runtime from the canon graph and
+ * the shared-memory activity log.
+ *
+ * `source` MUST match the string each agent tags its reads/writes with in the
+ * backend activity log (`record_activity(..., source=...)`), so the directory
+ * can join each profile to its real memory activity. `route` is where the agent
+ * runs; `panel` names its inner tab when it lives inside Story Canon.
+ */
+export const AGENTS = [
+  {
+    id: 'agent',
+    name: 'Showrunner Agent',
+    source: 'Showrunner',
+    route: '/canon',
+    panel: 'agent',
+    role: 'Runs the whole episode loop — ingest, continuity, simulate, decide, fix, re-simulate — until it converges.',
+    methods: ['State-graph agent', 'Knowledge graph', 'LLM'],
+    memory: 'Writes new canon on ingest, reads the graph to reason, and writes its decision back.',
+    reads: true,
+    writes: true,
+  },
+  {
+    id: 'holes',
+    name: 'Plot Hole Hunter',
+    source: 'Plot Hole Hunter',
+    route: '/canon',
+    panel: 'holes',
+    role: 'Scans one episode against the whole show canon for contradictions, timeline slips and dangling clues.',
+    methods: ['Contradiction traversal', 'Knowledge graph', 'LLM'],
+    memory: 'Traverses every fact, conflict and unpaid clue in shared memory before it ranks issues.',
+    reads: true,
+    writes: false,
+  },
+  {
+    id: 'planner',
+    name: 'Cliffhanger Planner',
+    source: 'Cliffhanger Planner',
+    route: '/canon',
+    panel: 'planner',
+    role: 'Searches a tree of possible endings to find the cliffhanger with the strongest hook lift.',
+    methods: ['Tree / beam search', 'Knowledge graph', 'LLM'],
+    memory: 'Reads the canon subgraph so every candidate ending stays true to the story.',
+    reads: true,
+    writes: false,
+  },
+  {
+    id: 'mdp',
+    name: 'MDP Optimizer',
+    source: 'MDP Optimizer',
+    route: '/canon',
+    panel: 'mdp',
+    role: 'Treats the ending as a decision process and searches a policy for the highest expected reward.',
+    methods: ['MDP policy search', 'Knowledge graph', 'LLM'],
+    memory: 'Reads canon to score each policy state against what the audience already knows.',
+    reads: true,
+    writes: false,
+  },
+  {
+    id: 'room',
+    name: "Writers' Room",
+    source: "Writers' Room",
+    route: '/writers-room',
+    panel: null,
+    role: 'A panel of expert personas debates the episode and returns a single, grounded verdict.',
+    methods: ['Multi-agent debate', 'Knowledge graph', 'LLM'],
+    memory: "Reads canon for context, then writes the room's verdict back to the log.",
+    reads: true,
+    writes: true,
+  },
+  {
+    id: 'sim',
+    name: 'Audience Simulator',
+    source: 'Audience',
+    route: '/audience',
+    panel: null,
+    role: 'Fans a few archetypes into a representative panel and predicts drop-off and retention.',
+    methods: ['Persona fan-out', 'Knowledge graph', 'LLM'],
+    memory: "Reads canon, then writes each segment's verdict back as edges on the episode.",
+    reads: true,
+    writes: true,
+  },
+  {
+    id: 'opt',
+    name: 'Cliffhanger Optimizer',
+    source: 'Cliffhanger',
+    route: '/cliffhanger',
+    panel: null,
+    role: 'Rewrites a weak ending into a sharper cliffhanger, then A/B-tests the hook lift.',
+    methods: ['Knowledge graph', 'LLM'],
+    memory: 'Reads canon so the rewrite never breaks continuity.',
+    reads: true,
+    writes: false,
+  },
+  {
+    id: 'canon',
+    name: 'Story Canon',
+    source: 'Canon Ingest',
+    route: '/canon',
+    panel: 'graph',
+    role: 'The shared brain: extracts characters, relationships and atomic facts from every episode.',
+    methods: ['Entity + fact extraction', 'Knowledge graph'],
+    memory: 'Builds and holds the knowledge graph every other agent reads from and writes to.',
+    reads: false,
+    writes: true,
+    hub: true,
+  },
+]
+
+/** LLM model each persona tier runs on (Gemini provider — see backend config). */
+export const PERSONA_MODEL = {
+  audience: 'gemini-2.5-flash',
+  expert: 'gemini-2.5-pro',
+}
 
 /**
  * Inner panels of the Story Canon tab, in display order. Each is one of the

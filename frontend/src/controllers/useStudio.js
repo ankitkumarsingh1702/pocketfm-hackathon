@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { DEFAULT_STORY_META, SAMPLE_STORY } from '../config/constants'
 import { isBlank, lastScene } from '../utils/story'
+import { useAgentDirectory } from './useAgentDirectory'
 import { useAudienceSimulator } from './useAudienceSimulator'
 import { useCanon } from './useCanon'
 import { useCliffhangerOptimizer } from './useCliffhangerOptimizer'
@@ -30,6 +31,7 @@ export function useStudio(activeTab) {
   const writersRoom = useWritersRoom()
   const canon = useCanon()
   const dbMemory = useDbMemory(activeTab === 'db')
+  const agentDirectory = useAgentDirectory(activeTab === 'agents')
 
   const lensByTab = useMemo(
     () => ({ sim: audience, opt: cliffhanger, room: writersRoom }),
@@ -77,6 +79,7 @@ export function useStudio(activeTab) {
     writersRoom,
     canon,
     dbMemory,
+    agentDirectory,
     // orchestration
     run,
     isLoading: activeLoading,
