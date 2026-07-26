@@ -537,7 +537,13 @@ try:
     # catalog (app/mood/data/*.json) DIRECTLY — real songs in prod with no
     # Vertex ingest. Unset (the default) leaves the LLM retrieval path unchanged.
     if os.environ.get("MOOD_SIMPLE", "").strip().lower() in ("1", "true", "yes", "on"):
-        from app.mood.simple_engine import router as mood_router  # noqa: E402
+        try:
+            from app.mood.simple_engine import router as mood_router  # noqa: E402
+        except Exception:  # noqa: BLE001
+            # Flag is on but the simple engine isn't in this build (e.g. a deploy
+            # from a branch that lacks it) — fall back to the LLM engine rather
+            # than leaving /api/mood unmounted.
+            from app.mood.api import router as mood_router  # noqa: E402
     else:
         from app.mood.api import router as mood_router  # noqa: E402
 
