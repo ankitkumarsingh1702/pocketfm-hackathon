@@ -27,6 +27,7 @@ from app.graph.store import (
     ingest_extraction,
 )
 from app.lenses.audience import run_audience
+from app.lenses.audience_sim import generate_audience, list_audience, stream_audience_sim
 from app.lenses.cliffhanger import run_cliffhanger
 from app.lenses.plot_holes import find_plot_holes
 from app.lenses.showrunner import run_showrunner
@@ -35,10 +36,13 @@ from app.llm.factory import get_llm
 from app.personas.loader import load_personas
 from app.schemas import (
     ActivityFeed,
+    AudienceLibrary,
     AudienceResult,
+    AudienceSimRequest,
     CanonGraph,
     CliffhangerRequest,
     CliffhangerResult,
+    GeneratePersonasRequest,
     IngestRequest,
     IngestResult,
     MdpRequest,
@@ -256,6 +260,36 @@ async def mdp_optimize_stream(req: MdpRequest) -> StreamingResponse:
             on_event=emit,
         )
         return result.model_dump()
+
+    return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
+
+
+# ---------------------------------------------------------------------------
+# Audience Simulator ("Living Audience") — stateful, multimodal reaction agents
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/audience-sim/library", response_model=AudienceLibrary)
+async def audience_sim_library() -> AudienceLibrary:
+    """The persisted audience population (knowledge graph), or default archetypes."""
+    return await list_audience()
+
+
+@app.post("/api/audience-sim/generate", response_model=AudienceLibrary)
+async def audience_sim_generate(req: GeneratePersonasRequest) -> AudienceLibrary:
+    """Synthesise a diverse audience of listener-agents and persist it for reuse."""
+    try:
+        return await generate_audience(req)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/audience-sim/run/stream")
+async def audience_sim_run_stream(req: AudienceSimRequest) -> StreamingResponse:
+    """Run the Audience Simulator, streaming each agent's reaction as it lands."""
+
+    async def run(emit) -> dict:
+        return await stream_audience_sim(req, emit)
 
     return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
 
