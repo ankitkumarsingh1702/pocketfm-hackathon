@@ -78,9 +78,11 @@ class Settings(BaseSettings):
     tts_model: str = "gemini-2.5-flash-preview-tts"
     tts_location: str = "us-central1"  # preview-TTS region may differ; override if 404
     tts_language_code: str = "hi-IN"   # Hindi/Hinglish stories; Gemini auto-detects, Chirp uses this
-    tts_voice_flat: str = "Vindemiatrix"  # soft, even girl voice — the passive original read
-    tts_voice_dramatic: str = "Achernar"  # soft girl voice — the dramatic optimized read
-    tts_rate_flat: float = 1.96        # 2x speed (Chirp speaking_rate; clamped to 2.0 max)
+    # Same voice + pace for BOTH endings (one narrator) — the flat vs dramatic
+    # contrast comes from the style prompt, not a different voice.
+    tts_voice_flat: str = "Achernar"      # same voice as the optimized read
+    tts_voice_dramatic: str = "Achernar"  # soft girl voice
+    tts_rate_flat: float = 2.12        # same pace as dramatic (Chirp clamps to 2.0 max)
     tts_rate_dramatic: float = 2.12    # 2x speed (Chirp clamps to its 2.0 max)
     tts_max_chars: int = 1200          # cap synth input (payload + latency guard)
 
