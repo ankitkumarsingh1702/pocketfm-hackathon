@@ -39,6 +39,15 @@ export const LENSES = [
     blurb:
       "Rewrites your ending and A/B tests the hook lift against the listener panel — then lets you hear the difference, the flat original versus the dramatic cut.",
   },
+  {
+    id: "producer",
+    path: "/producer",
+    label: "AI Producer",
+    icon: "sparkles",
+    title: "AI Producer",
+    blurb:
+      "Four Sarvam-powered agents produce your episode end to end — casting each character to a voice you can actually hear, designing the soundscape, mapping the pacing, and planning the launch.",
+  },
   // {
   //   id: "planner",
   //   path: "/planner",
@@ -247,7 +256,7 @@ export const SUPERPOWERS = [
   { label: "Cliffhanger Optimizer", live: true },
   { label: "AI Writers Room", live: true },
   { label: "Plot Hole Hunter", live: true },
-  // { label: "AI Producer", live: false },
+  { label: "AI Producer", live: true },
   // { label: "AI Rewrite Engine", live: false },
 ];
 

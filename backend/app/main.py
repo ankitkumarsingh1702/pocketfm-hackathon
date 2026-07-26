@@ -41,10 +41,12 @@ from app.lenses.audience_sim import (
 from app.lenses.cliffhanger import run_cliffhanger
 from app.lenses.narrate import run_narration
 from app.lenses.plot_holes import find_plot_holes
+from app.lenses.producer import run_producer
 from app.lenses.showrunner import run_showrunner
 from app.lenses.story_scan import scan_story
 from app.lenses.writers_room import run_writers_room, stream_writers_room
 from app.llm.factory import get_llm
+from app.llm.sarvam import SarvamError
 from app.personas.loader import load_personas
 from app.schemas import (
     ActivityFeed,
@@ -67,6 +69,8 @@ from app.schemas import (
     PlanRequest,
     PlotHoleResult,
     PlotHolesRequest,
+    ProducerRequest,
+    ProductionPlanResult,
     ShowrunnerRequest,
     SimulateRequest,
     Story,
@@ -227,6 +231,52 @@ async def writers_room_stream(req: WritersRoomRequest) -> StreamingResponse:
             yield (json.dumps({"type": "error", "error": str(e)}) + "\n").encode("utf-8")
 
     return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+
+# ---------------------------------------------------------------------------
+# AI Producer — four Sarvam sub-agents (casting + sound + pacing + marketing)
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/lenses/producer", response_model=ProductionPlanResult)
+async def producer(req: ProducerRequest) -> ProductionPlanResult:
+    """AI Producer lens: four Sarvam sub-agents plan casting, sound, pacing, marketing."""
+    if not settings.sarvam_api_key.strip():
+        raise HTTPException(
+            status_code=503, detail="Sarvam is not configured (SARVAM_API_KEY unset)."
+        )
+    try:
+        return await run_producer(req.story, language_code=req.language_code)
+    except SarvamError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/lenses/producer/stream")
+async def producer_stream(req: ProducerRequest) -> StreamingResponse:
+    """AI Producer (streaming): NDJSON events as each of the four agents lands, a
+    ``phase`` while the cast is voiced, then a terminal ``done`` carrying the plan.
+    """
+    if not settings.sarvam_api_key.strip():
+        raise HTTPException(
+            status_code=503, detail="Sarvam is not configured (SARVAM_API_KEY unset)."
+        )
+    _reject_if_expensive_job_active()
+    await _expensive_job_lock.acquire()
+
+    async def run(emit) -> dict:
+        result = await run_producer(req.story, language_code=req.language_code, emit=emit)
+        return result.model_dump()
+
+    async def guarded_events():
+        try:
+            async for event in ndjson_events(run):
+                yield event
+        finally:
+            _expensive_job_lock.release()
+
+    return StreamingResponse(guarded_events(), media_type="application/x-ndjson")
 
 
 # ---------------------------------------------------------------------------

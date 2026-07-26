@@ -103,6 +103,35 @@ else
   echo "    knowledge graph stays off and the app runs with an empty canon."
 fi
 
+# --- 4b. (Optional) Sarvam API key (AI Producer) ----------------------------
+# The AI Producer lens calls Sarvam (LLM + bulbul:v3 TTS). Export the key before
+# running to store it in Secret Manager for Cloud Run to mount:
+#
+#   export SARVAM_API_KEY='sk_...'
+#   ./scripts/gcp_setup.sh
+#
+# Nothing here touches the repo — the key lives only in Secret Manager. Without
+# it the studio still runs; only the AI Producer tab returns 503.
+if [[ -n "${SARVAM_API_KEY:-}" ]]; then
+  echo "==> Storing Sarvam API key in Secret Manager…"
+  if gcloud secrets describe SARVAM_API_KEY --project "${PROJECT}" >/dev/null 2>&1; then
+    printf '%s' "${SARVAM_API_KEY}" | gcloud secrets versions add SARVAM_API_KEY --data-file=- --project "${PROJECT}" >/dev/null
+  else
+    printf '%s' "${SARVAM_API_KEY}" | gcloud secrets create SARVAM_API_KEY \
+      --data-file=- --replication-policy=automatic --project "${PROJECT}" >/dev/null
+  fi
+  PROJ_NUM="$(gcloud projects describe "${PROJECT}" --format='value(projectNumber)')"
+  RUNTIME_SA="${PROJ_NUM}-compute@developer.gserviceaccount.com"
+  gcloud secrets add-iam-policy-binding SARVAM_API_KEY \
+    --member="serviceAccount:${RUNTIME_SA}" \
+    --role="roles/secretmanager.secretAccessor" \
+    --project "${PROJECT}" >/dev/null 2>&1 || true
+  echo "    Sarvam API key stored and runtime SA (${RUNTIME_SA}) granted access."
+else
+  echo "==> Skipping Sarvam API key (SARVAM_API_KEY not set) — the AI Producer"
+  echo "    tab returns 503 until the key is stored in Secret Manager."
+fi
+
 # --- 5. Next steps ----------------------------------------------------------
 cat <<EOF
 

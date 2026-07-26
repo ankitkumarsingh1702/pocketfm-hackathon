@@ -185,6 +185,28 @@ export function cliffhangerStream({ story, weakExcerpt }, onEvent, signal) {
 }
 
 /**
+ * POST /api/lenses/producer/stream -> NDJSON run-log events.
+ *
+ * Streams the AI Producer's four Sarvam sub-agents as each lands: `run_started`
+ * (the 4-agent roster), one `agent_done`/`agent_error` per agent, a `phase` while
+ * the Voice Casting Director voices the cast, an `orchestrator` memo, then a
+ * terminal `done` carrying the full ProductionPlanResult (casting with per-
+ * character base64 audio, sound, pacing, marketing).
+ *
+ * @param {{story:object, languageCode?:string}} payload
+ * @param {(event:object)=>void} onEvent called once per event line
+ * @param {AbortSignal} [signal] optional cancel signal
+ */
+export function producerStream({ story, languageCode = 'en-IN' }, onEvent, signal) {
+  return ndjsonStream(
+    '/api/lenses/producer/stream',
+    { story, language_code: languageCode },
+    onEvent,
+    signal,
+  )
+}
+
+/**
  * POST /api/lenses/cliffhanger/narrate -> NarrationResult
  *
  * Voices both endings (base64 audio, one call) so the UI can play an audible

@@ -166,6 +166,87 @@ class NarrationResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# AI Producer — four sub-agents (on Sarvam) combine into one production plan.
+# Kept simple (str / Literal / int / list of models) like the other structured
+# outputs. The Voice Casting Director's picks are voiced with Sarvam TTS, so each
+# character carries a base64 audio sample filled in by the lens (not the model).
+# ---------------------------------------------------------------------------
+
+
+class CharacterCasting(BaseModel):
+    """One character cast to a Sarvam voice, with an audible sample line."""
+
+    name: str = Field(description="Character name as it appears in the script.")
+    persona: str = Field(description="One line on the character's voice and personality.")
+    voice: str = Field(description="Chosen Sarvam speaker id (from the allowed list).")
+    rationale: str = Field(description="One sentence: why this voice fits the character.")
+    sample_line: str = Field(
+        description="A short in-character line (<=180 chars) to voice, in the script's language."
+    )
+    # Filled in by the lens after TTS (not produced by the LLM):
+    audio_base64: str = ""
+    mime: str = "audio/wav"
+
+
+class CastingPlan(BaseModel):
+    characters: list[CharacterCasting] = Field(default_factory=list)
+    narrator_note: str = Field(default="", description="One line on the narrator's ideal voice.")
+
+
+class SfxCue(BaseModel):
+    scene: str = Field(description="Where in the episode, e.g. 'Opening', 'Scene 3', 'Climax'.")
+    cue: str = Field(description="The sound effect or ambience, e.g. 'distant temple bells'.")
+    timing: str = Field(description="When/how it enters, e.g. 'fades in under the first line'.")
+    mood: str = Field(description="The feeling it reinforces, e.g. 'dread'.")
+
+
+class SoundDesignPlan(BaseModel):
+    ambience: str = Field(description="The overall sonic world of the episode, in one sentence.")
+    cues: list[SfxCue] = Field(default_factory=list)
+
+
+class PacingBeat(BaseModel):
+    section: str = Field(description="Story section, e.g. 'Hook', 'Midpoint', 'Cliffhanger'.")
+    tempo: Literal["slow", "medium", "fast"]
+    note: str = Field(description="Concrete direction, e.g. 'tighten — cut 20% of the dialogue'.")
+
+
+class PacingPlan(BaseModel):
+    overall: str = Field(description="One-sentence read on the episode's pacing.")
+    runtime_estimate: str = Field(description="Rough spoken runtime, e.g. '18-20 min'.")
+    beats: list[PacingBeat] = Field(default_factory=list)
+
+
+class MarketingPlan(BaseModel):
+    logline: str = Field(description="A one-sentence hook for the episode.")
+    target_audience: str = Field(description="Who this is for, in one phrase.")
+    title_options: list[str] = Field(default_factory=list)
+    hooks: list[str] = Field(default_factory=list, description="Short promo hooks / social captions.")
+    channels: list[str] = Field(default_factory=list, description="Where to promote it.")
+    release_note: str = Field(description="Timing/cadence suggestion, e.g. 'Fri drop, binge Ep 1-3'.")
+
+
+class ProductionPlanResult(BaseModel):
+    """The AI Producer's complete plan for one episode — the four agents combined."""
+
+    show_title: str
+    casting: CastingPlan | None = None
+    sound: SoundDesignPlan | None = None
+    pacing: PacingPlan | None = None
+    marketing: MarketingPlan | None = None
+    summary: str = ""                    # producer's memo synthesising the four agents
+    agents_completed: int = 0            # how many of the four sub-agents succeeded
+    voices_rendered: int = 0             # audible casting samples produced
+
+
+class ProducerRequest(BaseModel):
+    story: Story
+    # BCP-47 language for the casting TTS: en-IN for the English library,
+    # hi-IN for the Hindi library. Defaults to en-IN.
+    language_code: str = "en-IN"
+
+
+# ---------------------------------------------------------------------------
 # API request bodies
 # ---------------------------------------------------------------------------
 
