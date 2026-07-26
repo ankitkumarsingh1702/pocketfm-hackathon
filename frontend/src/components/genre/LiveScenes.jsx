@@ -68,11 +68,11 @@ function StatusTag({ state }) {
 }
 
 /** The row header — all a reader needs while the scene is folded. */
-function SceneSummary({ entry, scene, state, pivots, missing }) {
+function SceneSummary({ entry, scene, state, pivots, missing, unit }) {
   return (
     <span style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
       <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
-        Scene {entry.scene}
+        {unit === 'chapter' ? 'Chapter' : 'Scene'} {entry.scene}
       </span>
       <StatusTag state={state} />
       <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -90,7 +90,7 @@ function SceneSummary({ entry, scene, state, pivots, missing }) {
 }
 
 /** The prose and its footnotes — what the accordion folds away. */
-function SceneBody({ scene, state }) {
+function SceneBody({ scene, state, unit }) {
   return (
     <div style={{ paddingBottom: 8 }}>
       {scene?.retried && (
@@ -108,8 +108,9 @@ function SceneBody({ scene, state }) {
 
       {state === 'writing' && (
         <p style={{ margin: '2px 0 0', fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
-          Writing this scene now — roughly 200 to 350 words per beat, so it takes about a
-          minute.
+          {unit === 'chapter'
+            ? 'Writing this chapter now, scene by scene — it takes a few minutes.'
+            : 'Writing this scene now — roughly 200 to 350 words per beat, so it takes about a minute.'}
         </p>
       )}
 
@@ -131,7 +132,7 @@ function SceneBody({ scene, state }) {
   )
 }
 
-export default function LiveScenes({ plan, scenes, active, genre }) {
+export default function LiveScenes({ plan, scenes, active, genre, unit = 'scene' }) {
   // A reader's explicit open/close beats the automatic focus rule.
   const [overrides, setOverrides] = useState({})
 
@@ -153,14 +154,15 @@ export default function LiveScenes({ plan, scenes, active, genre }) {
           {genre ? `The rewrite, as ${genre}` : 'The rewrite'}
         </h3>
         <span className="font-mono-num" style={{ fontSize: 13, color: 'var(--muted)' }}>
-          {doneCount} of {total} scenes
+          {doneCount} of {total} {unit === 'chapter' ? 'chapters' : 'scenes'}
           {words > 0 && ` · ${words.toLocaleString()} words so far`}
         </span>
       </div>
 
       <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', maxWidth: '64ch', lineHeight: 1.6 }}>
-        Each scene is one model call, given only the beats it owns. The scene being written
-        stays open; finished ones fold up — open any of them to read while the job runs.
+        {unit === 'chapter'
+          ? 'Each chapter is written scene by scene against the story bible, given only the beats it owns. The chapter being written stays open; finished ones fold up — open any of them to read while the job runs.'
+          : 'Each scene is one model call, given only the beats it owns. The scene being written stays open; finished ones fold up — open any of them to read while the job runs.'}
       </p>
 
       <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -170,7 +172,7 @@ export default function LiveScenes({ plan, scenes, active, genre }) {
           const pivots = new Set(entry.load_bearing ?? [])
           const missing = new Set(scene?.missing ?? [])
           const summary = (
-            <SceneSummary entry={entry} scene={scene} state={state} pivots={pivots} missing={missing} />
+            <SceneSummary entry={entry} scene={scene} state={state} pivots={pivots} missing={missing} unit={unit} />
           )
 
           return (
@@ -199,7 +201,7 @@ export default function LiveScenes({ plan, scenes, active, genre }) {
                     setOverrides((current) => ({ ...current, [entry.scene]: next }))
                   }
                 >
-                  <SceneBody scene={scene} state={state} />
+                  <SceneBody scene={scene} state={state} unit={unit} />
                 </Disclosure>
               )}
             </li>

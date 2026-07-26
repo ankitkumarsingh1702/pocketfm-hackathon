@@ -125,10 +125,12 @@ function pollDelay(watchedMs) {
  * @param {string} id                        job id from a submit call
  * @param {(job: object) => void} onUpdate   called on each poll
  * @param {AbortSignal} [signal]             stop watching
+ * @param {number} [timeoutMs]               give up after this long; long-form
+ *                                           runs pass a bigger budget
  */
-export async function pollJob(id, onUpdate, signal) {
+export async function pollJob(id, onUpdate, signal, timeoutMs = POLL_TIMEOUT_MS) {
   const started = Date.now()
-  const deadline = started + POLL_TIMEOUT_MS
+  const deadline = started + timeoutMs
 
   for (;;) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
@@ -141,8 +143,8 @@ export async function pollJob(id, onUpdate, signal) {
 
     if (Date.now() > deadline) {
       throw new Error(
-        `Gave up watching job ${id} after 20 minutes. It may still be running — ` +
-          'the service keeps jobs in memory until it restarts.',
+        `Gave up watching job ${id} after ${Math.round(timeoutMs / 60000)} minutes. ` +
+          'It may still be running — the service keeps jobs in memory until it restarts.',
       )
     }
 
