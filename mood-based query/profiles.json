@@ -1,0 +1,342 @@
+[
+  {
+    "persona_id": "p_ananya",
+    "display_name": "Ananya",
+    "attrs": {
+      "listening_time_slot": "late_night",
+      "primary_language": "en",
+      "series_completion_rate": 0.35,
+      "typical_dropoff_episode": 12,
+      "tolerance_for_heaviness": 0.85
+    },
+    "history": [
+      {
+        "series_id": "pf_after_ending",
+        "episodes_listened": 22,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_three_am_clarity",
+        "episodes_listened": 18,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_hands_up",
+        "episodes_listened": 3,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 3
+      }
+    ]
+  },
+  {
+    "persona_id": "p_rohan",
+    "display_name": "Rohan",
+    "attrs": {
+      "listening_time_slot": "commute",
+      "primary_language": "en",
+      "series_completion_rate": 0.72,
+      "typical_dropoff_episode": 40,
+      "tolerance_for_heaviness": 0.4
+    },
+    "history": [
+      {
+        "series_id": "pf_windows_down",
+        "episodes_listened": 21,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_hands_up",
+        "episodes_listened": 33,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_static_starlight",
+        "episodes_listened": 2,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 2
+      }
+    ]
+  },
+  {
+    "persona_id": "p_meera",
+    "display_name": "Meera",
+    "attrs": {
+      "listening_time_slot": "bedtime",
+      "primary_language": "en",
+      "series_completion_rate": 0.5,
+      "typical_dropoff_episode": 20,
+      "tolerance_for_heaviness": 0.6
+    },
+    "history": [
+      {
+        "series_id": "pf_static_starlight",
+        "episodes_listened": 14,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_held",
+        "episodes_listened": 16,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_neon_shadow",
+        "episodes_listened": 4,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 4
+      }
+    ]
+  },
+  {
+    "persona_id": "p_kabir",
+    "display_name": "Kabir",
+    "attrs": {
+      "listening_time_slot": "work_break",
+      "primary_language": "en",
+      "series_completion_rate": 0.45,
+      "typical_dropoff_episode": 15,
+      "tolerance_for_heaviness": 0.5
+    },
+    "history": [
+      {
+        "series_id": "pf_hands_up",
+        "episodes_listened": 28,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_soft_morning",
+        "episodes_listened": 12,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_after_ending",
+        "episodes_listened": 5,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 5
+      }
+    ]
+  },
+  {
+    "persona_id": "p_sara",
+    "display_name": "Sara",
+    "attrs": {
+      "listening_time_slot": "chores",
+      "primary_language": "en",
+      "series_completion_rate": 0.6,
+      "typical_dropoff_episode": 25,
+      "tolerance_for_heaviness": 0.35
+    },
+    "history": [
+      {
+        "series_id": "pf_soft_morning",
+        "episodes_listened": 19,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_held",
+        "episodes_listened": 20,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_neon_shadow",
+        "episodes_listened": 3,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 3
+      }
+    ]
+  },
+  {
+    "persona_id": "p_dev",
+    "display_name": "Dev",
+    "attrs": {
+      "listening_time_slot": "late_night",
+      "primary_language": "en",
+      "series_completion_rate": 0.3,
+      "typical_dropoff_episode": 10,
+      "tolerance_for_heaviness": 0.9
+    },
+    "history": [
+      {
+        "series_id": "pf_neon_shadow",
+        "episodes_listened": 15,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_after_ending",
+        "episodes_listened": 12,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_hands_up",
+        "episodes_listened": 2,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 2
+      }
+    ]
+  },
+  {
+    "persona_id": "p_isha",
+    "display_name": "Isha",
+    "attrs": {
+      "listening_time_slot": "commute",
+      "primary_language": "en",
+      "series_completion_rate": 0.65,
+      "typical_dropoff_episode": 35,
+      "tolerance_for_heaviness": 0.5
+    },
+    "history": [
+      {
+        "series_id": "pf_windows_down",
+        "episodes_listened": 24,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_three_am_clarity",
+        "episodes_listened": 17,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_static_starlight",
+        "episodes_listened": 3,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 3
+      }
+    ]
+  },
+  {
+    "persona_id": "p_arjun",
+    "display_name": "Arjun",
+    "attrs": {
+      "listening_time_slot": "bedtime",
+      "primary_language": "en",
+      "series_completion_rate": 0.55,
+      "typical_dropoff_episode": 18,
+      "tolerance_for_heaviness": 0.7
+    },
+    "history": [
+      {
+        "series_id": "pf_static_starlight",
+        "episodes_listened": 16,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_three_am_clarity",
+        "episodes_listened": 15,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_hands_up",
+        "episodes_listened": 4,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 4
+      }
+    ]
+  },
+  {
+    "persona_id": "p_naina",
+    "display_name": "Naina",
+    "attrs": {
+      "listening_time_slot": "work_break",
+      "primary_language": "en",
+      "series_completion_rate": 0.5,
+      "typical_dropoff_episode": 22,
+      "tolerance_for_heaviness": 0.4
+    },
+    "history": [
+      {
+        "series_id": "pf_held",
+        "episodes_listened": 18,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_soft_morning",
+        "episodes_listened": 16,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_windows_down",
+        "episodes_listened": 3,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 3
+      }
+    ]
+  },
+  {
+    "persona_id": "p_veer",
+    "display_name": "Veer",
+    "attrs": {
+      "listening_time_slot": "chores",
+      "primary_language": "en",
+      "series_completion_rate": 0.42,
+      "typical_dropoff_episode": 14,
+      "tolerance_for_heaviness": 0.6
+    },
+    "history": [
+      {
+        "series_id": "pf_hands_up",
+        "episodes_listened": 20,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_neon_shadow",
+        "episodes_listened": 13,
+        "completed": true,
+        "liked": true,
+        "dropped_at_episode": null
+      },
+      {
+        "series_id": "pf_after_ending",
+        "episodes_listened": 4,
+        "completed": false,
+        "liked": false,
+        "dropped_at_episode": 4
+      }
+    ]
+  }
+]

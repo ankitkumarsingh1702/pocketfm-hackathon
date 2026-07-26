@@ -1,0 +1,257 @@
+[
+  {
+    "series_id": "pf_after_ending",
+    "title": "After the Ending",
+    "synopsis": "The hours right after it ends, when the room is too quiet and you are not ready to be told it gets better. Voices that stay low and sit in the ache with you instead of rushing you out of it — grief, longing, and the slow tidal pull of missing someone who is not coming back.",
+    "total_episodes": 22,
+    "language": "en",
+    "source": "youtube_playlist",
+    "arcs": [
+      {
+        "arc_id": "pf_after_ending_a0",
+        "label": "the fresh wound",
+        "start_episode": 1,
+        "end_episode": 9,
+        "summary": "Rawest and closest to the moment it broke — nothing softened yet, the ache still sharp."
+      },
+      {
+        "arc_id": "pf_after_ending_a1",
+        "label": "the long ache",
+        "start_episode": 10,
+        "end_episode": 16,
+        "summary": "The dull, ongoing weight of missing them once the shock wears off; quieter, heavier, endless."
+      },
+      {
+        "arc_id": "pf_after_ending_a2",
+        "label": "letting it settle",
+        "start_episode": 17,
+        "end_episode": 22,
+        "summary": "Not over it, but starting to carry it — the first inch toward acceptance and a held kind of calm."
+      }
+    ]
+  },
+  {
+    "series_id": "pf_three_am_clarity",
+    "title": "The 3 A.M. Clarity",
+    "synopsis": "The reflective hour when the noise dies down and you finally think a thought all the way through. Bittersweet, clear-eyed songs about growing up, drifting apart, and the small revelations that only arrive when you are half-awake and honest with yourself for once.",
+    "total_episodes": 26,
+    "language": "en",
+    "source": "youtube_playlist",
+    "arcs": [
+      {
+        "arc_id": "pf_three_am_clarity_a0",
+        "label": "the quiet turn",
+        "start_episode": 1,
+        "end_episode": 9,
+        "summary": "The noise fades and the first honest thought arrives, unhurried and a little raw."
+      },
+      {
+        "arc_id": "pf_three_am_clarity_a1",
+        "label": "what it added up to",
+        "start_episode": 10,
+        "end_episode": 17,
+        "summary": "Looking back at what changed, who drifted, and who you quietly became along the way."
+      },
+      {
+        "arc_id": "pf_three_am_clarity_a2",
+        "label": "making peace",
+        "start_episode": 18,
+        "end_episode": 26,
+        "summary": "Reflective and clear-eyed, landing somewhere gentler than where it started."
+      }
+    ]
+  },
+  {
+    "series_id": "pf_soft_morning",
+    "title": "Soft Morning Light",
+    "synopsis": "The gentle lift of a good morning — warm without shouting about it, hopeful without pretending nothing ever hurt. Easy, kind songs that open the curtains and let a little sun in, the sound of small things quietly turning out okay after a long stretch of them not.",
+    "total_episodes": 26,
+    "language": "en",
+    "source": "youtube_playlist",
+    "arcs": [
+      {
+        "arc_id": "pf_soft_morning_a0",
+        "label": "curtains open",
+        "start_episode": 1,
+        "end_episode": 9,
+        "summary": "The first warm light easing in; soft, unforced, no rush to be anything yet."
+      },
+      {
+        "arc_id": "pf_soft_morning_a1",
+        "label": "small good things",
+        "start_episode": 10,
+        "end_episode": 17,
+        "summary": "Little joys landing one after another — nothing loud, just genuinely nice."
+      },
+      {
+        "arc_id": "pf_soft_morning_a2",
+        "label": "into the day",
+        "start_episode": 18,
+        "end_episode": 26,
+        "summary": "Brighter and readier, hopeful and light on its feet, out the door."
+      }
+    ]
+  },
+  {
+    "series_id": "pf_held",
+    "title": "Held",
+    "synopsis": "Being wholly wanted by someone. Tender, unhurried love songs — the slow-dance kind, the ones for a first look across a room and a hand you do not want to let go of. Devotion sung close to the mic, all warmth and no distance, the safest place in the room.",
+    "total_episodes": 24,
+    "language": "en",
+    "source": "youtube_playlist",
+    "arcs": [
+      {
+        "arc_id": "pf_held_a0",
+        "label": "the first look",
+        "start_episode": 1,
+        "end_episode": 8,
+        "summary": "The catch of breath when it begins — new, bright, a little disbelieving."
+      },
+      {
+        "arc_id": "pf_held_a1",
+        "label": "close and warm",
+        "start_episode": 9,
+        "end_episode": 16,
+        "summary": "Settled devotion sung near the mic; steady, tender, sure of itself."
+      },
+      {
+        "arc_id": "pf_held_a2",
+        "label": "yours",
+        "start_episode": 17,
+        "end_episode": 24,
+        "summary": "All-in and unguarded — the fully-held, nothing-between-us stretch."
+      }
+    ]
+  },
+  {
+    "series_id": "pf_windows_down",
+    "title": "Windows Down",
+    "synopsis": "Windows down, foot heavier on the pedal, the world blurring past. Big, propulsive, wide-screen songs built for motion and momentum — the kind that make an empty highway at dusk feel like the finest hour of your own private movie, no destination required.",
+    "total_episodes": 19,
+    "language": "en",
+    "source": "youtube_playlist",
+    "arcs": [
+      {
+        "arc_id": "pf_windows_down_a0",
+        "label": "ignition",
+        "start_episode": 1,
+        "end_episode": 6,
+        "summary": "The engine turns over and momentum starts to build; anticipation with a pulse."
+      },
+      {
+        "arc_id": "pf_windows_down_a1",
+        "label": "open road",
+        "start_episode": 7,
+        "end_episode": 13,
+        "summary": "Full speed, wide screen, no brakes — pure forward motion."
+      },
+      {
+        "arc_id": "pf_windows_down_a2",
+        "label": "the summit",
+        "start_episode": 14,
+        "end_episode": 19,
+        "summary": "The soaring, arms-out crest where the whole thing lifts off."
+      }
+    ]
+  },
+  {
+    "series_id": "pf_hands_up",
+    "title": "Hands in the Air",
+    "synopsis": "The floor is full and nobody is checking the time. Pure, unbothered euphoria — the hooks everyone already knows by heart, the drops that put every hand in the air, the sound of a night that is going exactly the way you hoped it would when you got ready for it.",
+    "total_episodes": 59,
+    "language": "en",
+    "source": "youtube_playlist",
+    "arcs": [
+      {
+        "arc_id": "pf_hands_up_a0",
+        "label": "doors open",
+        "start_episode": 1,
+        "end_episode": 14,
+        "summary": "The night starts to fill up; warm-up energy, grins, first drinks."
+      },
+      {
+        "arc_id": "pf_hands_up_a1",
+        "label": "peak floor",
+        "start_episode": 15,
+        "end_episode": 30,
+        "summary": "Hooks everyone knows, hands up, the room fully committed."
+      },
+      {
+        "arc_id": "pf_hands_up_a2",
+        "label": "the drop",
+        "start_episode": 31,
+        "end_episode": 46,
+        "summary": "Full euphoria, nobody checking the time, the night at its loudest and best."
+      },
+      {
+        "arc_id": "pf_hands_up_a3",
+        "label": "last-call glow",
+        "start_episode": 47,
+        "end_episode": 59,
+        "summary": "Still going on fumes and joy — sweat, singalongs, and no wish to leave."
+      }
+    ]
+  },
+  {
+    "series_id": "pf_neon_shadow",
+    "title": "Neon and Shadow",
+    "synopsis": "After midnight in a city that never fully turns the lights off — sleek, brooding, and a little dangerous. Dark-edged songs with a low pulse and a smirk, the cool-toned corner of the decade where the shadows are not a warning so much as part of the appeal.",
+    "total_episodes": 15,
+    "language": "en",
+    "source": "youtube_playlist",
+    "arcs": [
+      {
+        "arc_id": "pf_neon_shadow_a0",
+        "label": "after midnight",
+        "start_episode": 1,
+        "end_episode": 5,
+        "summary": "Lights low, pulse steady, a little dangerous — the night tipping over."
+      },
+      {
+        "arc_id": "pf_neon_shadow_a1",
+        "label": "neon",
+        "start_episode": 6,
+        "end_episode": 10,
+        "summary": "Sleek and brooding, cool to the touch, all reflected light and attitude."
+      },
+      {
+        "arc_id": "pf_neon_shadow_a2",
+        "label": "the shadow",
+        "start_episode": 11,
+        "end_episode": 15,
+        "summary": "The darkest-edged stretch — the smirk in the dark, unbothered and cold."
+      }
+    ]
+  },
+  {
+    "series_id": "pf_static_starlight",
+    "title": "Static and Starlight",
+    "synopsis": "Almost-silence with a heartbeat under it. Instrumental and ambient pieces to fold the day away to — slow, weightless, and asking nothing of you, made to be half-heard on the long drift down into sleep when words would only get in the way of it.",
+    "total_episodes": 12,
+    "language": "en",
+    "source": "youtube_playlist",
+    "arcs": [
+      {
+        "arc_id": "pf_static_starlight_a0",
+        "label": "settling",
+        "start_episode": 1,
+        "end_episode": 4,
+        "summary": "The day folds away; the first slow exhale, lights going down."
+      },
+      {
+        "arc_id": "pf_static_starlight_a1",
+        "label": "weightless",
+        "start_episode": 5,
+        "end_episode": 8,
+        "summary": "Slow and floating, asking nothing, the mind finally loosening its grip."
+      },
+      {
+        "arc_id": "pf_static_starlight_a2",
+        "label": "under",
+        "start_episode": 9,
+        "end_episode": 12,
+        "summary": "The quiet drift all the way down into sleep."
+      }
+    ]
+  }
+]

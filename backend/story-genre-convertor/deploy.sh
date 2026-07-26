@@ -50,7 +50,7 @@ gcloud run deploy "${SERVICE}" \
   --no-cpu-throttling \
   --concurrency 40 \
   --timeout 300 \
-  --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT},VERTEX_LOCATION=${REGION},GEMINI_MODEL=gemini-2.5-pro,CACHE_DIR=/tmp/sgc-cache" \
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT},VERTEX_LOCATION=global,GEMINI_MODEL=gemini-3.5-flash,CACHE_DIR=/tmp/sgc-cache" \
   --project "${PROJECT}"
 
 URL="$(gcloud run services describe "${SERVICE}" \

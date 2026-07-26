@@ -1,0 +1,1666 @@
+[
+  {
+    "series_id": "pf_after_ending",
+    "episodes": [
+      {
+        "number": 1,
+        "title": "Adele - Rolling in the Deep (Official Music Video)",
+        "duration_sec": 234,
+        "synopsis": "Adele",
+        "audio_url": "https://www.youtube.com/watch?v=rYEDA3JcQqw",
+        "is_arc_start": true
+      },
+      {
+        "number": 2,
+        "title": "Passenger | Let Her Go (Official Video)",
+        "duration_sec": 255,
+        "synopsis": "Passenger",
+        "audio_url": "https://www.youtube.com/watch?v=RBumgq5yVrA",
+        "is_arc_start": false
+      },
+      {
+        "number": 3,
+        "title": "Billie Eilish, Khalid - lovely",
+        "duration_sec": 201,
+        "synopsis": "Billie Eilish",
+        "audio_url": "https://www.youtube.com/watch?v=V1Pl8CzNzCw",
+        "is_arc_start": false
+      },
+      {
+        "number": 4,
+        "title": "Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack",
+        "duration_sec": 238,
+        "synopsis": "Wiz Khalifa",
+        "audio_url": "https://www.youtube.com/watch?v=RgKAFK5djSk",
+        "is_arc_start": false
+      },
+      {
+        "number": 5,
+        "title": "Gotye - Somebody That I Used To Know (feat. Kimbra) [Official Music Video]",
+        "duration_sec": 244,
+        "synopsis": "Gotye",
+        "audio_url": "https://www.youtube.com/watch?v=8UVNT4wvIGY",
+        "is_arc_start": false
+      },
+      {
+        "number": 6,
+        "title": "Lewis Capaldi - Someone You Loved",
+        "duration_sec": 186,
+        "synopsis": "Lewis Capaldi",
+        "audio_url": "https://www.youtube.com/watch?v=zABLecsR5UE",
+        "is_arc_start": false
+      },
+      {
+        "number": 7,
+        "title": "Lady Gaga, Bradley Cooper - Shallow (from A Star Is Born) (Official Music Video)",
+        "duration_sec": 217,
+        "synopsis": "Lady Gaga",
+        "audio_url": "https://www.youtube.com/watch?v=bo_efYhYU2A",
+        "is_arc_start": false
+      },
+      {
+        "number": 8,
+        "title": "Halsey - Without Me",
+        "duration_sec": 237,
+        "synopsis": "Halsey",
+        "audio_url": "https://www.youtube.com/watch?v=ZAfAud_M_mg",
+        "is_arc_start": false
+      },
+      {
+        "number": 9,
+        "title": "Post Malone - Better Now",
+        "duration_sec": 233,
+        "synopsis": "Post Malone",
+        "audio_url": "https://www.youtube.com/watch?v=UYwF-jdcVjY",
+        "is_arc_start": false
+      },
+      {
+        "number": 10,
+        "title": "Sam Smith - Too Good At Goodbyes",
+        "duration_sec": 265,
+        "synopsis": "SAM SMITH",
+        "audio_url": "https://www.youtube.com/watch?v=J_ub7Etch2U",
+        "is_arc_start": true
+      },
+      {
+        "number": 11,
+        "title": "Harry Styles - Sign of the Times (Official Video)",
+        "duration_sec": 342,
+        "synopsis": "Harry Styles",
+        "audio_url": "https://www.youtube.com/watch?v=qN4ooNx77u0",
+        "is_arc_start": false
+      },
+      {
+        "number": 12,
+        "title": "Adele - Hello (Official Music Video)",
+        "duration_sec": 367,
+        "synopsis": "Adele",
+        "audio_url": "https://www.youtube.com/watch?v=YQHsXMglC9A",
+        "is_arc_start": false
+      },
+      {
+        "number": 13,
+        "title": "Sam Smith - I'm Not The Only One (Official Music Video)",
+        "duration_sec": 280,
+        "synopsis": "SAM SMITH",
+        "audio_url": "https://www.youtube.com/watch?v=nCkpzqqog4k",
+        "is_arc_start": false
+      },
+      {
+        "number": 14,
+        "title": "Sia - Chandelier (Official Video)",
+        "duration_sec": 232,
+        "synopsis": "Sia",
+        "audio_url": "https://www.youtube.com/watch?v=2vjPBrBU-TM",
+        "is_arc_start": false
+      },
+      {
+        "number": 15,
+        "title": "Sam Smith - Stay With Me (Official Music Video)",
+        "duration_sec": 210,
+        "synopsis": "SAM SMITH",
+        "audio_url": "https://www.youtube.com/watch?v=pB-5XG-DbAA",
+        "is_arc_start": false
+      },
+      {
+        "number": 16,
+        "title": "Miley Cyrus - Wrecking Ball (Official Video)",
+        "duration_sec": 222,
+        "synopsis": "Miley Cyrus",
+        "audio_url": "https://www.youtube.com/watch?v=My2FRPA3Gf8",
+        "is_arc_start": false
+      },
+      {
+        "number": 17,
+        "title": "Adele - Someone Like You (Official Music Video)",
+        "duration_sec": 285,
+        "synopsis": "Adele",
+        "audio_url": "https://www.youtube.com/watch?v=hLQl3WQQoQ0",
+        "is_arc_start": true
+      },
+      {
+        "number": 18,
+        "title": "Bruno Mars - Grenade (Official Music Video)",
+        "duration_sec": 221,
+        "synopsis": "Bruno Mars",
+        "audio_url": "https://www.youtube.com/watch?v=SR6iYWJxHqs",
+        "is_arc_start": false
+      },
+      {
+        "number": 19,
+        "title": "Billie Eilish - when the party's over",
+        "duration_sec": 194,
+        "synopsis": "Billie Eilish",
+        "audio_url": "https://www.youtube.com/watch?v=pbMwTqkKSps",
+        "is_arc_start": false
+      },
+      {
+        "number": 20,
+        "title": "Selena Gomez - Lose You To Love Me (Official Music Video)",
+        "duration_sec": 207,
+        "synopsis": "Selena Gomez",
+        "audio_url": "https://www.youtube.com/watch?v=zlJDTxahav0",
+        "is_arc_start": false
+      },
+      {
+        "number": 21,
+        "title": "Sam Smith - How Do You Sleep? (Official Music Video)",
+        "duration_sec": 229,
+        "synopsis": "SAM SMITH",
+        "audio_url": "https://www.youtube.com/watch?v=PmYypVozQb4",
+        "is_arc_start": false
+      },
+      {
+        "number": 22,
+        "title": "Selena Gomez - The Heart Wants What It Wants (Official Video)",
+        "duration_sec": 276,
+        "synopsis": "Selena Gomez",
+        "audio_url": "https://www.youtube.com/watch?v=ij_0p_6qTss",
+        "is_arc_start": false
+      }
+    ]
+  },
+  {
+    "series_id": "pf_three_am_clarity",
+    "episodes": [
+      {
+        "number": 1,
+        "title": "One Direction - Night Changes",
+        "duration_sec": 241,
+        "synopsis": "One Direction",
+        "audio_url": "https://www.youtube.com/watch?v=syFZfO_wfMQ",
+        "is_arc_start": true
+      },
+      {
+        "number": 2,
+        "title": "Charlie Puth - We Don't Talk Anymore (feat. Selena Gomez) [Official Video]",
+        "duration_sec": 231,
+        "synopsis": "Charlie Puth",
+        "audio_url": "https://www.youtube.com/watch?v=3AtDnEC4zak",
+        "is_arc_start": false
+      },
+      {
+        "number": 3,
+        "title": "twenty one pilots: Stressed Out [OFFICIAL VIDEO]",
+        "duration_sec": 226,
+        "synopsis": "Fueled By Ramen and twenty one pilots",
+        "audio_url": "https://www.youtube.com/watch?v=pXRviuL6vMY",
+        "is_arc_start": false
+      },
+      {
+        "number": 4,
+        "title": "Lukas Graham - 7 Years [Official Music Video]",
+        "duration_sec": 240,
+        "synopsis": "Lukas Graham",
+        "audio_url": "https://www.youtube.com/watch?v=LHCob76kigA",
+        "is_arc_start": false
+      },
+      {
+        "number": 5,
+        "title": "Khalid - Better (Official Video)",
+        "duration_sec": 251,
+        "synopsis": "Khalid",
+        "audio_url": "https://www.youtube.com/watch?v=x3bfa3DZ8JM",
+        "is_arc_start": false
+      },
+      {
+        "number": 6,
+        "title": "Maroon 5 - Memories (Official Video)",
+        "duration_sec": 196,
+        "synopsis": "Maroon 5",
+        "audio_url": "https://www.youtube.com/watch?v=SlPhMPnQ58k",
+        "is_arc_start": false
+      },
+      {
+        "number": 7,
+        "title": "Post Malone - Circles",
+        "duration_sec": 227,
+        "synopsis": "Post Malone",
+        "audio_url": "https://www.youtube.com/watch?v=wXhTHyIgQ_U",
+        "is_arc_start": false
+      },
+      {
+        "number": 8,
+        "title": "Marshmello ft. Bastille - Happier (Official Music Video)",
+        "duration_sec": 234,
+        "synopsis": "Marshmello",
+        "audio_url": "https://www.youtube.com/watch?v=m7Bc3pLyij0",
+        "is_arc_start": false
+      },
+      {
+        "number": 9,
+        "title": "Maroon 5 - Don't Wanna Know (Official Music Video)",
+        "duration_sec": 379,
+        "synopsis": "Maroon 5",
+        "audio_url": "https://www.youtube.com/watch?v=ANS9sSJA9Yc",
+        "is_arc_start": false
+      },
+      {
+        "number": 10,
+        "title": "Shawn Mendes - Treat You Better",
+        "duration_sec": 257,
+        "synopsis": "Shawn Mendes",
+        "audio_url": "https://www.youtube.com/watch?v=lY2yjAdbvdQ",
+        "is_arc_start": true
+      },
+      {
+        "number": 11,
+        "title": "Justin Bieber - Love Yourself (PURPOSE : The Movement)",
+        "duration_sec": 273,
+        "synopsis": "Justin Bieber",
+        "audio_url": "https://www.youtube.com/watch?v=oyEuk8j8imI",
+        "is_arc_start": false
+      },
+      {
+        "number": 12,
+        "title": "Selena Gomez - Same Old Love",
+        "duration_sec": 265,
+        "synopsis": "Selena Gomez",
+        "audio_url": "https://www.youtube.com/watch?v=9h30Bx4Klxg",
+        "is_arc_start": false
+      },
+      {
+        "number": 13,
+        "title": "Shawn Mendes - Stitches (Official Music Video)",
+        "duration_sec": 240,
+        "synopsis": "Shawn Mendes",
+        "audio_url": "https://www.youtube.com/watch?v=VbfpW0pbvaU",
+        "is_arc_start": false
+      },
+      {
+        "number": 14,
+        "title": "twenty one pilots - Ride (Official Video)",
+        "duration_sec": 226,
+        "synopsis": "twenty one pilots",
+        "audio_url": "https://www.youtube.com/watch?v=Pw-0pbY9JeU",
+        "is_arc_start": false
+      },
+      {
+        "number": 15,
+        "title": "Ed Sheeran - Photograph (Official Music Video)",
+        "duration_sec": 275,
+        "synopsis": "Ed Sheeran",
+        "audio_url": "https://www.youtube.com/watch?v=nSDgHBxUbVQ",
+        "is_arc_start": false
+      },
+      {
+        "number": 16,
+        "title": "Lorde - Royals (US Version)",
+        "duration_sec": 201,
+        "synopsis": "Lorde",
+        "audio_url": "https://www.youtube.com/watch?v=nlcIKh6sBtc",
+        "is_arc_start": false
+      },
+      {
+        "number": 17,
+        "title": "P!nk - Just Give Me A Reason ft. Nate Ruess",
+        "duration_sec": 243,
+        "synopsis": "P!NK",
+        "audio_url": "https://www.youtube.com/watch?v=OpQFFLBMEPI",
+        "is_arc_start": false
+      },
+      {
+        "number": 18,
+        "title": "Sam Smith, Normani - Dancing With A Stranger (Official Music Video)",
+        "duration_sec": 196,
+        "synopsis": "SAM SMITH",
+        "audio_url": "https://www.youtube.com/watch?v=av5JD1dfj_c",
+        "is_arc_start": true
+      },
+      {
+        "number": 19,
+        "title": "Selena Gomez, Marshmello - Wolves",
+        "duration_sec": 213,
+        "synopsis": "Selena Gomez",
+        "audio_url": "https://www.youtube.com/watch?v=cH4E_t3m3xM",
+        "is_arc_start": false
+      },
+      {
+        "number": 20,
+        "title": "benny blanco, Halsey & Khalid – Eastside (official video)",
+        "duration_sec": 175,
+        "synopsis": "benny blanco",
+        "audio_url": "https://www.youtube.com/watch?v=56WBK4ZK_cw",
+        "is_arc_start": false
+      },
+      {
+        "number": 21,
+        "title": "Khalid - Talk (Official Video)",
+        "duration_sec": 194,
+        "synopsis": "Khalid",
+        "audio_url": "https://www.youtube.com/watch?v=hE2Ira-Cwxo",
+        "is_arc_start": false
+      },
+      {
+        "number": 22,
+        "title": "P!NK - What About Us (Official Video)",
+        "duration_sec": 322,
+        "synopsis": "P!NK",
+        "audio_url": "https://www.youtube.com/watch?v=ClU3fctbGls",
+        "is_arc_start": false
+      },
+      {
+        "number": 23,
+        "title": "Selena Gomez - Bad Liar",
+        "duration_sec": 233,
+        "synopsis": "Selena Gomez",
+        "audio_url": "https://www.youtube.com/watch?v=NZKXkD6EgBk",
+        "is_arc_start": false
+      },
+      {
+        "number": 24,
+        "title": "Katy Perry - Never Really Over (Official Video)",
+        "duration_sec": 241,
+        "synopsis": "Katy Perry",
+        "audio_url": "https://www.youtube.com/watch?v=aEb5gNsmGJ8",
+        "is_arc_start": false
+      },
+      {
+        "number": 25,
+        "title": "Shawn Mendes - In My Blood",
+        "duration_sec": 218,
+        "synopsis": "Shawn Mendes",
+        "audio_url": "https://www.youtube.com/watch?v=36tggrpRoTI",
+        "is_arc_start": false
+      },
+      {
+        "number": 26,
+        "title": "Kygo, Selena Gomez - It Ain't Me (Official Video)",
+        "duration_sec": 242,
+        "synopsis": "Kygo and Selena Gomez",
+        "audio_url": "https://www.youtube.com/watch?v=u3VTKvdAuIY",
+        "is_arc_start": false
+      }
+    ]
+  },
+  {
+    "series_id": "pf_soft_morning",
+    "episodes": [
+      {
+        "number": 1,
+        "title": "Post Malone, Swae Lee - Sunflower (Spider-Man: Into the Spider-Verse)",
+        "duration_sec": 162,
+        "synopsis": "Post Malone",
+        "audio_url": "https://www.youtube.com/watch?v=ApXoWvfEYVU",
+        "is_arc_start": true
+      },
+      {
+        "number": 2,
+        "title": "Bruno Mars - The Lazy Song (Official Music Video)",
+        "duration_sec": 200,
+        "synopsis": "Bruno Mars",
+        "audio_url": "https://www.youtube.com/watch?v=fLexgOxsZu0",
+        "is_arc_start": false
+      },
+      {
+        "number": 3,
+        "title": "OneRepublic - Counting Stars",
+        "duration_sec": 284,
+        "synopsis": "OneRepublic",
+        "audio_url": "https://www.youtube.com/watch?v=hT_nvWreIhg",
+        "is_arc_start": false
+      },
+      {
+        "number": 4,
+        "title": "One Direction - What Makes You Beautiful (Official Video)",
+        "duration_sec": 207,
+        "synopsis": "One Direction",
+        "audio_url": "https://www.youtube.com/watch?v=QJO3ROT-A4E",
+        "is_arc_start": false
+      },
+      {
+        "number": 5,
+        "title": "Maroon 5 - Sugar (Official Music Video)",
+        "duration_sec": 302,
+        "synopsis": "Maroon 5",
+        "audio_url": "https://www.youtube.com/watch?v=09R8_2nJtjg",
+        "is_arc_start": false
+      },
+      {
+        "number": 6,
+        "title": "MAGIC! - Rude (Official Video)",
+        "duration_sec": 226,
+        "synopsis": "MAGIC!",
+        "audio_url": "https://www.youtube.com/watch?v=PIh2xe4jnpk",
+        "is_arc_start": false
+      },
+      {
+        "number": 7,
+        "title": "Anne-Marie - 2002 [Official Video]",
+        "duration_sec": 195,
+        "synopsis": "Anne-Marie",
+        "audio_url": "https://www.youtube.com/watch?v=Il-an3K9pjg",
+        "is_arc_start": false
+      },
+      {
+        "number": 8,
+        "title": "Ed Sheeran & Justin Bieber - I Don't Care [Official Music Video]",
+        "duration_sec": 223,
+        "synopsis": "Ed Sheeran",
+        "audio_url": "https://www.youtube.com/watch?v=y83x7MgzWOA",
+        "is_arc_start": false
+      },
+      {
+        "number": 9,
+        "title": "Ariana Grande - thank u, next (Official Video)",
+        "duration_sec": 331,
+        "synopsis": "Ariana Grande",
+        "audio_url": "https://www.youtube.com/watch?v=gl1aHhXnN1k",
+        "is_arc_start": false
+      },
+      {
+        "number": 10,
+        "title": "Shawn Mendes - There's Nothing Holdin' Me Back (Official Music Video)",
+        "duration_sec": 238,
+        "synopsis": "Shawn Mendes",
+        "audio_url": "https://www.youtube.com/watch?v=dT2owtxkU8k",
+        "is_arc_start": true
+      },
+      {
+        "number": 11,
+        "title": "Clean Bandit - Symphony (feat. Zara Larsson) [Official Video]",
+        "duration_sec": 246,
+        "synopsis": "Clean Bandit",
+        "audio_url": "https://www.youtube.com/watch?v=aatr_2MstrI",
+        "is_arc_start": false
+      },
+      {
+        "number": 12,
+        "title": "Clean Bandit - Rockabye (feat. Sean Paul & Anne-Marie) [Official Video]",
+        "duration_sec": 254,
+        "synopsis": "Clean Bandit",
+        "audio_url": "https://www.youtube.com/watch?v=papuvlVeZg8",
+        "is_arc_start": false
+      },
+      {
+        "number": 13,
+        "title": "Little Mix - Black Magic (Official Video)",
+        "duration_sec": 226,
+        "synopsis": "Little Mix",
+        "audio_url": "https://www.youtube.com/watch?v=MkElfR_NPBI",
+        "is_arc_start": false
+      },
+      {
+        "number": 14,
+        "title": "Rachel Platten - Fight Song (Official Video)",
+        "duration_sec": 206,
+        "synopsis": "Rachel Platten",
+        "audio_url": "https://www.youtube.com/watch?v=xo1VInw-SKc",
+        "is_arc_start": false
+      },
+      {
+        "number": 15,
+        "title": "Meghan Trainor - All About That Bass (Official Video)",
+        "duration_sec": 190,
+        "synopsis": "Meghan Trainor",
+        "audio_url": "https://www.youtube.com/watch?v=7PCkvCPvDXk",
+        "is_arc_start": false
+      },
+      {
+        "number": 16,
+        "title": "One Direction - One Thing",
+        "duration_sec": 198,
+        "synopsis": "One Direction",
+        "audio_url": "https://www.youtube.com/watch?v=Y1xs_xPb46M",
+        "is_arc_start": false
+      },
+      {
+        "number": 17,
+        "title": "Carly Rae Jepsen - Call Me Maybe",
+        "duration_sec": 200,
+        "synopsis": "Carly Rae Jepsen",
+        "audio_url": "https://www.youtube.com/watch?v=fWNaR-rxAic",
+        "is_arc_start": false
+      },
+      {
+        "number": 18,
+        "title": "Katy Perry - Firework (Official Music Video)",
+        "duration_sec": 234,
+        "synopsis": "Katy Perry",
+        "audio_url": "https://www.youtube.com/watch?v=QGJuMBdaqIw",
+        "is_arc_start": true
+      },
+      {
+        "number": 19,
+        "title": "Ariana Grande - no tears left to cry (Official Video)",
+        "duration_sec": 239,
+        "synopsis": "Ariana Grande",
+        "audio_url": "https://www.youtube.com/watch?v=ffxKSjUwKdU",
+        "is_arc_start": false
+      },
+      {
+        "number": 20,
+        "title": "Coldplay - Hymn For The Weekend (Official Video)",
+        "duration_sec": 261,
+        "synopsis": "Coldplay",
+        "audio_url": "https://www.youtube.com/watch?v=YykjpeuMNEk",
+        "is_arc_start": false
+      },
+      {
+        "number": 21,
+        "title": "Adele - Send My Love (To Your New Lover)",
+        "duration_sec": 225,
+        "synopsis": "Adele",
+        "audio_url": "https://www.youtube.com/watch?v=fk4BbF7B29w",
+        "is_arc_start": false
+      },
+      {
+        "number": 22,
+        "title": "Shawn Mendes - If I Can't Have You (Official Music Video)",
+        "duration_sec": 192,
+        "synopsis": "Shawn Mendes",
+        "audio_url": "https://www.youtube.com/watch?v=oTJ-oqwxdZY",
+        "is_arc_start": false
+      },
+      {
+        "number": 23,
+        "title": "Jonas Brothers - Sucker (Official Video)",
+        "duration_sec": 200,
+        "synopsis": "Jonas Brothers",
+        "audio_url": "https://www.youtube.com/watch?v=CnAmeh0-E-U",
+        "is_arc_start": false
+      },
+      {
+        "number": 24,
+        "title": "Bazzi - Mine [Official Music Video]",
+        "duration_sec": 131,
+        "synopsis": "Bazzi",
+        "audio_url": "https://www.youtube.com/watch?v=Gc71AmT_b2k",
+        "is_arc_start": false
+      },
+      {
+        "number": 25,
+        "title": "Zedd, Maren Morris, Grey - The Middle (Official Music Video)",
+        "duration_sec": 191,
+        "synopsis": "Zedd",
+        "audio_url": "https://www.youtube.com/watch?v=M3mJkSqZbX4",
+        "is_arc_start": false
+      },
+      {
+        "number": 26,
+        "title": "The Lumineers - Ho Hey (Official Video)",
+        "duration_sec": 162,
+        "synopsis": "The Lumineers",
+        "audio_url": "https://www.youtube.com/watch?v=zvCBSSwgtg4",
+        "is_arc_start": false
+      }
+    ]
+  },
+  {
+    "series_id": "pf_held",
+    "episodes": [
+      {
+        "number": 1,
+        "title": "Ed Sheeran - Perfect (Official Music Video)",
+        "duration_sec": 282,
+        "synopsis": "Ed Sheeran",
+        "audio_url": "https://www.youtube.com/watch?v=2Vv-BfVoq4g",
+        "is_arc_start": true
+      },
+      {
+        "number": 2,
+        "title": "Maroon 5 - Girls Like You ft. Cardi B (Official Music Video)",
+        "duration_sec": 271,
+        "synopsis": "Maroon 5",
+        "audio_url": "https://www.youtube.com/watch?v=aJOTlE1K90k",
+        "is_arc_start": false
+      },
+      {
+        "number": 3,
+        "title": "Anne-Marie & James Arthur - Rewrite The Stars [from The Greatest Showman: Reimagined]",
+        "duration_sec": 228,
+        "synopsis": "Anne-Marie",
+        "audio_url": "https://www.youtube.com/watch?v=pRfmrE0ToTo",
+        "is_arc_start": false
+      },
+      {
+        "number": 4,
+        "title": "Christina Perri - A Thousand Years [Official Music Video]",
+        "duration_sec": 288,
+        "synopsis": "Christina Perri",
+        "audio_url": "https://www.youtube.com/watch?v=rtOvBOTyX00",
+        "is_arc_start": false
+      },
+      {
+        "number": 5,
+        "title": "ZAYN - Dusk Till Dawn (Official Video) ft. Sia",
+        "duration_sec": 338,
+        "synopsis": "zayn",
+        "audio_url": "https://www.youtube.com/watch?v=tt2k8PGm-TI",
+        "is_arc_start": false
+      },
+      {
+        "number": 6,
+        "title": "Shawn Mendes, Camila Cabello - Señorita",
+        "duration_sec": 206,
+        "synopsis": "Shawn Mendes",
+        "audio_url": "https://www.youtube.com/watch?v=Pkh8UtuejGw",
+        "is_arc_start": false
+      },
+      {
+        "number": 7,
+        "title": "Ella Mai - Boo'd Up",
+        "duration_sec": 242,
+        "synopsis": "Ella Mai",
+        "audio_url": "https://www.youtube.com/watch?v=6YNZlXfW6Ho",
+        "is_arc_start": false
+      },
+      {
+        "number": 8,
+        "title": "Calum Scott - You Are The Reason (Official Video)",
+        "duration_sec": 205,
+        "synopsis": "Calum Scott",
+        "audio_url": "https://www.youtube.com/watch?v=ShZ978fBl6Y",
+        "is_arc_start": false
+      },
+      {
+        "number": 9,
+        "title": "James Arthur - Say You Won't Let Go",
+        "duration_sec": 211,
+        "synopsis": "James Arthur",
+        "audio_url": "https://www.youtube.com/watch?v=0yW7w8F2TVA",
+        "is_arc_start": true
+      },
+      {
+        "number": 10,
+        "title": "Charlie Puth - One Call Away [Official Video]",
+        "duration_sec": 242,
+        "synopsis": "Charlie Puth",
+        "audio_url": "https://www.youtube.com/watch?v=BxuY9FET9Y4",
+        "is_arc_start": false
+      },
+      {
+        "number": 11,
+        "title": "R. City - Locked Away (Official Video) ft. Adam Levine",
+        "duration_sec": 266,
+        "synopsis": "Rock City",
+        "audio_url": "https://www.youtube.com/watch?v=6GUm5g8SG4o",
+        "is_arc_start": false
+      },
+      {
+        "number": 12,
+        "title": "Meghan Trainor - Like I'm Gonna Lose You (Official Video) ft. John Legend",
+        "duration_sec": 228,
+        "synopsis": "Meghan Trainor",
+        "audio_url": "https://www.youtube.com/watch?v=2-MBfn8XjIU",
+        "is_arc_start": false
+      },
+      {
+        "number": 13,
+        "title": "Ellie Goulding - Love Me Like You Do (Official Video)",
+        "duration_sec": 250,
+        "synopsis": "Ellie Goulding",
+        "audio_url": "https://www.youtube.com/watch?v=AJtDXIazrMo",
+        "is_arc_start": false
+      },
+      {
+        "number": 14,
+        "title": "Ed Sheeran - Thinking Out Loud (Official Music Video)",
+        "duration_sec": 290,
+        "synopsis": "Ed Sheeran",
+        "audio_url": "https://www.youtube.com/watch?v=lp-EO5I60KA",
+        "is_arc_start": false
+      },
+      {
+        "number": 15,
+        "title": "John Legend - All of Me (Official Video)",
+        "duration_sec": 308,
+        "synopsis": "John Legend",
+        "audio_url": "https://www.youtube.com/watch?v=450p7goxZqg",
+        "is_arc_start": false
+      },
+      {
+        "number": 16,
+        "title": "The Weeknd - I Feel It Coming ft. Daft Punk (Official Video)",
+        "duration_sec": 298,
+        "synopsis": "The Weeknd",
+        "audio_url": "https://www.youtube.com/watch?v=qFLhGq0060w",
+        "is_arc_start": false
+      },
+      {
+        "number": 17,
+        "title": "Bruno Mars - Just The Way You Are (Official Music Video)",
+        "duration_sec": 237,
+        "synopsis": "Bruno Mars",
+        "audio_url": "https://www.youtube.com/watch?v=LjhCEhWiKXk",
+        "is_arc_start": true
+      },
+      {
+        "number": 18,
+        "title": "Dan + Shay, Justin Bieber - 10,000 Hours (Official Music Video)",
+        "duration_sec": 176,
+        "synopsis": "Dan + Shay",
+        "audio_url": "https://www.youtube.com/watch?v=Y2E71oe0aSM",
+        "is_arc_start": false
+      },
+      {
+        "number": 19,
+        "title": "Daniel Caesar & H.E.R. - Best Part, a Visual",
+        "duration_sec": 244,
+        "synopsis": "Daniel Caesar",
+        "audio_url": "https://www.youtube.com/watch?v=hKgl5-lkT8U",
+        "is_arc_start": false
+      },
+      {
+        "number": 20,
+        "title": "Lauv - I Like Me Better [Official Video]",
+        "duration_sec": 206,
+        "synopsis": "Lauv",
+        "audio_url": "https://www.youtube.com/watch?v=BcqxLCWn-CE",
+        "is_arc_start": false
+      },
+      {
+        "number": 21,
+        "title": "Bazzi - Beautiful [Official Music Video]",
+        "duration_sec": 181,
+        "synopsis": "Bazzi",
+        "audio_url": "https://www.youtube.com/watch?v=-bx_vG94LSo",
+        "is_arc_start": false
+      },
+      {
+        "number": 22,
+        "title": "Andy Grammer - Fresh Eyes (Official Music Video)",
+        "duration_sec": 260,
+        "synopsis": "Andy Grammer",
+        "audio_url": "https://www.youtube.com/watch?v=5bgemCaaQkU",
+        "is_arc_start": false
+      },
+      {
+        "number": 23,
+        "title": "Khalid & Normani - Love Lies (Official Video)",
+        "duration_sec": 272,
+        "synopsis": "Khalid",
+        "audio_url": "https://www.youtube.com/watch?v=xYtsL9znopI",
+        "is_arc_start": false
+      },
+      {
+        "number": 24,
+        "title": "Chris Brown - New Flame (Official Video) ft. Usher, Rick Ross",
+        "duration_sec": 251,
+        "synopsis": "Chris Brown",
+        "audio_url": "https://www.youtube.com/watch?v=HwctEiWLe84",
+        "is_arc_start": false
+      }
+    ]
+  },
+  {
+    "series_id": "pf_windows_down",
+    "episodes": [
+      {
+        "number": 1,
+        "title": "Naughty Boy - La la la ft. Sam Smith (Official Video)",
+        "duration_sec": 244,
+        "synopsis": "Naughty Boy",
+        "audio_url": "https://www.youtube.com/watch?v=3O1_3zBUKM8",
+        "is_arc_start": true
+      },
+      {
+        "number": 2,
+        "title": "Imagine Dragons - Believer (Official Music Video)",
+        "duration_sec": 217,
+        "synopsis": "ImagineDragons",
+        "audio_url": "https://www.youtube.com/watch?v=7wtfhZwyrcc",
+        "is_arc_start": false
+      },
+      {
+        "number": 3,
+        "title": "DJ Snake - Let Me Love You (Official Music Video) ft. Justin Bieber",
+        "duration_sec": 206,
+        "synopsis": "DJ Snake",
+        "audio_url": "https://www.youtube.com/watch?v=euCqAq6BRa4",
+        "is_arc_start": false
+      },
+      {
+        "number": 4,
+        "title": "Imagine Dragons - Thunder",
+        "duration_sec": 205,
+        "synopsis": "ImagineDragons",
+        "audio_url": "https://www.youtube.com/watch?v=fKopy74weus",
+        "is_arc_start": false
+      },
+      {
+        "number": 5,
+        "title": "The Chainsmokers & Coldplay - Something Just Like This (Official Lyric Video)",
+        "duration_sec": 248,
+        "synopsis": "The Chainsmokers",
+        "audio_url": "https://www.youtube.com/watch?v=FM7MFYoylVs",
+        "is_arc_start": false
+      },
+      {
+        "number": 6,
+        "title": "The Chainsmokers - Don't Let Me Down (Official Video) ft. Daya",
+        "duration_sec": 218,
+        "synopsis": "The Chainsmokers",
+        "audio_url": "https://www.youtube.com/watch?v=Io0fBr1XBUA",
+        "is_arc_start": false
+      },
+      {
+        "number": 7,
+        "title": "Imagine Dragons - Radioactive",
+        "duration_sec": 262,
+        "synopsis": "ImagineDragons",
+        "audio_url": "https://www.youtube.com/watch?v=ktvTqknDobU",
+        "is_arc_start": true
+      },
+      {
+        "number": 8,
+        "title": "Fun.: We Are Young ft. Janelle Monáe [OFFICIAL VIDEO]",
+        "duration_sec": 253,
+        "synopsis": "Fueled By Ramen",
+        "audio_url": "https://www.youtube.com/watch?v=Sv6dMFF_yts",
+        "is_arc_start": false
+      },
+      {
+        "number": 9,
+        "title": "David Guetta - Titanium ft. Sia (Official Video)",
+        "duration_sec": 246,
+        "synopsis": "David Guetta",
+        "audio_url": "https://www.youtube.com/watch?v=JRfuAukYTKg",
+        "is_arc_start": false
+      },
+      {
+        "number": 10,
+        "title": "Panic! At The Disco - High Hopes (Official Video)",
+        "duration_sec": 197,
+        "synopsis": "Panic! At The Disco",
+        "audio_url": "https://www.youtube.com/watch?v=IPXIgEAGe4U",
+        "is_arc_start": false
+      },
+      {
+        "number": 11,
+        "title": "The Chainsmokers - Closer (Lyric) ft. Halsey",
+        "duration_sec": 262,
+        "synopsis": "The Chainsmokers",
+        "audio_url": "https://www.youtube.com/watch?v=PT2_F-1esPk",
+        "is_arc_start": false
+      },
+      {
+        "number": 12,
+        "title": "Marshmello - Alone (Official Music Video)",
+        "duration_sec": 200,
+        "synopsis": "Marshmello",
+        "audio_url": "https://www.youtube.com/watch?v=ALZHF5UqnU4",
+        "is_arc_start": false
+      },
+      {
+        "number": 13,
+        "title": "Coldplay - A Sky Full Of Stars (Official Video)",
+        "duration_sec": 254,
+        "synopsis": "Coldplay",
+        "audio_url": "https://www.youtube.com/watch?v=VPRjCeoBqrI",
+        "is_arc_start": false
+      },
+      {
+        "number": 14,
+        "title": "Alan Walker & Ava Max - Alone, Pt. II",
+        "duration_sec": 246,
+        "synopsis": "Alan Walker",
+        "audio_url": "https://www.youtube.com/watch?v=HhjHYkPQ8F0",
+        "is_arc_start": true
+      },
+      {
+        "number": 15,
+        "title": "The Chainsmokers - Roses (Official Lyric Video) ft. ROZES",
+        "duration_sec": 231,
+        "synopsis": "The Chainsmokers",
+        "audio_url": "https://www.youtube.com/watch?v=mBZdHuZCfic",
+        "is_arc_start": false
+      },
+      {
+        "number": 16,
+        "title": "Zedd, Alessia Cara - Stay (Official Music Video)",
+        "duration_sec": 214,
+        "synopsis": "Zedd",
+        "audio_url": "https://www.youtube.com/watch?v=yWEK4v9AVKQ",
+        "is_arc_start": false
+      },
+      {
+        "number": 17,
+        "title": "DJ Snake - Middle ft. Bipolar Sunshine",
+        "duration_sec": 301,
+        "synopsis": "DJ Snake",
+        "audio_url": "https://www.youtube.com/watch?v=IvPT2QuCIOA",
+        "is_arc_start": false
+      },
+      {
+        "number": 18,
+        "title": "Ed Sheeran - Castle On The Hill [Official Music Video]",
+        "duration_sec": 288,
+        "synopsis": "Ed Sheeran",
+        "audio_url": "https://www.youtube.com/watch?v=K0ibBPhiaG0",
+        "is_arc_start": false
+      },
+      {
+        "number": 19,
+        "title": "Alan Walker - Alone",
+        "duration_sec": 164,
+        "synopsis": "Alan Walker",
+        "audio_url": "https://www.youtube.com/watch?v=1-xGerv5FOk",
+        "is_arc_start": false
+      }
+    ]
+  },
+  {
+    "series_id": "pf_hands_up",
+    "episodes": [
+      {
+        "number": 1,
+        "title": "The Black Eyed Peas - Rock That Body (Official Music Video)",
+        "duration_sec": 273,
+        "synopsis": "Black Eyed Peas",
+        "audio_url": "https://www.youtube.com/watch?v=nmnjL26OBcY",
+        "is_arc_start": true
+      },
+      {
+        "number": 2,
+        "title": "Mark Ronson - Uptown Funk (Official Video) ft. Bruno Mars",
+        "duration_sec": 271,
+        "synopsis": "Mark Ronson",
+        "audio_url": "https://www.youtube.com/watch?v=OPf0YbXqDm0",
+        "is_arc_start": false
+      },
+      {
+        "number": 3,
+        "title": "Luis Fonsi, Daddy Yankee - Despacito (Audio) ft. Justin Bieber",
+        "duration_sec": 229,
+        "synopsis": "Luis Fonsi",
+        "audio_url": "https://www.youtube.com/watch?v=72UO0v5ESUo",
+        "is_arc_start": false
+      },
+      {
+        "number": 4,
+        "title": "Ed Sheeran - Shape of You (Official Music Video)",
+        "duration_sec": 264,
+        "synopsis": "Ed Sheeran",
+        "audio_url": "https://www.youtube.com/watch?v=JGwWNGJdvx8",
+        "is_arc_start": false
+      },
+      {
+        "number": 5,
+        "title": "Katy Perry - Roar",
+        "duration_sec": 270,
+        "synopsis": "Katy Perry",
+        "audio_url": "https://www.youtube.com/watch?v=CevxZvSJLk8",
+        "is_arc_start": false
+      },
+      {
+        "number": 6,
+        "title": "Major Lazer & DJ Snake - Lean On (feat. MØ) [Official 4K Music Video]",
+        "duration_sec": 179,
+        "synopsis": "Major Lazer Official",
+        "audio_url": "https://www.youtube.com/watch?v=YqeW9_5kURI",
+        "is_arc_start": false
+      },
+      {
+        "number": 7,
+        "title": "TONES AND I - DANCE MONKEY (OFFICIAL VIDEO)",
+        "duration_sec": 237,
+        "synopsis": "Tones And I",
+        "audio_url": "https://www.youtube.com/watch?v=q0hyYWKXF0Q",
+        "is_arc_start": false
+      },
+      {
+        "number": 8,
+        "title": "Dua Lipa - New Rules (Official Music Video)",
+        "duration_sec": 225,
+        "synopsis": "Dua Lipa",
+        "audio_url": "https://www.youtube.com/watch?v=k2qgadSvNyU",
+        "is_arc_start": false
+      },
+      {
+        "number": 9,
+        "title": "Pharrell Williams - Happy (Official Video)",
+        "duration_sec": 241,
+        "synopsis": "Pharrell Williams",
+        "audio_url": "https://www.youtube.com/watch?v=ZbZSe6N_BXs",
+        "is_arc_start": false
+      },
+      {
+        "number": 10,
+        "title": "Dua Lipa - Don't Start Now (Official Music Video)",
+        "duration_sec": 182,
+        "synopsis": "Dua Lipa",
+        "audio_url": "https://www.youtube.com/watch?v=oygrmJFKYZY",
+        "is_arc_start": false
+      },
+      {
+        "number": 11,
+        "title": "Drake - One Dance (Original)",
+        "duration_sec": 175,
+        "synopsis": "West Indies Finest",
+        "audio_url": "https://www.youtube.com/watch?v=m7fFVAu9eeg",
+        "is_arc_start": false
+      },
+      {
+        "number": 12,
+        "title": "DJ Snake - Taki Taki ft. Selena Gomez, Ozuna, Cardi B (Official Music Video)",
+        "duration_sec": 232,
+        "synopsis": "DJ Snake",
+        "audio_url": "https://www.youtube.com/watch?v=ixkoVwKQaJg",
+        "is_arc_start": false
+      },
+      {
+        "number": 13,
+        "title": "Lil Nas X - Old Town Road (Official Video) ft. Billy Ray Cyrus",
+        "duration_sec": 158,
+        "synopsis": "Lil Nas X",
+        "audio_url": "https://www.youtube.com/watch?v=r7qovpFAGrQ",
+        "is_arc_start": false
+      },
+      {
+        "number": 14,
+        "title": "Drake - God's Plan",
+        "duration_sec": 357,
+        "synopsis": "Drake",
+        "audio_url": "https://www.youtube.com/watch?v=xpVfcZ0ZcFM",
+        "is_arc_start": false
+      },
+      {
+        "number": 15,
+        "title": "Ava Max - Sweet but Psycho [Official Music Video]",
+        "duration_sec": 208,
+        "synopsis": "Ava Max",
+        "audio_url": "https://www.youtube.com/watch?v=WXBHCQYxwr0",
+        "is_arc_start": true
+      },
+      {
+        "number": 16,
+        "title": "Clean Bandit - Solo (feat. Demi Lovato) [Official Video]",
+        "duration_sec": 224,
+        "synopsis": "Clean Bandit",
+        "audio_url": "https://www.youtube.com/watch?v=8JnfIa84TnU",
+        "is_arc_start": false
+      },
+      {
+        "number": 17,
+        "title": "Cardi B, Bad Bunny & J Balvin - I Like It [Official Music Video]",
+        "duration_sec": 257,
+        "synopsis": "Cardi B",
+        "audio_url": "https://www.youtube.com/watch?v=xTlNMmZKwpA",
+        "is_arc_start": false
+      },
+      {
+        "number": 18,
+        "title": "Dua Lipa - IDGAF (Official Music Video)",
+        "duration_sec": 231,
+        "synopsis": "Dua Lipa",
+        "audio_url": "https://www.youtube.com/watch?v=Mgfe5tIwOj0",
+        "is_arc_start": false
+      },
+      {
+        "number": 19,
+        "title": "Charlie Puth - Attention [Official Video]",
+        "duration_sec": 232,
+        "synopsis": "Charlie Puth",
+        "audio_url": "https://www.youtube.com/watch?v=nfs8NYg7yQM",
+        "is_arc_start": false
+      },
+      {
+        "number": 20,
+        "title": "DJ Khaled - I'm The One ft. Justin Bieber, Quavo, Chance the Rapper, Lil Wayne",
+        "duration_sec": 322,
+        "synopsis": "DJ Khaled",
+        "audio_url": "https://www.youtube.com/watch?v=weeI1G46q0o",
+        "is_arc_start": false
+      },
+      {
+        "number": 21,
+        "title": "Bruno Mars - That’s What I Like [Official Music Video]",
+        "duration_sec": 211,
+        "synopsis": "Bruno Mars",
+        "audio_url": "https://www.youtube.com/watch?v=PMivT7MJ41M",
+        "is_arc_start": false
+      },
+      {
+        "number": 22,
+        "title": "Ariana Grande ft. Nicki Minaj - Side To Side (Official Video) ft. Nicki Minaj",
+        "duration_sec": 238,
+        "synopsis": "Ariana Grande",
+        "audio_url": "https://www.youtube.com/watch?v=SXiSVQZLje8",
+        "is_arc_start": false
+      },
+      {
+        "number": 23,
+        "title": "Calvin Harris, Rihanna - This Is What You Came For (Official Video)",
+        "duration_sec": 240,
+        "synopsis": "Calvin Harris",
+        "audio_url": "https://www.youtube.com/watch?v=kOkQ4T5WO9E",
+        "is_arc_start": false
+      },
+      {
+        "number": 24,
+        "title": "Justin Timberlake - CAN'T STOP THE FEELING! (from DreamWorks Animation's \"TROLLS\") (Official Video)",
+        "duration_sec": 286,
+        "synopsis": "Justin Timberlake",
+        "audio_url": "https://www.youtube.com/watch?v=ru0K8uYEZWw",
+        "is_arc_start": false
+      },
+      {
+        "number": 25,
+        "title": "Rihanna - Work (Explicit) ft. Drake",
+        "duration_sec": 455,
+        "synopsis": "Rihanna",
+        "audio_url": "https://www.youtube.com/watch?v=HL1UzIK-flA",
+        "is_arc_start": false
+      },
+      {
+        "number": 26,
+        "title": "Sia - Cheap Thrills (Official Lyric Video) ft. Sean Paul",
+        "duration_sec": 262,
+        "synopsis": "Sia",
+        "audio_url": "https://www.youtube.com/watch?v=nYh-n7EOtMA",
+        "is_arc_start": false
+      },
+      {
+        "number": 27,
+        "title": "DNCE - Cake By The Ocean",
+        "duration_sec": 258,
+        "synopsis": "DNCE",
+        "audio_url": "https://www.youtube.com/watch?v=vWaRiD5ym74",
+        "is_arc_start": false
+      },
+      {
+        "number": 28,
+        "title": "Fifth Harmony - Worth It (Official Video) ft. Kid Ink",
+        "duration_sec": 225,
+        "synopsis": "Fifth Harmony",
+        "audio_url": "https://www.youtube.com/watch?v=YBHQbu5rbdQ",
+        "is_arc_start": false
+      },
+      {
+        "number": 29,
+        "title": "Jessie J - Bang Bang ft. Ariana Grande, Nicki Minaj",
+        "duration_sec": 263,
+        "synopsis": "Jessie J",
+        "audio_url": "https://www.youtube.com/watch?v=0HDdjwpPM3Y",
+        "is_arc_start": false
+      },
+      {
+        "number": 30,
+        "title": "Taylor Swift - Shake It Off",
+        "duration_sec": 242,
+        "synopsis": "Taylor Swift",
+        "audio_url": "https://www.youtube.com/watch?v=nfWlot6h_JM",
+        "is_arc_start": false
+      },
+      {
+        "number": 31,
+        "title": "Jason Derulo - Wiggle feat. Snoop Dogg [Official Music Video]",
+        "duration_sec": 224,
+        "synopsis": "Jason Derulo",
+        "audio_url": "https://www.youtube.com/watch?v=hiP14ED28CA",
+        "is_arc_start": true
+      },
+      {
+        "number": 32,
+        "title": "Iggy Azalea - Fancy ft. Charli XCX",
+        "duration_sec": 201,
+        "synopsis": "Iggy Azalea",
+        "audio_url": "https://www.youtube.com/watch?v=O-zpOMYRi0w",
+        "is_arc_start": false
+      },
+      {
+        "number": 33,
+        "title": "MACKLEMORE & RYAN LEWIS - THRIFT SHOP FEAT. WANZ (OFFICIAL VIDEO)",
+        "duration_sec": 233,
+        "synopsis": "Macklemore",
+        "audio_url": "https://www.youtube.com/watch?v=QK8mJJJvaes",
+        "is_arc_start": false
+      },
+      {
+        "number": 34,
+        "title": "Rihanna - We Found Love ft. Calvin Harris",
+        "duration_sec": 276,
+        "synopsis": "Rihanna",
+        "audio_url": "https://www.youtube.com/watch?v=tg00YEETFzg",
+        "is_arc_start": false
+      },
+      {
+        "number": 35,
+        "title": "Maroon 5 - Moves Like Jagger ft. Christina Aguilera (Official Music Video) ft. Christina Aguilera",
+        "duration_sec": 279,
+        "synopsis": "Maroon 5",
+        "audio_url": "https://www.youtube.com/watch?v=iEPTlhBmwRg",
+        "is_arc_start": false
+      },
+      {
+        "number": 36,
+        "title": "Nicki Minaj - Super Bass (Official Video)",
+        "duration_sec": 219,
+        "synopsis": "Nicki Minaj",
+        "audio_url": "https://www.youtube.com/watch?v=4JipHEz53sU",
+        "is_arc_start": false
+      },
+      {
+        "number": 37,
+        "title": "Ariana Grande - 7 rings (Official Video)",
+        "duration_sec": 185,
+        "synopsis": "Ariana Grande",
+        "audio_url": "https://www.youtube.com/watch?v=QYh6mYIJG2Y",
+        "is_arc_start": false
+      },
+      {
+        "number": 38,
+        "title": "Justin Bieber - Sorry (PURPOSE : The Movement)",
+        "duration_sec": 206,
+        "synopsis": "Justin Bieber",
+        "audio_url": "https://www.youtube.com/watch?v=fRh_vgS2dFE",
+        "is_arc_start": false
+      },
+      {
+        "number": 39,
+        "title": "Calvin Harris, Dua Lipa - One Kiss (Official Video)",
+        "duration_sec": 224,
+        "synopsis": "Calvin Harris",
+        "audio_url": "https://www.youtube.com/watch?v=DkeiKbqa02g",
+        "is_arc_start": false
+      },
+      {
+        "number": 40,
+        "title": "Marshmello & Anne-Marie - FRIENDS (Music Video) *OFFICIAL FRIENDZONE ANTHEM*",
+        "duration_sec": 232,
+        "synopsis": "Marshmello",
+        "audio_url": "https://www.youtube.com/watch?v=jzD_yyEcp0M",
+        "is_arc_start": false
+      },
+      {
+        "number": 41,
+        "title": "French Montana - Unforgettable (Mariah Carey Remix) (Audio) ft. Swae Lee, Mariah Carey",
+        "duration_sec": 236,
+        "synopsis": "Mariah Carey",
+        "audio_url": "https://www.youtube.com/watch?v=5jFwMW5937o",
+        "is_arc_start": false
+      },
+      {
+        "number": 42,
+        "title": "J Balvin, Willy William - Mi Gente (Official Video)",
+        "duration_sec": 186,
+        "synopsis": "J Balvin and Willy William",
+        "audio_url": "https://www.youtube.com/watch?v=wnJ6LuUFpMo",
+        "is_arc_start": false
+      },
+      {
+        "number": 43,
+        "title": "Justin Bieber - Beauty And A Beat (Official Music Video) ft. Nicki Minaj",
+        "duration_sec": 293,
+        "synopsis": "Justin Bieber",
+        "audio_url": "https://www.youtube.com/watch?v=Ys7-6_t7OEQ",
+        "is_arc_start": false
+      },
+      {
+        "number": 44,
+        "title": "One Direction - Best Song Ever",
+        "duration_sec": 373,
+        "synopsis": "One Direction",
+        "audio_url": "https://www.youtube.com/watch?v=o_v9MY_FMcw",
+        "is_arc_start": false
+      },
+      {
+        "number": 45,
+        "title": "DJ Khaled - Wild Thoughts (Official Video) ft. Rihanna, Bryson Tiller",
+        "duration_sec": 216,
+        "synopsis": "DJ Khaled",
+        "audio_url": "https://www.youtube.com/watch?v=fyaI4-5849w",
+        "is_arc_start": false
+      },
+      {
+        "number": 46,
+        "title": "Ayo & Teo - Rolex (Official Video)",
+        "duration_sec": 242,
+        "synopsis": "Ayo & Teo",
+        "audio_url": "https://www.youtube.com/watch?v=lwk5OUII9Vc",
+        "is_arc_start": false
+      },
+      {
+        "number": 47,
+        "title": "Jason Derulo - Swalla (feat. Nicki Minaj & Ty Dolla $ign) [Official Music Video]",
+        "duration_sec": 236,
+        "synopsis": "Jason Derulo",
+        "audio_url": "https://www.youtube.com/watch?v=NGLxoKOvzu4",
+        "is_arc_start": true
+      },
+      {
+        "number": 48,
+        "title": "Bruno Mars - 24K Magic (Official Music Video)",
+        "duration_sec": 227,
+        "synopsis": "Bruno Mars",
+        "audio_url": "https://www.youtube.com/watch?v=UqyT8IEBkvY",
+        "is_arc_start": false
+      },
+      {
+        "number": 49,
+        "title": "Taylor Swift - Bad Blood ft. Kendrick Lamar",
+        "duration_sec": 245,
+        "synopsis": "Taylor Swift",
+        "audio_url": "https://www.youtube.com/watch?v=QcIy9NiNbmo",
+        "is_arc_start": false
+      },
+      {
+        "number": 50,
+        "title": "MACKLEMORE & RYAN LEWIS - CAN'T HOLD US FEAT. RAY DALTON (OFFICIAL MUSIC VIDEO)",
+        "duration_sec": 424,
+        "synopsis": "Macklemore",
+        "audio_url": "https://www.youtube.com/watch?v=2zNSgSzhBfM",
+        "is_arc_start": false
+      },
+      {
+        "number": 51,
+        "title": "Camila Cabello - Havana (Vertical Video) ft. Young Thug",
+        "duration_sec": 217,
+        "synopsis": "Camila Cabello",
+        "audio_url": "https://www.youtube.com/watch?v=pz95u3UVpaM",
+        "is_arc_start": false
+      },
+      {
+        "number": 52,
+        "title": "Liam Payne - Strip That Down ft. Quavo",
+        "duration_sec": 222,
+        "synopsis": "Liam Payne Official",
+        "audio_url": "https://www.youtube.com/watch?v=vSW2M-BB1NE",
+        "is_arc_start": false
+      },
+      {
+        "number": 53,
+        "title": "Jason Derulo - \"Want To Want Me\" (Official Video)",
+        "duration_sec": 228,
+        "synopsis": "Jason Derulo",
+        "audio_url": "https://www.youtube.com/watch?v=rClUOdS5Zyw",
+        "is_arc_start": false
+      },
+      {
+        "number": 54,
+        "title": "WALK THE MOON - Shut Up and Dance (Official Video)",
+        "duration_sec": 247,
+        "synopsis": "WALK THE MOON",
+        "audio_url": "https://www.youtube.com/watch?v=6JCLY0Rlx6Q",
+        "is_arc_start": false
+      },
+      {
+        "number": 55,
+        "title": "Jessie J - Domino (Official Video)",
+        "duration_sec": 235,
+        "synopsis": "Jessie J",
+        "audio_url": "https://www.youtube.com/watch?v=UJtB55MaoD0",
+        "is_arc_start": false
+      },
+      {
+        "number": 56,
+        "title": "Mariah Carey - Up Out My Face (Official Music Video) ft. Nicki Minaj",
+        "duration_sec": 328,
+        "synopsis": "Mariah Carey",
+        "audio_url": "https://www.youtube.com/watch?v=5i7GEMQC2IY",
+        "is_arc_start": false
+      },
+      {
+        "number": 57,
+        "title": "Major Lazer - Cold Water (feat. Justin Bieber & MØ) [Official Dance Video]",
+        "duration_sec": 185,
+        "synopsis": "Major Lazer Official",
+        "audio_url": "https://www.youtube.com/watch?v=nBtDsQ4fhXY",
+        "is_arc_start": false
+      },
+      {
+        "number": 58,
+        "title": "Post Malone - Congratulations (Official Music Video) ft. Quavo",
+        "duration_sec": 227,
+        "synopsis": "Post Malone",
+        "audio_url": "https://www.youtube.com/watch?v=SC4xMk98Pdc",
+        "is_arc_start": false
+      },
+      {
+        "number": 59,
+        "title": "Selena Gomez - Come & Get It",
+        "duration_sec": 290,
+        "synopsis": "Selena Gomez",
+        "audio_url": "https://www.youtube.com/watch?v=n-D1EB74Ckg",
+        "is_arc_start": false
+      }
+    ]
+  },
+  {
+    "series_id": "pf_neon_shadow",
+    "episodes": [
+      {
+        "number": 1,
+        "title": "Taylor Swift - Blank Space",
+        "duration_sec": 273,
+        "synopsis": "Taylor Swift",
+        "audio_url": "https://www.youtube.com/watch?v=e-ORhEE9VVg",
+        "is_arc_start": true
+      },
+      {
+        "number": 2,
+        "title": "The Weeknd - Starboy ft. Daft Punk (Official Video) ft. Daft Punk",
+        "duration_sec": 274,
+        "synopsis": "The Weeknd",
+        "audio_url": "https://www.youtube.com/watch?v=34Na4j8AVgA",
+        "is_arc_start": false
+      },
+      {
+        "number": 3,
+        "title": "Alan Walker - Faded",
+        "duration_sec": 213,
+        "synopsis": "Alan Walker",
+        "audio_url": "https://www.youtube.com/watch?v=60ItHLz5WEA",
+        "is_arc_start": false
+      },
+      {
+        "number": 4,
+        "title": "Katy Perry - Dark Horse ft. Juicy J",
+        "duration_sec": 225,
+        "synopsis": "Katy Perry",
+        "audio_url": "https://www.youtube.com/watch?v=0KSOMA3QBU0",
+        "is_arc_start": false
+      },
+      {
+        "number": 5,
+        "title": "Juice WRLD - Lucid Dreams (Official Music Video)",
+        "duration_sec": 231,
+        "synopsis": "Lyrical Lemonade",
+        "audio_url": "https://www.youtube.com/watch?v=mzB1VGEGcSU",
+        "is_arc_start": false
+      },
+      {
+        "number": 6,
+        "title": "XXXTENTACION - SAD!",
+        "duration_sec": 167,
+        "synopsis": "XXXTENTACION",
+        "audio_url": "https://www.youtube.com/watch?v=pgN-vvVVxMA",
+        "is_arc_start": true
+      },
+      {
+        "number": 7,
+        "title": "Post Malone - Psycho (Official Music Video) ft. Ty Dolla $ign",
+        "duration_sec": 237,
+        "synopsis": "Post Malone",
+        "audio_url": "https://www.youtube.com/watch?v=au2n7VVGv_c",
+        "is_arc_start": false
+      },
+      {
+        "number": 8,
+        "title": "Billie Eilish - bad guy",
+        "duration_sec": 206,
+        "synopsis": "Billie Eilish",
+        "audio_url": "https://www.youtube.com/watch?v=DyDfgMOUjCI",
+        "is_arc_start": false
+      },
+      {
+        "number": 9,
+        "title": "Post Malone - rockstar (Official Music Video) ft. 21 Savage",
+        "duration_sec": 242,
+        "synopsis": "Post Malone",
+        "audio_url": "https://www.youtube.com/watch?v=UceaB4D0jpo",
+        "is_arc_start": false
+      },
+      {
+        "number": 10,
+        "title": "twenty one pilots: Heathens (from Suicide Squad: The Album) [OFFICIAL VIDEO]",
+        "duration_sec": 218,
+        "synopsis": "Fueled By Ramen and twenty one pilots",
+        "audio_url": "https://www.youtube.com/watch?v=UprcpdwuwCg",
+        "is_arc_start": false
+      },
+      {
+        "number": 11,
+        "title": "Y2K, bbno$ - Lalala (Official Video)",
+        "duration_sec": 178,
+        "synopsis": "Y2K",
+        "audio_url": "https://www.youtube.com/watch?v=N2Y2vQ-1m7M",
+        "is_arc_start": true
+      },
+      {
+        "number": 12,
+        "title": "Travis Scott - SICKO MODE (Official Video) ft. Drake",
+        "duration_sec": 323,
+        "synopsis": "Travis Scott",
+        "audio_url": "https://www.youtube.com/watch?v=6ONRf7h3Mdk",
+        "is_arc_start": false
+      },
+      {
+        "number": 13,
+        "title": "Taylor Swift - Look What You Made Me Do",
+        "duration_sec": 256,
+        "synopsis": "Taylor Swift",
+        "audio_url": "https://www.youtube.com/watch?v=3tmd-ClpJxA",
+        "is_arc_start": false
+      },
+      {
+        "number": 14,
+        "title": "The Weeknd - Can't Feel My Face (Official Video)",
+        "duration_sec": 219,
+        "synopsis": "The Weeknd",
+        "audio_url": "https://www.youtube.com/watch?v=KEI4qSrkPAs",
+        "is_arc_start": false
+      },
+      {
+        "number": 15,
+        "title": "Chris Brown - No Guidance (Audio) ft. Drake",
+        "duration_sec": 263,
+        "synopsis": "Chris Brown",
+        "audio_url": "https://www.youtube.com/watch?v=oOni4BMeMp0",
+        "is_arc_start": false
+      }
+    ]
+  },
+  {
+    "series_id": "pf_static_starlight",
+    "episodes": [
+      {
+        "number": 1,
+        "title": "Cameron Allen - Sirens (Official Music Video)",
+        "duration_sec": 244,
+        "synopsis": "Cameron Allen",
+        "audio_url": "https://www.youtube.com/watch?v=RXcaub2KREM",
+        "is_arc_start": true
+      },
+      {
+        "number": 2,
+        "title": "Bajton - Bamboo Ride (Official Music Video)",
+        "duration_sec": 161,
+        "synopsis": "MIXMALLOW MUSIC (MIXMALLOW MUSIC)",
+        "audio_url": "https://www.youtube.com/watch?v=mfpuotHG2Wg",
+        "is_arc_start": false
+      },
+      {
+        "number": 3,
+        "title": "I Wanna Rock With You Baby",
+        "duration_sec": 194,
+        "synopsis": "The Sentimental Gents",
+        "audio_url": "https://www.youtube.com/watch?v=qt-CJpmnaho",
+        "is_arc_start": false
+      },
+      {
+        "number": 4,
+        "title": "Fade Away. Dancing among Savannah graves.",
+        "duration_sec": 175,
+        "synopsis": "Mark Giuliano",
+        "audio_url": "https://www.youtube.com/watch?v=sm7aFE2e1Ro",
+        "is_arc_start": false
+      },
+      {
+        "number": 5,
+        "title": "RoadRunna Bizzy - Stronger (Official Music Video)",
+        "duration_sec": 177,
+        "synopsis": "Fermata Enterprises",
+        "audio_url": "https://www.youtube.com/watch?v=suORSGX24A4",
+        "is_arc_start": true
+      },
+      {
+        "number": 6,
+        "title": "Hikari",
+        "duration_sec": 365,
+        "synopsis": "Jay Dillon",
+        "audio_url": "https://www.youtube.com/watch?v=CxNb2REg_B8",
+        "is_arc_start": false
+      },
+      {
+        "number": 7,
+        "title": "René — I Tend To Forget",
+        "duration_sec": 218,
+        "synopsis": "René",
+        "audio_url": "https://www.youtube.com/watch?v=1ltk7gYUjOk",
+        "is_arc_start": false
+      },
+      {
+        "number": 8,
+        "title": "Heavenly Bliss",
+        "duration_sec": 157,
+        "synopsis": "ANheko",
+        "audio_url": "https://www.youtube.com/watch?v=2sPwEGJ-yKs",
+        "is_arc_start": false
+      },
+      {
+        "number": 9,
+        "title": "The Town Supervisor",
+        "duration_sec": 202,
+        "synopsis": "Daniel Bennett Group",
+        "audio_url": "https://www.youtube.com/watch?v=PsnM5bOJhzY",
+        "is_arc_start": true
+      },
+      {
+        "number": 10,
+        "title": "Snoop Dogg - Stop Counting My Poccets (Official Music Video)",
+        "duration_sec": 180,
+        "synopsis": "SnoopDoggTV",
+        "audio_url": "https://www.youtube.com/watch?v=vhhPI1HW47U",
+        "is_arc_start": false
+      },
+      {
+        "number": 11,
+        "title": "Planet blue - TackEm",
+        "duration_sec": 258,
+        "synopsis": "TackEm",
+        "audio_url": "https://www.youtube.com/watch?v=WXq7eIp6ozU",
+        "is_arc_start": false
+      },
+      {
+        "number": 12,
+        "title": "Lost in the Reverb | Deep Emotional Chill Beats by KnotYou.com.    Remix !",
+        "duration_sec": 139,
+        "synopsis": "Knot You",
+        "audio_url": "https://www.youtube.com/watch?v=k_w_9WAKJVc",
+        "is_arc_start": false
+      }
+    ]
+  }
+]

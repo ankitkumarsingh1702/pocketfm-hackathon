@@ -28,7 +28,7 @@ export const LENSES = [
     icon: "users",
     title: "Audience Simulator",
     blurb:
-      'Post an episode teaser and image; thousands of agentic listeners react live before release. Each one sees the image, remembers your past posts, and decides to scroll, like, share, or subscribe — edit a profile and its behaviour changes.',
+      "Post an episode teaser and image; thousands of agentic listeners react live before release. Each one sees the image, remembers your past posts, and decides to scroll, like, share, or subscribe — edit a profile and its behaviour changes.",
   },
   {
     id: "opt",
@@ -221,8 +221,8 @@ export const AGENTS = [
 
 /** LLM model each persona tier runs on (Gemini provider — see backend config). */
 export const PERSONA_MODEL = {
-  audience: "gemini-3.6-flash",
-  expert: "gemini-3.1-pro-preview",
+  audience: "gemini-3.5-flash",
+  expert: "gemini-3.5-flash",
 };
 
 /**

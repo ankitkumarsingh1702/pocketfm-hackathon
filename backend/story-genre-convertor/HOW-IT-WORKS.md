@@ -11,8 +11,8 @@ throws away everything else, rewrites that plot in a new genre one scene at a
 time, and then checks — beat by beat, with independent judges — how much of the
 plot survived.
 
-Every model call is Gemini (`gemini-3.1-pro-preview` by default) on Vertex AI. The
-whole run takes five to eight minutes for a short story.
+Every model call is Gemini (`gemini-3.5-flash` by default, on the `global` Vertex
+location) on Vertex AI. The whole run takes a few minutes for a short story.
 
 ## The whole pipeline at a glance
 
