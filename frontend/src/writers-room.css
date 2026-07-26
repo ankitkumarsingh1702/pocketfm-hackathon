@@ -909,10 +909,12 @@
 }
 
 /* ---------- Agent profile drawer ---------- */
+/* Portalled to <body>: a full-viewport overlay (above the sidebar and top bar,
+   below toasts) whose sheet slides in from the right edge of the screen. */
 .drawer {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 240;
   display: flex;
   justify-content: flex-end;
 }
@@ -931,13 +933,27 @@
   flex-direction: column;
   background: var(--ui-bg);
   border-left: 1px solid var(--ui-line);
-  box-shadow: var(--ui-shadow-soft);
-  animation: drawer-in 0.2s ease;
+  box-shadow: -12px 0 32px rgb(17 17 17 / 14%);
+}
+
+/* Slide-in is an enhancement — reduced-motion users get the sheet instantly. */
+@media (prefers-reduced-motion: no-preference) {
+  .drawer__scrim {
+    animation: drawer-scrim-in 0.2s ease both;
+  }
+  .drawer__panel {
+    animation: drawer-in 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
 }
 
 @keyframes drawer-in {
-  from { transform: translateX(2rem); opacity: 0.6; }
-  to { transform: translateX(0); opacity: 1; }
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes drawer-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .drawer__head {

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   GENDERS,
   CITIES,
@@ -62,7 +63,10 @@ export default function AgentProfile({ agent, segmentOptions, onChange, onClose 
     patch({ age: Math.round(n) })
   }
 
-  return (
+  // Rendered into <body> so no transformed/animated ancestor can capture the
+  // fixed positioning — the sheet always covers the whole viewport and slides
+  // in from the screen's right edge, not the panel's.
+  return createPortal(
     <div className="drawer" role="presentation">
       <div className="drawer__scrim" onClick={onClose} aria-hidden="true" />
       <aside
@@ -249,6 +253,7 @@ export default function AgentProfile({ agent, segmentOptions, onChange, onClose 
           </label>
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -140,6 +140,29 @@ class CliffhangerResult(BaseModel):
     rationale: str
 
 
+class NarrationClip(BaseModel):
+    """One narrated ending, ready to play in the browser.
+
+    ``audio_base64`` is a self-contained audio container (MP3 from Chirp, WAV
+    from Gemini) so the UI can build a blob/data URL and feed it to an ``<audio>``
+    element with no client-side decoding.
+    """
+
+    audio_base64: str
+    mime: str = "audio/wav"
+    voice: str = ""
+    engine: str = ""                    # "chirp" | "gemini"
+    style: str = ""                     # "flat" | "dramatic"
+    duration_ms: int = 0
+
+
+class NarrationResult(BaseModel):
+    """Both Cliffhanger endings voiced for an audible before/after."""
+
+    original: NarrationClip
+    optimized: NarrationClip
+
+
 # ---------------------------------------------------------------------------
 # API request bodies
 # ---------------------------------------------------------------------------
@@ -161,6 +184,13 @@ class WritersRoomRequest(BaseModel):
 class CliffhangerRequest(BaseModel):
     story: Story
     weak_excerpt: str                   # the soft ending to rewrite
+
+
+class NarrationRequest(BaseModel):
+    """Text of the two endings to voice (as returned by the cliffhanger lens)."""
+
+    original: str
+    optimized: str
 
 
 # ---------------------------------------------------------------------------

@@ -1,8 +1,10 @@
 # How the Genre Converter works, step by step
 
 This is the plain-English tour of what happens between "Convert story" and the
-finished rewrite. For the deeper design discussion see `ARCHITECTURE.md`; for
-the scoring methodology see `METRICS.md`.
+finished rewrite. The same walkthrough lives inside the app — the **"How it
+works"** button on the Story Rewrite Engine tab opens it as an interactive
+flowchart. For the deeper design discussion see `ARCHITECTURE.md`; for the
+scoring methodology see `METRICS.md`.
 
 **The one-sentence version:** the pipeline pulls the plot out of your story,
 throws away everything else, rewrites that plot in a new genre one scene at a
@@ -11,6 +13,41 @@ plot survived.
 
 Every model call is Gemini (`gemini-2.5-pro` by default) on Vertex AI. The
 whole run takes five to eight minutes for a short story.
+
+## The whole pipeline at a glance
+
+Red boxes are model calls (they cost tokens and time); everything else is free
+code. The two loops — the lint re-ask and the scene retry — each run at most
+once.
+
+```mermaid
+flowchart TD
+    A["Your story + target genre"] --> V{"Valid?<br/>400–60,000 chars,<br/>known genre pack"}
+    V -- "no" --> X["Clear error message —<br/>nothing spent"]
+    V -- "yes" --> C{"Same story converted<br/>before? (content hash)"}
+    C -- "yes — reuse cached work" --> P
+    C -- "no" --> E["EXTRACT<br/>plot skeleton: logline, roles,<br/>8–15 beats, causes,<br/>load-bearing flags"]
+    E --> L{"LINT — free scan:<br/>leaked names?<br/>genre words?"}
+    L -- "leaks found (once)" --> E2["Re-ask: same beats,<br/>cleaner wording"] --> K
+    L -- "clean" --> K{"Extract-only<br/>job?"}
+    K -- "yes (~20s)" --> KO["Return skeleton<br/>+ lint report"]
+    K -- "no" --> P["PLAN SCENES — free:<br/>max 3 beats each, cut after<br/>every load-bearing beat"]
+    P --> W["WRITE SCENE n<br/>genre pack + this scene's beats<br/>+ rolling summary.<br/>Never sees your original text"]
+    W --> S{"Scene self-report:<br/>load-bearing beat<br/>missing?"}
+    S -- "yes (once)" --> W2["Rewrite the scene,<br/>missing beat quoted back"] --> N
+    S -- "no" --> N{"More scenes?"}
+    N -- "yes" --> W
+    N -- "no" --> F["Finished rewrite"]
+    F --> B1["3 delivery ballots:<br/>does each beat happen<br/>on the page?"]
+    F --> B2["3 link ballots:<br/>is each cause → effect<br/>still legible?"]
+    B1 --> M["MAJORITY VOTE — free:<br/>2 of 3 wins, per beat and per link"]
+    B2 --> M
+    M --> SC["SCORE — arithmetic:<br/>0.6 × pivots + 0.2 × beats + 0.2 × links"]
+    SC --> H["Result to the app<br/>+ saved to History"]
+
+    classDef model fill:#FDECEC,stroke:#F4B8B8,color:#A93636;
+    class E,E2,W,W2,B1,B2 model;
+```
 
 ---
 
@@ -175,6 +212,55 @@ into its **history** store, keyed by story+genre — that's what the History tab
 in the studio lists via `GET /api/history`. Re-converting the same story to the
 same genre refreshes its record instead of duplicating it. History lives with
 the service instance (it survives day-to-day, but not a redeploy).
+
+---
+
+## One beat, end to end (worked example)
+
+The easiest way to understand the pipeline is to follow a single plot moment
+through it. Take this sentence from a family drama:
+
+> *"Sunita finds her brother's unsent confession letter in the attic and hides
+> it from the family."*
+
+```mermaid
+flowchart LR
+    A["Source sentence:<br/>Sunita hides the<br/>unsent confession letter"] --> B["Skeleton beat b6:<br/>the confidant conceals<br/>withheld information<br/>reveal · LOAD-BEARING"]
+    B --> C["Horror scene 2:<br/>a letter nailed shut<br/>behind the attic beam"]
+    C --> D["Judges, 3 ballots:<br/>does the concealment<br/>happen on the page?"]
+    D --> E["Score:<br/>pivot kept — counts in<br/>the 60% bucket"]
+```
+
+Step by step:
+
+1. **Extract** turns it into beat `b6`: *"the confidant discovers withheld
+   information and conceals it from the group"* — outcome `reveal`, causes
+   `b9`, load-bearing. No Sunita, no attic, no letter: just the move. That
+   abstraction is the whole trick — it's what lets every genre reinvent the
+   surface.
+2. **Lint** catches the first draft writing "Sunita conceals…" (a leaked name)
+   and re-asks once. Same beat, cleaner wording.
+3. **Plan** puts `b6` at the end of scene 2, because a load-bearing beat always
+   closes its scene — a scene never has to land two pivots.
+4. **Write** renders the same move differently per genre:
+   - *horror* — "The letter was nailed shut behind the attic beam, and Mira
+     understood, resealing it, that some confessions are kept the way graves
+     are kept."
+   - *comedy* — "Priya found the draft. Forty-seven versions of the same
+     unsent text, each one worse. She did the only responsible thing: archive,
+     airplane mode, denial."
+
+   Same role, same concealment, same turn — different everything else.
+5. **The self-check** would catch scene 2 forgetting to dramatise `b6` and
+   rewrite it once with the beat quoted back.
+6. **Verify** is strict about what counts. If the rewrite only says *"Mira
+   remembered hiding the letter years ago"* — verdict: **not delivered**
+   (recollection is not occurrence), 0/3 votes. Hidden on the page in scene 2:
+   delivered, 3/3.
+7. **Score**: suppose the run keeps 3 of 4 load-bearing beats, 4 of 5 beats
+   overall, and all 4 causal links. Fidelity =
+   `0.6 × 0.75 + 0.2 × 0.80 + 0.2 × 1.00` = **76%**, and the report names the
+   dropped pivot and the judges' reason.
 
 ---
 
