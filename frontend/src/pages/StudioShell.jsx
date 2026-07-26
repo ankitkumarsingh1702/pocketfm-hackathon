@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
 import { DEFAULT_LENS_PATH, LENSES } from '../config/constants'
+import { HINDI_STORY_LIBRARY } from '../config/hindiStories'
 import { useStudio } from '../controllers/useStudio'
 import { useStatusToast } from '../hooks/useStatusToast'
 import { useToast } from '../components/toast/useToast'
@@ -185,6 +186,7 @@ export default function StudioShell() {
                 <StoryPicker
                   onSelect={(s) => setStory(s.text)}
                   label="Load a ready-made story to optimize"
+                  stories={HINDI_STORY_LIBRARY}
                 />
               </div>
               <StoryInput
