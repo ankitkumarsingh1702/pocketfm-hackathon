@@ -1,0 +1,4 @@
+interface:
+  display_name: "PocketFM Continuous Shipping"
+  short_description: "Ship parallel PocketFM work safely to production"
+  default_prompt: "Use $pocketfm-continuous-shipping to finish, push, merge, deploy, and verify this PocketFM change."
