@@ -321,7 +321,7 @@ export default function AgentDetailDrawer({
                 <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
                   MCP server:{' '}
                   <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--ink)' }}>
-                    {origin}/mcp
+                    {origin}/mcp/
                   </code>{' '}
                   — add it to your MCP client, then call{' '}
                   <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--accent-text-sm)' }}>
