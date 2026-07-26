@@ -75,6 +75,15 @@ export const LENSES = [
     blurb:
       "Rewrite a story in another genre. The plot is extracted into a genre-neutral skeleton, rewritten scene by scene, then checked beat by beat against the page.",
   },
+  {
+    id: "mood",
+    path: "/mood",
+    label: "Mood Search",
+    icon: "heart",
+    title: "Mood-First Search",
+    blurb:
+      "Listeners search by how they want to feel, not by genre. An ambiguous feeling comes back as three readings side by side, each pointing at the arc that delivers it — never a 200-episode series.",
+  },
 ];
 
 /** Where the studio lands on `/` or an unknown path. */
@@ -229,6 +238,12 @@ export const SUPERPOWERS = [
   { label: "AI Producer", live: false },
   { label: "AI Rewrite Engine", live: false },
 ];
+
+/**
+ * Superpowers named in the sidebar but not yet wired to a backend, so the
+ * roadmap stays visible without pretending to be navigable.
+ */
+export const UPCOMING_SUPERPOWERS = ["AI Producer", "AI Rewrite Engine"];
 
 /** Simulated-listener panel size advertised in the header pill. */
 export const AUDIENCE_ARMY = 1000;

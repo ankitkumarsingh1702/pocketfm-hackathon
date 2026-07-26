@@ -1,417 +1,178 @@
-/**
- * Mood-First Search — the studio surface.
- *
- * One tab, four modes. `mode` comes straight off SearchResponse.mode — the view
- * never decides which screen to show, the contract does. Empty, clarify,
- * shelves and safety are states of ONE surface, so backing out of shelves never
- * lands back on the clarifying question.
- *
- * Restyled onto the studio's light design tokens (white canvas, black primary
- * hierarchy, brand red only as a supporting accent for entry points and
- * selected state). No genre rails, no browse grid — the empty state shows
- * queries, never shows.
- */
-
 import { useEffect, useState } from 'react'
 
 import { useMoodSearch } from '../../controllers/useMoodSearch'
+import { useStatusToast } from '../../hooks/useStatusToast'
+import MoodBaselineLab from '../mood/MoodBaselineLab'
+import MoodClarify from '../mood/MoodClarify'
+import MoodDoorway from '../mood/MoodDoorway'
+import MoodListenerPicker from '../mood/MoodListenerPicker'
+import MoodSafety from '../mood/MoodSafety'
+import MoodShelves from '../mood/MoodShelves'
+import MoodStarters from '../mood/MoodStarters'
 import { Button } from '../primitives'
-import { EmptyState, ErrorState } from '../StateViews'
-import MoodEpisodeList from '../mood/MoodEpisodeList'
-import MoodLab from '../mood/MoodLab'
-
-/* ---------------------------------------------------------------- helpers -- */
-
-function SectionLabel({ children, style }) {
-  return (
-    <div className="label-upper" style={{ fontSize: 11, ...style }}>
-      {children}
-    </div>
-  )
-}
-
-/* --------------------------------------------------------------- persona --- */
+import { useToast } from '../toast/useToast'
 
 /**
- * Listener picker — a DEMO affordance, not a product surface. Real listeners
- * never choose who they are; in production this comes from auth. It sits inline
- * so you type once, switch listener, and watch the same query re-rank.
+ * Mood-First Search lens.
+ *
+ * Composition only — the flow lives in `useMoodSearch`, and this file maps that
+ * state onto components.
+ *
+ * ONE SURFACE, FOUR STATES. `empty | clarify | shelves | safety` all render
+ * here, switching on `state.mode` off the response. They are not separate routes
+ * and must not become them: the lens keeps one URL so backing out of results
+ * never lands the listener on the clarifying question again, which would read as
+ * the app not having heard them.
  */
-function PersonaBar({ profiles, selected, onSelect }) {
-  if (!profiles.length) return null
-
-  const chip = (id, label, sub) => {
-    const on = selected === id
-    return (
-      <button
-        key={id ?? 'anon'}
-        onClick={() => onSelect(id)}
-        aria-pressed={on}
-        style={{
-          flex: '0 0 auto',
-          textAlign: 'left',
-          background: on ? 'var(--surface)' : 'transparent',
-          border: `1px solid ${on ? 'var(--accent)' : 'var(--border)'}`,
-          borderRadius: 'var(--radius-pill)',
-          color: on ? 'var(--accent-text-sm)' : 'var(--muted)',
-          padding: '8px 14px',
-          fontSize: 13,
-          fontFamily: 'var(--font-sans)',
-          lineHeight: 1.2,
-          cursor: 'pointer',
-        }}
-      >
-        <div style={{ fontWeight: on ? 600 : 500 }}>{label}</div>
-        {sub && <div style={{ fontSize: 11, opacity: 0.8, marginTop: 1 }}>{sub}</div>}
-      </button>
-    )
-  }
-
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <SectionLabel style={{ marginBottom: 10 }}>Listening as</SectionLabel>
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
-        {chip(null, 'Anyone', 'no history')}
-        {profiles.map((p) =>
-          chip(p.persona_id, p.display_name, `${p.slot} · ${p.history_count} watched`),
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* --------------------------------------------------------------- starters -- */
-
-function Starters({ starters, onPick }) {
-  return (
-    <div>
-      <p style={{ margin: '0 0 18px', fontSize: 14, color: 'var(--muted)', maxWidth: 560 }}>
-        No genres, no browse grid — just tell it how you want to feel. Or start with one of
-        these.
-      </p>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: 12,
-        }}
-      >
-        {starters.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => onPick(s.text)}
-            style={{
-              textAlign: 'left',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--ink)',
-              padding: '14px 16px',
-              fontSize: 14.5,
-              fontFamily: 'var(--font-sans)',
-              lineHeight: 1.5,
-              cursor: 'pointer',
-            }}
-          >
-            {s.text}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* --------------------------------------------------------------- clarify --- */
-
-function Clarify({ question, onAnswer }) {
-  return (
-    <div style={{ maxWidth: 560 }}>
-      <p style={{ fontSize: 20, color: 'var(--ink)', margin: '0 0 22px', lineHeight: 1.4 }}>
-        {question.question}
-      </p>
-      <div style={{ display: 'grid', gap: 10 }}>
-        {question.options.map((o) => (
-          <button
-            key={o.id}
-            onClick={() => onAnswer(o.id)}
-            style={{
-              textAlign: 'left',
-              background: 'var(--surface-raised)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--ink)',
-              padding: '14px 16px',
-              fontSize: 15,
-              fontFamily: 'var(--font-sans)',
-              cursor: 'pointer',
-            }}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-      <button
-        onClick={() => onAnswer(null)}
-        style={{
-          marginTop: 16,
-          background: 'none',
-          border: 'none',
-          color: 'var(--muted)',
-          fontSize: 14,
-          fontFamily: 'var(--font-sans)',
-          cursor: 'pointer',
-        }}
-      >
-        {question.skip_label}
-      </button>
-    </div>
-  )
-}
-
-/* ---------------------------------------------------------------- shelves -- */
-
-function RefineRow({ shelf, sliders, onRefine }) {
-  if (!sliders.length) return null
-  return (
-    <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
-      <SectionLabel>Refine in mood space</SectionLabel>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {sliders.map((s) => (
-          <div key={s.id} style={{ display: 'flex', gap: 4 }}>
-            {[
-              [-1, s.left],
-              [1, s.right],
-            ].map(([v, label]) => (
-              <button
-                key={label}
-                onClick={() => onRefine(shelf, { [s.id]: v })}
-                aria-label={`${label}`}
-                style={{
-                  whiteSpace: 'nowrap',
-                  background: 'transparent',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-pill)',
-                  color: 'var(--muted)',
-                  fontSize: 12.5,
-                  fontFamily: 'var(--font-sans)',
-                  padding: '6px 12px',
-                  cursor: 'pointer',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ResultCard({ result, onOpen }) {
-  return (
-    <article
-      onClick={() => onOpen(result)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onOpen(result)}
-      style={{
-        background: 'var(--surface-raised)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: '14px 16px',
-        cursor: 'pointer',
-      }}
-    >
-      {/* No provenance badge here on purpose. `audio_verified` is set by a
-          coin flip in the seed fixture and hardcoded False by the real ingest
-          path, so a "Tier A" chip would claim an audio pipeline that does not
-          exist in this repo. Re-add it only once something actually verifies
-          audio. */}
-      <div style={{ fontSize: 15.5, color: 'var(--ink)', fontWeight: 600 }}>
-        {result.series_title}
-      </div>
-      <div style={{ fontSize: 13, color: 'var(--accent-text-sm)', fontWeight: 600, marginTop: 4 }}>
-        {result.entry_label}
-      </div>
-      {/* The line people quote. Give it room. */}
-      <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.55, margin: '10px 0 0' }}>
-        {result.explanation}
-      </p>
-    </article>
-  )
-}
-
-function Shelves({ shelves, sliders, onRefine, onOpen }) {
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: 28,
-        alignItems: 'start',
-      }}
-    >
-      {shelves.map((shelf) => (
-        <section key={shelf.id}>
-          <header style={{ marginBottom: 14 }}>
-            <h3 style={{ fontSize: 17, color: 'var(--ink)', margin: 0 }}>{shelf.label}</h3>
-            <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '4px 0 0' }}>
-              {shelf.subtitle}
-            </p>
-          </header>
-          <div style={{ display: 'grid', gap: 10 }}>
-            {shelf.results.map((r) => (
-              <ResultCard key={r.content_id} result={r} onOpen={onOpen} />
-            ))}
-          </div>
-          <RefineRow shelf={shelf} sliders={sliders} onRefine={onRefine} />
-        </section>
-      ))}
-    </div>
-  )
-}
-
-/* ---------------------------------------------------------------- safety --- */
-
-function Safety({ message, resources }) {
-  return (
-    <div
-      style={{
-        maxWidth: 560,
-        borderLeft: '3px solid var(--accent)',
-        paddingLeft: 20,
-      }}
-    >
-      <p style={{ fontSize: 17, color: 'var(--ink)', lineHeight: 1.65, margin: 0 }}>{message}</p>
-      <div style={{ marginTop: 20, display: 'grid', gap: 8 }}>
-        {(resources || []).map((r) => (
-          <div key={r} style={{ fontSize: 15, color: 'var(--ink)', fontWeight: 600 }}>
-            {r}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ----------------------------------------------------------------- shell --- */
-
-function SearchBar({ initial, onSearch, loading }) {
+function SearchBox({ initial, onSearch, loading }) {
   const [text, setText] = useState(initial || '')
 
+  // A starter tap sets the query upstream; reflect it so the box always shows
+  // what was actually searched.
   useEffect(() => {
     setText(initial || '')
   }, [initial])
 
-  const submit = () => {
+  const submit = (event) => {
+    event.preventDefault()
     if (text.trim()) onSearch(text)
   }
 
   return (
-    <div style={{ display: 'flex', gap: 10, maxWidth: 620, marginBottom: 28 }}>
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && submit()}
-        placeholder="How do you want this to feel?"
-        aria-label="How do you want this to feel?"
-        style={{
-          flex: 1,
-          background: 'var(--surface-raised)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'var(--ink)',
-          padding: '12px 16px',
-          fontSize: 16,
-          fontFamily: 'var(--font-sans)',
-          outline: 'none',
-        }}
-      />
-      <Button variant="primary" onClick={submit} disabled={loading}>
-        {loading ? 'Searching…' : 'Search'}
-      </Button>
-    </div>
+    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <label htmlFor="mood-query" className="label-upper" style={{ fontSize: 11 }}>
+        How do you want this to feel?
+      </label>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', maxWidth: 620 }}>
+        <input
+          id="mood-query"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="something that feels like a rainy Sunday after heartbreak"
+          autoComplete="off"
+          style={{
+            flex: 1,
+            minWidth: 220,
+            minHeight: 44,
+            background: 'var(--canvas)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--ink)',
+            padding: '0 16px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 16,
+          }}
+        />
+        <Button variant="primary" type="submit" disabled={loading || !text.trim()}>
+          {loading ? 'Searching…' : 'Search'}
+        </Button>
+      </div>
+
+      <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', maxWidth: '64ch' }}>
+        No genres and no browse grid — describe the feeling, in English or Hinglish.
+      </p>
+    </form>
   )
 }
 
 export default function MoodSearchTab() {
   const mood = useMoodSearch()
-  const { state, view } = mood
-  const { mode, data } = state
+  const toast = useToast()
+  const { mode, data } = mood.state
 
-  if (view === 'playing') {
+  useStatusToast(mood.error, (e) => toast.error(`Mood search failed. ${e}`))
+
+  // The doorway replaces the surface: once a listener has been sent to Ep 34,
+  // the shelves are behind them until they come back.
+  if (mood.playing) {
     return (
-      <div style={{ paddingTop: 40 }}>
-        <MoodEpisodeList playing={mood.playing} onBack={mood.backToFeel} />
+      <div style={{ paddingTop: 4 }}>
+        <MoodDoorway playing={mood.playing} onBack={mood.closeDoorway} />
       </div>
     )
   }
 
-  if (view === 'lab') {
-    return (
-      <div style={{ paddingTop: 40 }}>
-        <MoodLab queryId={mood.queryId} lastText={mood.lastText} onBack={mood.backToFeel} />
-      </div>
-    )
-  }
-
-  // The safety screen shows nothing else — no search bar, no demo controls.
+  // Distress: retrieval never ran, and every demo control is suppressed. Someone
+  // in crisis does not get a row of listener chips above the one thing that
+  // matters.
   if (mode === 'safety') {
     return (
-      <div style={{ paddingTop: 40 }}>
-        <Safety message={data.safety_message} resources={data.support_resources} />
+      <div style={{ paddingTop: 4, display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <MoodSafety message={data.safety_message} resources={data.support_resources} />
+        <div>
+          <Button variant="secondary" size="sm" onClick={mood.reset}>
+            Start over
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ paddingTop: 40 }}>
-      <SearchBar initial={mood.lastText} onSearch={mood.search} loading={mood.loading} />
+    <div style={{ paddingTop: 4, display: 'flex', flexDirection: 'column', gap: 36 }}>
+      <SearchBox initial={mood.lastText} onSearch={mood.search} loading={mood.loading} />
 
-      <PersonaBar profiles={mood.profiles} selected={mood.profileId} onSelect={mood.pickProfile} />
+      <MoodListenerPicker
+        profiles={mood.profiles}
+        value={mood.profileId}
+        onChange={mood.pickProfile}
+        disabled={mood.loading}
+      />
 
-      {mood.error && <ErrorState message={mood.error} />}
-
-      {mode === 'clarify' && (
-        <Clarify question={data.clarifying_question} onAnswer={mood.answer} />
-      )}
-
-      {mode === 'shelves' && (
-        <Shelves
-          shelves={data.shelves}
-          sliders={mood.sliders}
-          onRefine={mood.refine}
-          onOpen={mood.open}
+      {mode === 'empty' && (
+        <MoodStarters
+          starters={mood.starters}
+          onPick={mood.search}
+          disabled={mood.loading}
+          ready={mood.catalogReady}
+          error={mood.catalogError}
         />
       )}
 
-      {mode === 'empty' &&
-        (mood.starters.length ? (
-          <Starters starters={mood.starters} onPick={mood.search} />
-        ) : (
-          <EmptyState
-            title="Mood-First Search"
-            hint="Type how you want to feel — the results come back as felt experience, not genre."
-          />
-        ))}
-
-      {mood.devMode && view === 'feel' && (
-        <button
-          onClick={mood.openLab}
-          style={{
-            marginTop: 36,
-            background: 'none',
-            border: 'none',
-            color: 'var(--muted)',
-            fontSize: 13,
-            fontFamily: 'var(--font-sans)',
-            cursor: 'pointer',
-          }}
-        >
-          Open Lab — genre baseline & retrieval trace ↗
-        </button>
+      {mode === 'clarify' && (
+        <MoodClarify
+          question={data.clarifying_question}
+          onAnswer={mood.answer}
+          busy={mood.loading}
+        />
       )}
+
+      {mode === 'shelves' && (
+        <>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+              gap: 16,
+              flexWrap: 'wrap',
+            }}
+          >
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', maxWidth: '64ch' }}>
+              That feeling reads three ways, so here are all three. Your pick is the
+              answer — nothing was guessed.
+            </p>
+            {data.latency_ms != null && (
+              <span className="font-mono-num" style={{ fontSize: 12.5, color: 'var(--dim)' }}>
+                {data.latency_ms}ms
+              </span>
+            )}
+          </div>
+
+          <MoodShelves
+            shelves={data.shelves}
+            sliders={mood.sliders}
+            onRefine={mood.refine}
+            onOpen={mood.open}
+            refining={mood.refining}
+          />
+        </>
+      )}
+
+      {/* Last, and folded shut. The genre baseline is the argument, not a
+          feature — see MoodBaselineLab. */}
+      <MoodBaselineLab queryId={mood.queryId} lastText={mood.lastText} />
     </div>
   )
 }
