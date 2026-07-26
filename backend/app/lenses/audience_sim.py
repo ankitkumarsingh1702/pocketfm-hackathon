@@ -47,10 +47,16 @@ async def resolve_audience(req: AudienceSimRequest) -> tuple[list[Persona], str]
     """Return ``(members, source)`` for a run — provided / graph / generated."""
     n = min(req.n or settings.sim_panel_default, settings.sim_panel_max)
 
-    # 1. Edited roster from the UI wins (non-empty). Empty falls through.
+    # 1. Edited roster from the UI wins (non-empty). Persist it, then top up to n
+    #    so an edited/small roster still fans out to the full requested panel size
+    #    (Run never silently under-delivers to a handful).
     if req.audience:
         members = req.audience[: settings.sim_panel_max]
         await save_audience_members(members, source="Provided Audience")
+        if len(members) < n:
+            generated = await generate_personas(n - len(members))
+            await save_audience_members(generated, source="Persona Synthesis")
+            return members + generated, "provided+generated"
         return members, "provided"
 
     # 2. Reuse the persisted audience population when available.

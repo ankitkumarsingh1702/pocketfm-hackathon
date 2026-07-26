@@ -26,6 +26,7 @@ export function useAudienceSim() {
   const [library, setLibrary] = useState(null)      // { total, source }
   const [roster, setRoster] = useState([])          // editable Persona[]
   const [activeAgentId, setActiveAgentId] = useState(null)
+  const [panelSize, setPanelSize] = useState(1000)  // agents to fan out to on Run
 
   const [post, setPost] = useState({ ...SAMPLE_POST, image: null })
 
@@ -84,6 +85,8 @@ export function useAudienceSim() {
     [roster, activeAgentId],
   )
   const segments = useMemo(() => segmentOptions(roster), [roster])
+  // Default archetypes are examples, not this session's curated audience.
+  const isDefaults = !library || library.source === 'defaults'
 
   // --- composer ------------------------------------------------------------
 
@@ -125,7 +128,7 @@ export function useAudienceSim() {
     setResult(null)
     setError(null)
     setRunMeta(null)
-    setProgress({ done: 0, dropped: 0, total: roster.length })
+    setProgress({ done: 0, dropped: 0, total: panelSize })
     setRunning(true)
 
     const controller = new AbortController()
@@ -162,8 +165,12 @@ export function useAudienceSim() {
     }
 
     try {
+      // Fan out to the SELECTED panel size. Send the roster only when it's the
+      // user's curated audience (so profile edits are honoured); with just the
+      // default archetypes, omit it so the server synthesises the full n — Run
+      // never silently degrades to the 6 examples.
       await audienceSimStream(
-        { story, audience: roster, n: roster.length || undefined },
+        { story, n: panelSize, audience: isDefaults ? undefined : roster },
         onEvent,
         controller.signal,
       )
@@ -173,7 +180,7 @@ export function useAudienceSim() {
       setRunning(false)
       abortRef.current = null
     }
-  }, [post, roster, running])
+  }, [post, roster, running, panelSize, isDefaults])
 
   const canRun = Boolean(post.text.trim()) && !running
 
@@ -199,6 +206,8 @@ export function useAudienceSim() {
     stop,
     running,
     canRun,
+    panelSize,
+    setPanelSize,
     recent,
     progress,
     runMeta,
