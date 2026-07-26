@@ -2,7 +2,7 @@
 export default function PageHeader({ lens }) {
   return (
     <header className="page-head">
-      <div className="label-upper" style={{ fontSize: 11 }}>
+      <div className="label-upper page-head__eyebrow" style={{ fontSize: 11 }}>
         Simulated Studio
       </div>
       <h1 className="page-head__title">{lens.title}</h1>

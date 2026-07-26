@@ -16,6 +16,7 @@ import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
 import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
 import DbMemoryTab from '../components/tabs/DbMemoryTab'
 import GenreConverterTab from '../components/tabs/GenreConverterTab'
+import MoodSearchTab from '../components/tabs/MoodSearchTab'
 import StoryCanonTab from '../components/tabs/StoryCanonTab'
 import WritersRoom from '../WritersRoom'
 
@@ -216,6 +217,9 @@ export default function StudioShell() {
           </section>
           <section className="lens-panel" hidden={activeTab !== 'genre'} aria-label="Genre Converter">
             <GenreConverterTab />
+          </section>
+          <section className="lens-panel" hidden={activeTab !== 'mood'} aria-label="Mood Search">
+            <MoodSearchTab />
           </section>
         </div>
       </main>

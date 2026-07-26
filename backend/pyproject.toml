@@ -13,6 +13,7 @@ dependencies = [
     "anthropic[vertex]>=0.40",
     "pyyaml>=6.0.2",
     "neo4j>=5.25",
+    "numpy>=1.26",
 ]
 
 [dependency-groups]

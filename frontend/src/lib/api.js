@@ -309,4 +309,81 @@ export async function ndjsonStream(path, body, onEvent, signal) {
   emit(buffer)
 }
 
+// --- Mood-First Search (feel-based discovery) ------------------------------
+// Every route is mounted under /api/mood by the backend (see app/main.py). The
+// frontend never sees the shape of the retrieval stack — only SearchResponse.
+
+/** GET /api/mood/starters -> { starters: MoodStarter[] } (empty-state queries) */
+export function moodStarters() {
+  return request('/api/mood/starters')
+}
+
+/** GET /api/mood/sliders -> { sliders: {id,left,right}[] } (refine controls) */
+export function moodSliders() {
+  return request('/api/mood/sliders')
+}
+
+/** GET /api/mood/profiles -> { profiles: DemoListener[] } (demo persona picker) */
+export function moodProfiles() {
+  return request('/api/mood/profiles')
+}
+
+/**
+ * POST /api/mood/search -> SearchResponse { mode: 'shelves'|'clarify'|'safety', ... }
+ * @param {string} text free-text feeling
+ * @param {string|null} [profileId] optional demo listener id
+ */
+export function moodSearch(text, profileId) {
+  return request('/api/mood/search', {
+    method: 'POST',
+    body: { text, profile_id: profileId ?? null },
+  })
+}
+
+/**
+ * POST /api/mood/clarify -> SearchResponse (answer the one clarifying question)
+ * @param {string} queryId
+ * @param {string|null} optionId null = the user skipped
+ */
+export function moodClarify(queryId, optionId) {
+  return request('/api/mood/clarify', {
+    method: 'POST',
+    body: { query_id: queryId, option_id: optionId ?? null },
+  })
+}
+
+/**
+ * POST /api/mood/refine -> SearchResponse with one re-ranked shelf.
+ * Pure vector math on the backend — no LLM, sub-200ms. Send the shelf's own
+ * target_axes and the raw slider positions (not pre-nudged axes).
+ */
+export function moodRefine(queryId, shelfId, currentAxes, sliderDeltas) {
+  return request('/api/mood/refine', {
+    method: 'POST',
+    body: {
+      query_id: queryId,
+      shelf_id: shelfId,
+      current_axes: currentAxes,
+      slider_deltas: sliderDeltas,
+    },
+  })
+}
+
+/** GET /api/mood/episodes/{seriesId} -> episode window starting at the doorway */
+export function moodEpisodes(seriesId, start = 1, limit = 12) {
+  return request(
+    `/api/mood/episodes/${encodeURIComponent(seriesId)}?start=${start}&limit=${limit}`,
+  )
+}
+
+/** POST /api/mood/baseline -> { results } genre/keyword search (Lab only) */
+export function moodBaseline(text, k = 3) {
+  return request('/api/mood/baseline', { method: 'POST', body: { text, k } })
+}
+
+/** GET /api/mood/debug/{queryId} -> retrieval trace (Lab only) */
+export function moodDebug(queryId) {
+  return request(`/api/mood/debug/${encodeURIComponent(queryId)}`)
+}
+
 export const apiBaseUrl = BASE_URL

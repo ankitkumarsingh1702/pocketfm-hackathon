@@ -406,6 +406,28 @@ async def audience_sim_memory(limit: int = 24) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Mood-First Search — feel-based discovery
+# ---------------------------------------------------------------------------
+# A self-contained discovery surface: parse a free-text feeling, disambiguate
+# into shelves, retrieve at arc granularity, and return doorways. Mounted under
+# its own /api/mood prefix so its routes never collide with the studio lenses.
+#
+# Importing the router builds its in-memory index once at startup. That build is
+# best-effort: if it fails, the studio lenses must still come up, so we log the
+# failure and leave /api/mood unmounted rather than crashing the whole service.
+try:
+    from app.mood.api import router as mood_router  # noqa: E402
+
+    app.include_router(mood_router, prefix="/api/mood", tags=["mood"])
+except Exception as _mood_err:  # noqa: BLE001 - never let mood take the API down
+    import logging
+
+    logging.getLogger("uvicorn.error").exception(
+        "Mood-First Search failed to load; /api/mood is unavailable: %s", _mood_err
+    )
+
+
+# ---------------------------------------------------------------------------
 # Static SPA (single-service Cloud Run deploy)
 # ---------------------------------------------------------------------------
 # Serve the built frontend when it is bundled into the image. This mount MUST
