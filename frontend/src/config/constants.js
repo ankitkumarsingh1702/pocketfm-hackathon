@@ -30,15 +30,15 @@ export const LENSES = [
     blurb:
       'Post an episode teaser and image; thousands of agentic listeners react live before release. Each one sees the image, remembers your past posts, and decides to scroll, like, share, or subscribe — edit a profile and its behaviour changes.',
   },
-  // {
-  //   id: "opt",
-  //   path: "/cliffhanger",
-  //   label: "Cliffhanger Optimizer",
-  //   icon: "zap",
-  //   title: "Cliffhanger Optimizer",
-  //   blurb:
-  //     "Predicts the probability of binge-listening and rewrites your ending, then A/B tests the hook lift against the listener panel.",
-  // },
+  {
+    id: "opt",
+    path: "/cliffhanger",
+    label: "Cliffhanger Optimizer",
+    icon: "zap",
+    title: "Cliffhanger Optimizer",
+    blurb:
+      "Rewrites your ending and A/B tests the hook lift against the listener panel — then lets you hear the difference, the flat original versus the dramatic cut.",
+  },
   {
     id: "room",
     path: "/writers-room",
