@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -645,6 +645,16 @@ class SpaStaticFiles(StaticFiles):
     """
 
     async def get_response(self, path: str, scope):
+        # OAuth / OIDC discovery probes. MCP clients (Claude Desktop, claude.ai
+        # custom connectors, Cursor, …) hit these well-known paths to decide
+        # whether the server requires sign-in. This server is intentionally open
+        # (no auth), so discovery must 404 — per the MCP/OAuth spec a missing
+        # metadata document means "no authorization required" and the client
+        # connects unauthenticated. Falling through to the SPA shell returns a
+        # 200 HTML page, which clients misread as a broken OAuth service and
+        # abort with "couldn't register with the sign-in service".
+        if path.startswith(".well-known/oauth-") or path.startswith(".well-known/openid-"):
+            return PlainTextResponse("Not Found", status_code=404)
         try:
             response = await super().get_response(path, scope)
         except StarletteHTTPException as exc:
