@@ -38,6 +38,7 @@ from app.lenses.audience_sim import (
     stream_audience_sim,
 )
 from app.lenses.cliffhanger import run_cliffhanger
+from app.lenses.narrate import run_narration
 from app.lenses.plot_holes import find_plot_holes
 from app.lenses.showrunner import run_showrunner
 from app.lenses.writers_room import run_writers_room, stream_writers_room
@@ -58,6 +59,8 @@ from app.schemas import (
     IngestRequest,
     IngestResult,
     MdpRequest,
+    NarrationRequest,
+    NarrationResult,
     PlanRequest,
     PlotHoleResult,
     PlotHolesRequest,
@@ -139,6 +142,19 @@ async def cliffhanger(req: CliffhangerRequest) -> CliffhangerResult:
     """Cliffhanger lens: rewrite a weak ending and A/B test the hook lift."""
     try:
         return await run_cliffhanger(req.story, req.weak_excerpt)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/lenses/cliffhanger/narrate", response_model=NarrationResult)
+async def cliffhanger_narrate(req: NarrationRequest) -> NarrationResult:
+    """Voice both endings so the hook-score lift is *audible*: the original read
+    flat and passive, the optimized cliffhanger read with dramatic, in-character
+    tension. Chirp 3 HD is the reliable engine; Gemini native TTS is tried first
+    for richer delivery and falls back to Chirp on any error.
+    """
+    try:
+        return await run_narration(req.original, req.optimized)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
 
