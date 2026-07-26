@@ -156,6 +156,21 @@ async def cliffhanger(req: CliffhangerRequest) -> CliffhangerResult:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/lenses/cliffhanger/stream")
+async def cliffhanger_stream(req: CliffhangerRequest) -> StreamingResponse:
+    """Cliffhanger lens (streaming): NDJSON events narrating the rewrite and each
+    listener-agent's before/after hook score as it lands, then a terminal ``done``
+    carrying the full CliffhangerResult. Same work as ``/api/lenses/cliffhanger``,
+    made observable so the UI can show a live run log instead of a bare spinner.
+    """
+
+    async def run(emit) -> dict:
+        result = await run_cliffhanger(req.story, req.weak_excerpt, emit=emit)
+        return result.model_dump()
+
+    return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
+
+
 @app.post("/api/lenses/cliffhanger/narrate", response_model=NarrationResult)
 async def cliffhanger_narrate(req: NarrationRequest) -> NarrationResult:
     """Voice both endings so the hook-score lift is *audible*: the original read

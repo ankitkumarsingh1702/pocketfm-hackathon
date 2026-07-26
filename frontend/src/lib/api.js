@@ -150,6 +150,28 @@ export function cliffhanger(story, weakExcerpt) {
 }
 
 /**
+ * POST /api/lenses/cliffhanger/stream -> NDJSON run-log events.
+ *
+ * Streams the optimizer's own work as it happens so the UI can show a live,
+ * CLI-style run log instead of a bare spinner: `run_started`, the `rewrite`
+ * phase, one `agent_scored` per listener for the original then the optimized
+ * ending, `panel_*` phase start/done, and a terminal `done` carrying the full
+ * CliffhangerResult (same shape as the non-streaming lens).
+ *
+ * @param {{story:object, weakExcerpt:string}} payload
+ * @param {(event:object)=>void} onEvent called once per event line
+ * @param {AbortSignal} [signal] optional cancel signal
+ */
+export function cliffhangerStream({ story, weakExcerpt }, onEvent, signal) {
+  return ndjsonStream(
+    '/api/lenses/cliffhanger/stream',
+    { story, weak_excerpt: weakExcerpt },
+    onEvent,
+    signal,
+  )
+}
+
+/**
  * POST /api/lenses/cliffhanger/narrate -> NarrationResult
  *
  * Voices both endings (base64 audio, one call) so the UI can play an audible
