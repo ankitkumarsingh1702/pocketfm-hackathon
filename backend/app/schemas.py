@@ -205,6 +205,35 @@ class AgentReactRequest(BaseModel):
     story_so_far: str | None = None
 
 
+class AgentEditRequest(BaseModel):
+    """Editable profile fields for an existing agent (all optional).
+
+    Only the fields provided are changed; the agent keeps its id and its memory.
+    """
+
+    name: str | None = None
+    segment: str | None = None
+    age: int | None = None
+    gender: str | None = None
+    city: str | None = None
+    genres: list[str] | None = None
+    traits: list[str] | None = None
+    bio: str | None = Field(default=None, description="The agent's persona / system prompt.")
+
+
+class AgentCreateRequest(BaseModel):
+    """A new listener agent to add to the population (Agent API / MCP)."""
+
+    name: str
+    segment: str | None = None
+    age: int | None = None
+    gender: str | None = None
+    city: str | None = None
+    genres: list[str] = Field(default_factory=list)
+    traits: list[str] = Field(default_factory=list)
+    bio: str | None = Field(default=None, description="Optional persona / system prompt; auto-generated if omitted.")
+
+
 # ---------------------------------------------------------------------------
 # Knowledge graph — LLM extraction (Gemini-safe: str / Literal / int / list of
 # models only; NO free dict/Any, which the Vertex response_schema rejects)

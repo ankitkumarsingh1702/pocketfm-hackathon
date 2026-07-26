@@ -323,12 +323,40 @@ export default function AgentDetailDrawer({
                   <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--ink)' }}>
                     {origin}/mcp/
                   </code>{' '}
-                  — add it to your MCP client, then call{' '}
-                  <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--accent-text-sm)' }}>
-                    ask_agent
-                  </code>
-                  .
+                  — add it to your MCP client (no login). Tools:
                 </div>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: 16,
+                    fontSize: 12,
+                    color: 'var(--muted)',
+                    lineHeight: 1.7,
+                    listStyle: 'disc',
+                  }}
+                >
+                  {[
+                    ['ask_agent', 'talk to this agent — it reacts in character and remembers'],
+                    ['get_agent · list_agents', 'read a profile / search the roster'],
+                    ['edit_agent', 'change a profile (e.g. move them to Delhi)'],
+                    ['create_agent', 'add a new listener to the population'],
+                    ['forget_agent', "clear an agent's memory"],
+                    ['audience_overview', 'population stats + available filters'],
+                  ].map(([tool, desc]) => (
+                    <li key={tool}>
+                      <code
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 11.5,
+                          color: 'var(--accent-text-sm)',
+                        }}
+                      >
+                        {tool}
+                      </code>{' '}
+                      — {desc}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </section>
           )}

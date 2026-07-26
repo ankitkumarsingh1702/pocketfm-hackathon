@@ -48,6 +48,8 @@ from app.llm.factory import get_llm
 from app.personas.loader import load_personas
 from app.schemas import (
     ActivityFeed,
+    AgentCreateRequest,
+    AgentEditRequest,
     AgentReactRequest,
     AudienceLibrary,
     AudienceResult,
@@ -631,6 +633,63 @@ async def agent_react(agent_id: str, req: AgentReactRequest) -> dict:
     if view is None:
         raise HTTPException(status_code=404, detail="Agent not found")
     return view
+
+
+@app.patch("/api/agents/{agent_id}")
+async def agent_edit(agent_id: str, req: AgentEditRequest) -> dict:
+    """Edit an existing agent's profile in place (e.g. move them to a new city).
+
+    Only the supplied fields change; the agent keeps its id and its memory.
+    """
+    from app.graph.audience_store import recall_member_memory, update_audience_member
+
+    persona = await update_audience_member(
+        agent_id,
+        name=req.name,
+        segment=req.segment,
+        age=req.age,
+        gender=req.gender,
+        city=req.city,
+        genres=req.genres,
+        traits=req.traits,
+        system_prompt=req.bio,
+    )
+    if persona is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    memory = await recall_member_memory(agent_id, limit=50)
+    return {"profile": persona.model_dump(), "memory": memory, "memory_count": len(memory)}
+
+
+@app.post("/api/agents")
+async def agent_create(req: AgentCreateRequest) -> dict:
+    """Create a new listener agent and add it to the population."""
+    from app.graph.audience_store import create_audience_member
+
+    persona = await create_audience_member(
+        name=req.name,
+        segment=req.segment,
+        age=req.age,
+        gender=req.gender,
+        city=req.city,
+        genres=req.genres,
+        traits=req.traits,
+        system_prompt=req.bio,
+    )
+    if persona is None:
+        raise HTTPException(status_code=503, detail="Could not create agent (graph unavailable)")
+    return {"profile": persona.model_dump(), "memory": [], "memory_count": 0}
+
+
+@app.delete("/api/agents/{agent_id}/memory")
+async def agent_forget(agent_id: str) -> dict:
+    """Clear ONE agent's reaction history (its memory). The agent itself stays."""
+    from app.graph.audience_store import get_audience_member, reset_member_memory
+
+    persona = await get_audience_member(agent_id)
+    if persona is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    deleted = await reset_member_memory(agent_id)
+    return {"agent_id": agent_id, "forgotten": deleted}
 
 
 # ---------------------------------------------------------------------------
