@@ -221,8 +221,8 @@ export const AGENTS = [
 
 /** LLM model each persona tier runs on (Gemini provider — see backend config). */
 export const PERSONA_MODEL = {
-  audience: "gemini-3.6-flash",
-  expert: "gemini-3.1-pro-preview",
+  audience: "gemini-3.5-flash",
+  expert: "gemini-3.5-flash",
 };
 
 /**
