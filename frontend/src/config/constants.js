@@ -102,19 +102,20 @@ export const DEFAULT_LENS_PATH = "/audience";
  * runs; `panel` names its inner tab when it lives inside Story Canon.
  */
 export const AGENTS = [
-  {
-    id: "agent",
-    name: "Showrunner Agent",
-    source: "Showrunner",
-    route: "/canon",
-    panel: "agent",
-    role: "Runs the whole episode loop — ingest, continuity, simulate, decide, fix, re-simulate — until it converges.",
-    methods: ["State-graph agent", "Knowledge graph", "LLM"],
-    memory:
-      "Writes new canon on ingest, reads the graph to reason, and writes its decision back.",
-    reads: true,
-    writes: true,
-  },
+  // Temporarily hidden — Showrunner Agent directory card is commented out.
+  // {
+  //   id: "agent",
+  //   name: "Showrunner Agent",
+  //   source: "Showrunner",
+  //   route: "/canon",
+  //   panel: "agent",
+  //   role: "Runs the whole episode loop — ingest, continuity, simulate, decide, fix, re-simulate — until it converges.",
+  //   methods: ["State-graph agent", "Knowledge graph", "LLM"],
+  //   memory:
+  //     "Writes new canon on ingest, reads the graph to reason, and writes its decision back.",
+  //   reads: true,
+  //   writes: true,
+  // },
   {
     id: "holes",
     name: "Plot Hole Hunter",
@@ -141,19 +142,20 @@ export const AGENTS = [
     reads: true,
     writes: false,
   },
-  {
-    id: "mdp",
-    name: "MDP Optimizer",
-    source: "MDP Optimizer",
-    route: "/canon",
-    panel: "mdp",
-    role: "Treats the ending as a decision process and searches a policy for the highest expected reward.",
-    methods: ["MDP policy search", "Knowledge graph", "LLM"],
-    memory:
-      "Reads canon to score each policy state against what the audience already knows.",
-    reads: true,
-    writes: false,
-  },
+  // Temporarily hidden — MDP Optimizer directory card is commented out.
+  // {
+  //   id: "mdp",
+  //   name: "MDP Optimizer",
+  //   source: "MDP Optimizer",
+  //   route: "/canon",
+  //   panel: "mdp",
+  //   role: "Treats the ending as a decision process and searches a policy for the highest expected reward.",
+  //   methods: ["MDP policy search", "Knowledge graph", "LLM"],
+  //   memory:
+  //     "Reads canon to score each policy state against what the audience already knows.",
+  //   reads: true,
+  //   writes: false,
+  // },
   {
     id: "room",
     name: "Writers' Room",
@@ -222,8 +224,9 @@ export const CANON_PANELS = [
   { id: "graph", label: "Canon Graph" },
   { id: "holes", label: "Plot Holes" },
   { id: "planner", label: "Cliffhanger Planner" },
-  { id: "agent", label: "Showrunner Agent" },
-  { id: "mdp", label: "MDP Optimizer" },
+  // Temporarily hidden — Showrunner Agent and MDP Optimizer tabs are commented out.
+  // { id: "agent", label: "Showrunner Agent" },
+  // { id: "mdp", label: "MDP Optimizer" },
 ];
 
 /**
