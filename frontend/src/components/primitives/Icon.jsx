@@ -52,6 +52,21 @@ const PATHS = {
       <line x1="6" y1="6" x2="18" y2="18" />
     </>
   ),
+  image: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </>
+  ),
+  play: <polygon points="6 4 20 12 6 20 6 4" />,
+  stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
+  sparkles: (
+    <>
+      <path d="M12 3l1.8 4.6L18.5 9.4l-4.7 1.8L12 16l-1.8-4.8L5.5 9.4l4.7-1.8z" />
+      <path d="M18.5 14.5l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z" />
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 18, strokeWidth = 1.8 }) {

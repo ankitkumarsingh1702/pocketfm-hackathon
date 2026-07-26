@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { DEFAULT_STORY_META, SAMPLE_STORY } from '../config/constants'
 import { isBlank, lastScene } from '../utils/story'
-import { useAudienceSimulator } from './useAudienceSimulator'
 import { useCanon } from './useCanon'
 import { useCliffhangerOptimizer } from './useCliffhangerOptimizer'
 import { useDbMemory } from './useDbMemory'
@@ -25,15 +24,16 @@ export function useStudio(activeTab) {
   const [story, setStory] = useState(SAMPLE_STORY)
 
   const health = useHealth()
-  const audience = useAudienceSimulator()
   const cliffhanger = useCliffhangerOptimizer()
   const writersRoom = useWritersRoom()
   const canon = useCanon()
   const dbMemory = useDbMemory(activeTab === 'db')
 
+  // The Audience Simulator ('sim') is self-contained (its own controller), so it
+  // is not part of the shared run/loading orchestration here.
   const lensByTab = useMemo(
-    () => ({ sim: audience, opt: cliffhanger, room: writersRoom }),
-    [audience, cliffhanger, writersRoom],
+    () => ({ opt: cliffhanger, room: writersRoom }),
+    [cliffhanger, writersRoom],
   )
   // Self-contained tabs (Writers Room, Story Canon) run their own controls, so
   // the shared run/loading state simply doesn't apply to them.
@@ -51,9 +51,6 @@ export function useStudio(activeTab) {
     if (isBlank(story)) return
     const payload = buildStory()
     switch (activeTab) {
-      case 'sim':
-        audience.run(payload)
-        break
       case 'opt':
         cliffhanger.run(payload, lastScene(story))
         break
@@ -63,7 +60,7 @@ export function useStudio(activeTab) {
       default:
         break
     }
-  }, [activeTab, story, buildStory, audience, cliffhanger, writersRoom])
+  }, [activeTab, story, buildStory, cliffhanger, writersRoom])
 
   return {
     // shared inputs
@@ -72,7 +69,6 @@ export function useStudio(activeTab) {
     // backend status
     health,
     // per-lens state
-    audience,
     cliffhanger,
     writersRoom,
     canon,

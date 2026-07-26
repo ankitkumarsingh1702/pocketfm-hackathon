@@ -65,6 +65,45 @@ export function writersRoom(story) {
   return request('/api/lenses/writers-room', { method: 'POST', body: { story } })
 }
 
+// --- Audience Simulator ("Living Audience") --------------------------------
+
+/** GET /api/audience-sim/library -> AudienceLibrary { members[], total, source } */
+export function getAudienceLibrary() {
+  return request('/api/audience-sim/library')
+}
+
+/**
+ * POST /api/audience-sim/generate -> AudienceLibrary
+ * Synthesise a diverse audience of listener-agents (persisted by default).
+ */
+export function generateAudience({ n, brief, seedSegments, persist = true } = {}) {
+  const body = { persist }
+  if (n != null) body.n = n
+  if (brief) body.brief = brief
+  if (Array.isArray(seedSegments) && seedSegments.length) body.seed_segments = seedSegments
+  return request('/api/audience-sim/generate', { method: 'POST', body })
+}
+
+/**
+ * POST /api/audience-sim/run/stream -> NDJSON reaction events.
+ *
+ * Streams one event per agent as it reacts ("reaction"/"agent_error"), bookended
+ * by "run_started" and a terminal "done" carrying the aggregated result. An
+ * edited roster is sent as `audience` (honoured verbatim); omit it to reuse the
+ * persisted knowledge-graph audience.
+ *
+ * @param {{story:object, audience?:object[], n?:number, useLibrary?:boolean}} payload
+ * @param {(event:object)=>void} onEvent
+ * @param {AbortSignal} [signal]
+ */
+export function audienceSimStream({ story, audience, n, useLibrary }, onEvent, signal) {
+  const body = { story }
+  if (Array.isArray(audience) && audience.length) body.audience = audience
+  if (n != null) body.n = n
+  if (useLibrary != null) body.use_library = useLibrary
+  return ndjsonStream('/api/audience-sim/run/stream', body, onEvent, signal)
+}
+
 /**
  * POST /api/lenses/cliffhanger -> CliffhangerResult
  * @param {{title:string, episode:string, text:string}} story
