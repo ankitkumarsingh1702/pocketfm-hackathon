@@ -43,6 +43,18 @@ from app.schemas import (
 _SOURCE = "Audience Simulator"
 
 
+def resolve_canon(story_so_far: str | None, graph_canon: str | None, cap: int) -> str:
+    """Choose the story-so-far context for the reacting agents and bound its size.
+
+    The client-assembled recap (episodes 1..N-1 of the posted show) wins: it is
+    episode-scoped — so an agent reacting to episode N can't "remember" future
+    episodes — and works for the bundled library shows that never enter the
+    knowledge graph. Falls back to the shared graph canon for standalone posts.
+    Hard-capped so a long season can't blow the prompt budget.
+    """
+    return (story_so_far or graph_canon or "")[:cap]
+
+
 async def resolve_audience(req: AudienceSimRequest) -> tuple[list[Persona], str]:
     """Return ``(members, source)`` for a run — provided / graph / generated."""
     n = min(req.n or settings.sim_panel_default, settings.sim_panel_max)
@@ -100,8 +112,10 @@ async def stream_audience_sim(
         }
     )
 
-    # Ground the agents in shared story memory (best-effort; empty when no graph).
-    canon = render_canon_memory(await fetch_canon_subgraph(req.story, source=_SOURCE))
+    # Ground the agents in the story SO FAR: the client's episode-scoped recap of
+    # what precedes this post (episodes 1..N-1), else the shared-graph canon.
+    graph_canon = render_canon_memory(await fetch_canon_subgraph(req.story, source=_SOURCE))
+    canon = resolve_canon(req.story.story_so_far, graph_canon, settings.canon_max_chars)
 
     pairs, dropped = await run_social_reactions(
         members,
