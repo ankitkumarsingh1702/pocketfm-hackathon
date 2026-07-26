@@ -104,10 +104,14 @@ def test_audience_verdict_math_offline():
 
     verdict = _audience_verdict(pairs)
 
-    # 2 of 4 listeners continue -> 50%; mean of 90/60/40/20 == 52.5
-    assert verdict.following_pct == 50.0
+    # Graded retention (0.7*intent + 0.3*hook/100), averaged over the 4 listeners:
+    # (0.97 + 0.88 + 0.12 + 0.06) / 4 = 0.5075 -> 50.7%. mean of 90/60/40/20 == 52.5.
+    assert verdict.following_pct == 50.7
     assert verdict.avg_engagement == 52.5
-    # 50% following -> partial-comprehension band
+    # Raw continue-intent is surfaced alongside the graded read: 2 of 4 would return.
+    assert verdict.returning_count == 2
+    assert verdict.respondent_count == 4
+    # ~51% following -> partial-comprehension band
     assert "partially following" in verdict.comprehension
 
     # Confusion points come only from pre-climax droppers (middle + hook here).

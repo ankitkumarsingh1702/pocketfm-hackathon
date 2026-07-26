@@ -717,6 +717,12 @@
   transition: width 0.5s ease;
 }
 
+.meter__note {
+  font-size: 0.8rem;
+  color: var(--ui-ink-muted);
+  margin-top: 0.15rem;
+}
+
 .verdict-comprehension {
   font-size: 1rem;
   line-height: 1.6;
