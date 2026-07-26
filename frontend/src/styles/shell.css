@@ -218,6 +218,21 @@
   gap: 10px;
   margin-bottom: 36px;
 }
+/* The eyebrow above every lens title. Red rather than the shared label grey.
+   Uses --accent-text-sm, not --accent: this is 11px text on white, and the
+   palette's note is explicit that small red text has to darken to clear AA.
+
+   Scoped to its own class because `.label-upper` is a shared utility used in
+   ~40 places — recolouring that would turn every label in the studio red.
+
+   Both classes are in the selector deliberately. This file is @imported at the
+   TOP of index.css, while `.label-upper` is declared further down it, so at
+   equal specificity the utility's grey wins on source order. Qualifying with
+   both classes settles it on specificity instead of relying on import order,
+   which is the kind of thing that silently breaks when files get reshuffled. */
+.label-upper.page-head__eyebrow {
+  color: var(--accent-text-sm);
+}
 .page-head__title {
   font-size: clamp(26px, 3vw, 38px);
   font-weight: 600;
