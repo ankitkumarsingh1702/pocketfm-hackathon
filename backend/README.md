@@ -42,7 +42,7 @@ commented list. Key ones:
 | `GOOGLE_CLOUD_PROJECT`  | `hushh-pda-uat`              | GCP project hosting Vertex AI / Firestore |
 | `VERTEX_LOCATION`       | `us-central1`                | Region for Gemini-on-Vertex              |
 | `LLM_PROVIDER`          | `gemini`                     | `gemini` or `claude`                      |
-| `GEMINI_MODEL`          | `gemini-2.5-flash`           | Gemini model id                           |
+| `GEMINI_MODEL`          | `gemini-3.6-flash`           | Gemini model id                           |
 | `CLAUDE_MODEL`          | `claude-haiku-4-5@20251001`  | Claude-on-Vertex model id (dated form)    |
 | `CLAUDE_LOCATION`       | `us-east5`                   | Region for Claude-on-Vertex               |
 | `USE_FIRESTORE`         | `true`                       | Persist runs to Firestore (graceful off)  |

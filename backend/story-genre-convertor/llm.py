@@ -28,10 +28,10 @@ from pydantic import BaseModel
 PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "pocketfm-hackathon")
 LOCATION = os.environ.get("VERTEX_LOCATION", "us-central1")
 
-# gemini-2.5-pro is the safe default for extraction and judging — both are
-# reasoning tasks where a flash-tier model gets sloppy about causal edges.
+# gemini-3.1-pro-preview is the safe default for extraction and judging — both
+# are reasoning tasks where a flash-tier model gets sloppy about causal edges.
 # Point GEMINI_MODEL at something newer or cheaper without touching code.
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview")
 
 # Both calls here are analysis, not creative writing: the same story must
 # decompose the same way twice, or calibrate.py's ceiling check ends up

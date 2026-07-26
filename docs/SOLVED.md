@@ -21,9 +21,9 @@ publish.
 - **Multiple expert agents, simultaneously** — Director, Script Editor (editor),
   Story Critic (critic), Audience Psychologist (psychologist), **Historian**,
   plus Sound Designer and Showrunner/Producer — each returns a structured
-  critique (verdict, score, strengths, issues, concrete fix) on Gemini 2.5 Pro,
+  critique (verdict, score, strengths, issues, concrete fix) on Gemini 3.1 Pro,
   run concurrently.
-- **The audience, in the room** — listener personas react in parallel (Gemini 2.5
+- **The audience, in the room** — listener personas react in parallel (Gemini 3.6
   Flash) and report following %, engagement, a plain "are they following the
   story?" read, confusion points, and representative quotes.
 - **One fused consensus** across experts + audience.
