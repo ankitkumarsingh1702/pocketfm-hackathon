@@ -18,6 +18,7 @@ import {
 import { ErrorState } from '../StateViews'
 import StoryPicker from '../StoryPicker'
 import ImagePicker from '../ImagePicker'
+import { buildStorySoFar } from '../../lib/storySoFar'
 // The agent-profile drawer + its form controls are styled by the Writers Room
 // stylesheet (and its --ui-* token bridge). Import them so the drawer renders
 // correctly when this lens is the first one opened.
@@ -291,7 +292,8 @@ export default function AudienceSimulatorTab() {
         <SectionLabel style={{ marginBottom: 8 }}>How the Living Audience works</SectionLabel>
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--muted)' }}>
           Each listener is a real agent. It <strong style={{ color: 'var(--ink)' }}>sees your image</strong>,
-          {' '}recalls how it reacted to your past posts from the shared knowledge graph, deliberates, then
+          {' '}<strong style={{ color: 'var(--ink)' }}>knows the story so far</strong> up to the episode you
+          post, recalls how it reacted to your past posts from the shared knowledge graph, deliberates, then
           decides one thing to do — scroll past, like, comment, share, save, subscribe or binge. Edit any
           profile below and that listener&rsquo;s behaviour changes on the next run.
         </p>
@@ -304,6 +306,11 @@ export default function AudienceSimulatorTab() {
             onSelect={(s) => {
               setPostField('title', s.title)
               setPostField('text', s.text)
+              // Carry the episode label + a recap of the episodes before it, so
+              // agents react to episode N knowing episodes 1..N-1 — swapping
+              // episodes changes what they "remember", not just the teaser.
+              setPostField('episode', s.episode || '')
+              setPostField('storySoFar', buildStorySoFar(s.episodes, s.episodeN))
             }}
             label="Load a ready-made story to test"
           />

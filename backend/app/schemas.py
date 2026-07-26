@@ -26,6 +26,12 @@ class Story(BaseModel):
     # None and behave exactly as before.
     image_base64: str | None = None
     image_mime: str | None = None
+    # Optional "story so far" recap (Audience Simulator). A bounded summary of the
+    # episodes PRECEDING the one being posted, so listener-agents react to episode
+    # N grounded in episodes 1..N-1 instead of blind. Assembled on the client from
+    # the loaded story's prior-episode scripts; None for standalone posts, in which
+    # case the shared-graph canon (if any) is used instead.
+    story_so_far: str | None = None
 
 
 # ---------------------------------------------------------------------------
