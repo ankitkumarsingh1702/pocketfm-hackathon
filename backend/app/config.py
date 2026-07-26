@@ -122,6 +122,9 @@ class Settings(BaseSettings):
     sim_synthesis_concurrency: int = 6  # bounded persona-generation batches
     sim_max_retries: int = 3        # retries on 429/503, with backoff + jitter
     sim_agentic: bool = True        # run the multi-step perceive→recall→react loop
+    # How many large agent runs may be in flight at once (the run gate). Raised
+    # above 1 so concurrent demos / judges don't block one another.
+    max_concurrent_runs: int = 4
     planner_panel_default: int = 1000
     planner_scout_default: int = 100
     planner_finalists_default: int = 3

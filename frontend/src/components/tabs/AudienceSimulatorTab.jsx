@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 
 import AgentProfile from '../../AgentProfile'
 import { audienceSummary } from '../../lib/agents'
@@ -17,6 +17,7 @@ import {
 } from '../primitives'
 import { ErrorState } from '../StateViews'
 import StoryPicker from '../StoryPicker'
+import ImagePicker from '../ImagePicker'
 // The agent-profile drawer + its form controls are styled by the Writers Room
 // stylesheet (and its --ui-* token bridge). Import them so the drawer renders
 // correctly when this lens is the first one opened.
@@ -269,6 +270,13 @@ export default function AudienceSimulatorTab() {
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0
   const isDefaults = !library || library.source === 'defaults'
 
+  // Pagination — browse the full audience (up to 1,000), not just a preview.
+  const [page, setPage] = useState(0)
+  const pageCount = Math.max(1, Math.ceil(roster.length / ROSTER_PREVIEW))
+  const safePage = Math.min(page, pageCount - 1)
+  const pageStart = safePage * ROSTER_PREVIEW
+  const pageItems = roster.slice(pageStart, pageStart + ROSTER_PREVIEW)
+
   const onGenerate = () => generate(panelSize)
 
   return (
@@ -328,6 +336,7 @@ export default function AudienceSimulatorTab() {
               <Icon name="image" size={16} />
               {post.image ? 'Change image' : 'Attach image'}
             </Button>
+            <ImagePicker onSelect={(img) => setPostField('image', img)} title={post.title} />
             {post.image && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img
@@ -382,16 +391,31 @@ export default function AudienceSimulatorTab() {
             Synthesising a diverse audience of distinct listeners…
           </p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-            {roster.slice(0, ROSTER_PREVIEW).map((agent) => (
-              <RosterCard key={agent.id} agent={agent} onClick={() => openAgent(agent.id)} />
-            ))}
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+              {pageItems.map((agent) => (
+                <RosterCard key={agent.id} agent={agent} onClick={() => openAgent(agent.id)} />
+              ))}
+            </div>
             {roster.length > ROSTER_PREVIEW && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13, border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)', padding: 12 }}>
-                +{formatInt(roster.length - ROSTER_PREVIEW)} more listeners in the panel
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginTop: 14 }}>
+                <span style={{ fontSize: 13, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+                  Showing {formatInt(pageStart + 1)}–{formatInt(Math.min(pageStart + ROSTER_PREVIEW, roster.length))} of {formatInt(roster.length)} listeners
+                </span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Button variant="secondary" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage <= 0}>
+                    Prev
+                  </Button>
+                  <span style={{ fontSize: 13, color: 'var(--muted)', minWidth: 92, textAlign: 'center' }}>
+                    Page {safePage + 1} / {formatInt(pageCount)}
+                  </span>
+                  <Button variant="secondary" size="sm" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
