@@ -183,38 +183,66 @@ a:hover {
 }
 
 /* ------------------------------------------------------- scrollbars --- */
+/* Accent red, and narrower than the browser default, on the page and inside
+   every scroll container.
+
+   THE TWO PATHS BELOW ARE REQUIRED, NOT BELT-AND-BRACES. A browser honours
+   EITHER the standard `scrollbar-*` properties OR the ::-webkit-scrollbar
+   pseudo-elements — never both. The moment `scrollbar-color` is set on a
+   scroller, Blink stops applying the pseudo-elements to it and falls back to
+   standard sizing, whose narrowest option is the `thin` keyword.
+
+   That is why this block used to be half dead: `scrollbar-color` was set on
+   `html`, so every `*::-webkit-scrollbar` rule under it was ignored in Blink and
+   the declared 8px rendered as the `thin` keyword's ~10px. Setting a size did
+   nothing at all.
+
+   So: standard properties for Firefox, which has no pseudo-elements; then inside
+   the @supports guard, hand Blink/WebKit back to the pseudo-elements by
+   returning both standard properties to their initial `auto`, which re-enables
+   them and lets an exact width through. */
 :root {
-  --scrollbar-size: 8px; /* down from the ~16px OS default */
-  --scrollbar-thumb: #d8d8d4;
-  --scrollbar-thumb-hover: var(--grey-400);
+  --scrollbar-size: 6px; /* down from the ~16px OS default */
+  --scrollbar-thumb: var(--accent);
+  --scrollbar-thumb-hover: var(--accent-press);
   --scrollbar-track: transparent;
 }
 
-/* Firefox — `scrollbar-width`/`scrollbar-color` are inherited, so setting them
-   on the root cascades to the page and every nested scroll container. */
+/* Firefox. `scrollbar-color` is inherited so it reaches every nested scroller;
+   `scrollbar-width` is NOT inherited, so it is re-declared on the universal
+   selector below rather than relying on the cascade from `html`. */
 html {
-  scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
+* {
+  scrollbar-width: thin;
+}
 
-/* WebKit / Blink (Chrome, Edge, Safari, the in-app browser). The universal
-   selector styles the page scrollbar and all inner scroll areas alike. */
-*::-webkit-scrollbar {
-  width: var(--scrollbar-size);
-  height: var(--scrollbar-size);
-}
-*::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-}
-*::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: var(--radius-pill);
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
-*::-webkit-scrollbar-corner {
-  background: transparent;
+@supports selector(::-webkit-scrollbar) {
+  /* Blink/WebKit only — Firefox fails this query and keeps the rules above.
+     Reset the standard properties so the pseudo-elements apply again. */
+  html,
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--radius-pill);
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 /* ------------------------------------------------------- animations --- */

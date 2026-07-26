@@ -48,45 +48,9 @@
   border-right: 1px solid var(--border);
   background: var(--canvas);
   overflow-y: auto;
-
-  /* Sidebar scrollbar: accent red, narrower than the page default.
-     Scoped to this scroller on purpose — the page scrollbar is deliberately
-     neutral grey, so nothing in index.css changes.
-
-     The two-path shape below is not belt-and-braces, it is required. A browser
-     honours EITHER the standard properties OR the ::-webkit-scrollbar
-     pseudo-elements, never both: the moment `scrollbar-color` is set on a
-     scroller, Blink stops applying the pseudo-elements to it and falls back to
-     standard sizing, where the narrowest option is the `thin` keyword (~11px
-     here — wider than we want, and wider than the 10px page bar).
-
-     So: standard properties for Firefox, which has no pseudo-elements; and
-     inside the @supports guard, hand Blink/WebKit back to the pseudo-elements
-     by returning both standard properties to their initial `auto`, which
-     re-enables them and lets an exact width through. Measured: 11px -> 6px. */
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent) transparent;
-}
-
-@supports selector(::-webkit-scrollbar) {
-  /* Blink/WebKit only. Firefox fails this query, so it keeps the rules above. */
-  .sidebar {
-    scrollbar-width: auto;
-    scrollbar-color: auto;
-  }
-  .sidebar::-webkit-scrollbar {
-    width: 5px;
-  }
-  .sidebar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .sidebar::-webkit-scrollbar-thumb {
-    background: var(--accent);
-    border-radius: var(--radius-pill);
-  }
-  .sidebar::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-press);
-  }
+  /* The red, narrow scrollbar this used to declare for itself is now the global
+     default in index.css, so the override here was removed rather than left to
+     drift out of sync with it. */
 }
 
 .side-nav {
