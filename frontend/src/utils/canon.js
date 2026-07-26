@@ -514,7 +514,16 @@ export const AGENT_NODE_LABELS = {
 export function emptyAgent() {
   const nodes = {}
   for (const n of AGENT_NODES) nodes[n] = { status: 'pending', detail: '' }
-  return { running: false, error: null, nodes, log: [], decision: null, result: null }
+  return {
+    running: false,
+    error: null,
+    nodes,
+    log: [],
+    decision: null,
+    result: null,
+    audienceSource: null,
+    panelSize: 0,
+  }
 }
 
 /** Fold one streamed showrunner event into agent state (pure). */
@@ -522,7 +531,11 @@ export function reduceAgent(state, ev) {
   const nodes = { ...state.nodes }
   switch (ev.type) {
     case 'run_started':
-      return state
+      return {
+        ...state,
+        audienceSource: ev.audience_source ?? state.audienceSource,
+        panelSize: ev.panel_size ?? state.panelSize,
+      }
     case 'node_started':
       nodes[ev.node] = { ...(nodes[ev.node] || {}), status: 'running' }
       return { ...state, nodes }
@@ -583,14 +596,32 @@ export function toActivityView(result) {
 // --- MDP policy search -----------------------------------------------------
 
 export function emptyMdp() {
-  return { running: false, error: null, baseline: null, steps: [], final: null, best: null }
+  return {
+    running: false,
+    error: null,
+    baseline: null,
+    steps: [],
+    final: null,
+    best: null,
+    audienceSource: null,
+    panelSize: 0,
+    discount: null,
+    discountedReturn: null,
+    policy: null,
+  }
 }
 
 /** Fold one streamed MDP event into policy-search state (pure). */
 export function reduceMdp(state, ev) {
   switch (ev.type) {
     case 'baseline':
-      return { ...state, baseline: ev.reward }
+      return {
+        ...state,
+        baseline: ev.reward,
+        audienceSource: ev.audience_source ?? state.audienceSource,
+        panelSize: ev.panel_size ?? state.panelSize,
+        discount: ev.discount ?? state.discount,
+      }
     case 'iteration_done':
       return {
         ...state,
@@ -601,9 +632,14 @@ export function reduceMdp(state, ev) {
             reward: ev.reward,
             bestReward: ev.best_reward,
             qValues: ev.q_values || [],
+            qChosen: ev.q_chosen ?? null,
+            valueNext: ev.value_next ?? null,
+            state: ev.state || '',
             preview: ev.preview,
           },
         ],
+        discount: ev.discount ?? state.discount,
+        discountedReturn: ev.discounted_return ?? state.discountedReturn,
       }
     case 'done': {
       const r = ev.result || {}
@@ -613,6 +649,10 @@ export function reduceMdp(state, ev) {
         baseline: r.baseline_reward ?? state.baseline,
         final: r.final_reward ?? state.final,
         best: r.best_action_text ?? state.best,
+        policy: r.policy ?? state.policy,
+        discount: r.discount ?? state.discount,
+        discountedReturn: r.discounted_return ?? state.discountedReturn,
+        audienceSource: r.audience_source ?? state.audienceSource,
       }
     }
     case 'error':

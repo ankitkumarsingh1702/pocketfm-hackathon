@@ -3,6 +3,7 @@ import './ui-tokens.css'
 import './writers-room.css'
 import { getPersonas, writersRoomStream } from './lib/api'
 import AgentProfile from './AgentProfile'
+import StoryPicker from './components/StoryPicker'
 import { useStatusToast } from './hooks/useStatusToast'
 import { useToast } from './components/toast/useToast'
 import { audienceSummary, cloneAgent, expertSummary, segmentOptions } from './lib/agents'
@@ -452,6 +453,16 @@ export default function WritersRoom() {
         {/* ---- Story input ---- */}
         <section className="composer" aria-labelledby="composer-heading">
           <h2 id="composer-heading" className="visually-hidden">Episode to run</h2>
+          <div style={{ marginBottom: 16 }}>
+            <StoryPicker
+              onSelect={(s) => {
+                setTitle(s.title)
+                setEpisode(s.episode)
+                setText(s.text)
+              }}
+              label="Load a ready-made story to run"
+            />
+          </div>
           <div className="composer__row">
             <label className="field">
               <span className="field__label">Title</span>

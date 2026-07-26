@@ -402,6 +402,7 @@ class ShowrunnerResult(BaseModel):
     converged: bool = True
     iterations: int = 0
     final_text: str = ""
+    audience_source: str = "default"
 
 
 class ShowrunnerRequest(BaseModel):
@@ -420,6 +421,8 @@ class MdpStep(BaseModel):
     reward: float
     best_reward: float
     q_values: list[float] = Field(default_factory=list)
+    state: str = ""
+    value: float = 0.0
 
 
 class MdpResult(BaseModel):
@@ -428,6 +431,9 @@ class MdpResult(BaseModel):
     final_reward: float = 0.0
     best_action_text: str = ""
     policy: str = "greedy"
+    discount: float = 0.0
+    discounted_return: float = 0.0
+    audience_source: str = "default"
 
 
 class MdpRequest(BaseModel):

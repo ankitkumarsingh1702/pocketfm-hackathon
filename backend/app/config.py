@@ -108,6 +108,10 @@ class Settings(BaseSettings):
     planner_scout_default: int = 100
     planner_finalists_default: int = 3
 
+    # --- RL / MDP (policy search over story decisions) -----------------------
+    mdp_discount: float = 0.85
+    mdp_lookahead: int = 2
+
     # --- API -----------------------------------------------------------------
     cors_origins: str = "http://localhost:5173,http://localhost:4173"
 

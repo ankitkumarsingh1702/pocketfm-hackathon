@@ -1,6 +1,7 @@
 import { CANON_PANELS } from '../../config/constants'
 import { AGENT_NODES, AGENT_NODE_LABELS } from '../../utils/canon'
 import HowItWorks from '../HowItWorks'
+import StoryPicker from '../StoryPicker'
 import {
   Button,
   Disclosure,
@@ -271,6 +272,7 @@ function CanonComposer({
   resetSession,
   resetting,
   resetError,
+  loadStory,
   locked = false,
 }) {
   return (
@@ -309,6 +311,11 @@ function CanonComposer({
           </span>
         )}
       </div>
+      {loadStory && (
+        <div style={{ marginBottom: 14 }}>
+          <StoryPicker onSelect={loadStory} label="Load a ready-made story into the canon" />
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <input
           style={{ ...inputStyle, flex: '2 1 220px' }}
@@ -932,6 +939,18 @@ const STATUS_GLYPH = {
   done: { glyph: '✓', color: 'var(--success)' },
 }
 
+function AudienceSourceBadge({ source, panelSize }) {
+  if (!source) return null
+  const living = source === 'living'
+  return (
+    <Pill
+      label="Reward model"
+      value={`${living ? 'Living Audience' : 'default archetypes'}${panelSize ? ` · ${panelSize}` : ''}`}
+      tone={living ? 'accent' : undefined}
+    />
+  )
+}
+
 /** Showrunner Agent panel — the state-graph loop, streamed node by node. */
 function ShowrunnerPanel({ agent, runAgent }) {
   const result = agent.result
@@ -941,6 +960,7 @@ function ShowrunnerPanel({ agent, runAgent }) {
         <Button onClick={runAgent} disabled={agent.running}>
           {agent.running ? 'Agent running…' : 'Run showrunner agent'}
         </Button>
+        <AudienceSourceBadge source={agent.audienceSource} panelSize={agent.panelSize} />
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>
           One agent: ingest → check continuity → simulate → decide → fix → re-simulate → converge
         </span>
@@ -1040,8 +1060,9 @@ function MdpPanel({ mdp, runMdp }) {
         <Button onClick={runMdp} disabled={mdp.running}>
           {mdp.running ? 'Optimizing…' : 'Run policy search'}
         </Button>
+        <AudienceSourceBadge source={mdp.audienceSource} panelSize={mdp.panelSize} />
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-          State = canon + audience · Action = candidate beat · Reward = simulated hook score
+          State = story + canon · Action = candidate beat · Reward = simulated hook · γ look-ahead
         </span>
       </div>
 
@@ -1064,10 +1085,35 @@ function MdpPanel({ mdp, runMdp }) {
                 </SectionLabel>
               </div>
             )}
+            {mdp.discountedReturn != null && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <MetricNumber value={mdp.discountedReturn} size="md" tone="ink" />
+                <SectionLabel style={{ fontSize: 10 }}>Discounted return</SectionLabel>
+              </div>
+            )}
           </div>
+          {(mdp.policy || mdp.discount != null) && (
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {mdp.policy ? `policy: ${mdp.policy}` : ''}
+              {mdp.discount != null ? `${mdp.policy ? ' · ' : ''}discount γ = ${mdp.discount}` : ''}
+            </span>
+          )}
           <SurfaceCard style={{ padding: 'var(--space-4)' }}>
             <RewardCurve baseline={mdp.baseline} steps={mdp.steps} />
           </SurfaceCard>
+          {mdp.steps.length > 0 && (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {mdp.steps.map((step) => (
+                <SurfaceCard key={step.iteration} style={{ padding: '12px 14px' }}>
+                  <SectionLabel style={{ fontSize: 10 }}>Step {step.iteration}</SectionLabel>
+                  <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+                    {step.state || 'Updated story state'} · immediate reward {step.reward}
+                    {step.qChosen != null ? ` · chosen Q-value ${step.qChosen}` : ''}
+                  </p>
+                </SurfaceCard>
+              ))}
+            </div>
+          )}
         </>
       )}
 

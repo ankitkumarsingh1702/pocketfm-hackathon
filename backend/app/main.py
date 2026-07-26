@@ -372,6 +372,39 @@ async def audience_sim_run_stream(req: AudienceSimRequest) -> StreamingResponse:
     return StreamingResponse(guarded_events(), media_type="application/x-ndjson")
 
 
+@app.get("/api/audience-sim/memory")
+async def audience_sim_memory(limit: int = 24) -> dict:
+    """Expose recent per-listener memories as judge-facing statefulness proof."""
+    from app.graph.audience_store import (
+        count_audience_members,
+        load_audience_members,
+        recall_member_memory,
+    )
+
+    members = await load_audience_members(limit=limit, source="DB / Memory")
+    total = await count_audience_members()
+    rows: list[dict] = []
+    for persona in members:
+        memory = await recall_member_memory(persona.id, limit=3)
+        rows.append(
+            {
+                "id": persona.id,
+                "name": persona.name,
+                "segment": persona.segment,
+                "age": persona.age,
+                "city": persona.city,
+                "memory": memory,
+                "memory_count": len(memory),
+            }
+        )
+    return {
+        "members": rows,
+        "total": total,
+        "shown": len(rows),
+        "remembering": sum(1 for row in rows if row["memory_count"] > 0),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Static SPA (single-service Cloud Run deploy)
 # ---------------------------------------------------------------------------

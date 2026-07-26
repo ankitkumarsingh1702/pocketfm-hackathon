@@ -11,6 +11,7 @@ import RewriteView from '../genre/RewriteView'
 import RunStatus from '../genre/RunStatus'
 import SkeletonView from '../genre/SkeletonView'
 import { Button, Disclosure, Tabs } from '../primitives'
+import StoryPicker from '../StoryPicker'
 import { useToast } from '../toast/useToast'
 
 const MODE_TABS = [
@@ -114,6 +115,11 @@ export default function GenreConverterTab() {
             Upload a .txt
           </Button>
         </div>
+
+        <StoryPicker
+          onSelect={(s) => c.setSource(`${s.title}\n\n${s.text}`)}
+          label="Load a ready-made story to convert"
+        />
 
         <textarea
           id="sgc-source"

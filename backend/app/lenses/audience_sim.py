@@ -106,6 +106,7 @@ async def stream_audience_sim(
         canon=canon,
         canon_fp=canon_fingerprint(canon),
         on_event=emit,
+        source=_SOURCE,
     )
 
     result = aggregate_sim(pairs, dropped=dropped)

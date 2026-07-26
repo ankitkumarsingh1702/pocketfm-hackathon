@@ -25,9 +25,15 @@ import random
 from collections.abc import Callable
 
 from app.config import settings
+from app.db.activity import record_activity
 from app.engine.aggregate import reaction_view
 from app.engine.cache import Cache
-from app.engine.runner import _story_hash, persona_fingerprint, persona_preamble, story_images
+from app.engine.runner import (
+    _story_hash,
+    persona_fingerprint,
+    persona_preamble,
+    story_images,
+)
 from app.graph.audience_store import recall_member_memory
 from app.llm.base import LLMClient
 from app.schemas import Persona, SocialReaction, Story
@@ -143,6 +149,7 @@ async def run_social_reactions(
     canon: str | None = None,
     canon_fp: str | None = None,
     on_event: Callable[[dict], None] | None = None,
+    source: str = "Audience Simulator",
 ) -> tuple[list[tuple[Persona, SocialReaction]], int]:
     """Run every persona's agent loop concurrently; stream + collect reactions.
 
@@ -157,13 +164,17 @@ async def run_social_reactions(
     canon_key = canon_fp or "nocanon"
     images = story_images(story)
     total = len(personas)
+    recalled = 0
 
     async def _one(persona: Persona) -> tuple[Persona, SocialReaction]:
+        nonlocal recalled
         # recall — the agent reads its own memory (bounded, best-effort).
         memory: list[dict] = []
         if settings.sim_agentic:
             async with kg_sem:
                 memory = await recall_member_memory(persona.id)
+            if memory:
+                recalled += 1
 
         system, user = build_social_prompt(persona, story, canon, memory)
 
@@ -184,7 +195,7 @@ async def run_social_reactions(
                 try:
                     return persona, SocialReaction.model_validate(cached)
                 except Exception:  # noqa: BLE001 - stale/corrupt entry, regenerate
-                    pass
+                    logger.debug("Ignoring stale social-reaction cache entry for %s", persona.id)
 
         async with sem:
             reaction = await _react_with_retry(
@@ -219,4 +230,12 @@ async def run_social_reactions(
                     "reaction": reaction_view(persona, reaction).model_dump(),
                 }
             )
+    if settings.sim_agentic:
+        record_activity(
+            "read",
+            "recall_member_memory",
+            source,
+            f"{recalled} of {total} agents recalled prior reactions from shared memory",
+            {"agents_recalled": recalled, "panel": total},
+        )
     return pairs, dropped
