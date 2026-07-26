@@ -31,7 +31,12 @@ class Settings(BaseSettings):
     # "gemini" (default, native to any GCP project) or "claude" (requires the
     # Claude models to be enabled in Vertex AI Model Garden).
     llm_provider: str = "gemini"
-    gemini_model: str = "gemini-3.6-flash"
+    # NOTE: keep these to model IDs actually enabled for this project in
+    # ``vertex_location``. gemini-3.x IDs (e.g. 3.6-flash / 3.1-pro-preview) are
+    # NOT available here and return 404 NOT_FOUND on every call — which silently
+    # drops every audience agent and breaks canon/rewrite. The 2.5 family is the
+    # verified-working tier; upgrade only to an ID confirmed in Model Garden.
+    gemini_model: str = "gemini-2.5-flash"
     # Claude on Vertex: current-gen models use the bare ID; region-gated and
     # must be enabled in Vertex AI Model Garden before use.
     claude_model: str = "claude-sonnet-5"
@@ -40,14 +45,14 @@ class Settings(BaseSettings):
     # --- Per-lens model tiering (Gemini) -------------------------------------
     # Fast model for the high-volume audience fan-out; a stronger model for the
     # low-volume, quality-critical lenses. Only used when llm_provider == 'gemini'.
-    model_audience: str = "gemini-3.6-flash"
-    model_experts: str = "gemini-3.1-pro-preview"
-    model_rewrite: str = "gemini-3.1-pro-preview"
+    model_audience: str = "gemini-2.5-flash"
+    model_experts: str = "gemini-2.5-pro"
+    model_rewrite: str = "gemini-2.5-pro"
     # Audience Simulator ("Living Audience") reaction agents. The social-post
     # lens uses the stronger multimodal model; the 1000-agent cliffhanger panel
     # uses the audience/Flash tier because statefulness comes from persisted
     # identity + memory, not from choosing the slowest model.
-    model_sim: str = "gemini-3.1-pro-preview"
+    model_sim: str = "gemini-2.5-pro"
 
     # --- Generation ----------------------------------------------------------
     temperature: float = 0.9        # variety across personas
