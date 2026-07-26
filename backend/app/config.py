@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # "gemini" (default, native to any GCP project) or "claude" (requires the
     # Claude models to be enabled in Vertex AI Model Garden).
     llm_provider: str = "gemini"
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.6-flash"
     # Claude on Vertex: current-gen models use the bare ID; region-gated and
     # must be enabled in Vertex AI Model Garden before use.
     claude_model: str = "claude-sonnet-5"
@@ -40,18 +40,18 @@ class Settings(BaseSettings):
     # --- Per-lens model tiering (Gemini) -------------------------------------
     # Fast model for the high-volume audience fan-out; a stronger model for the
     # low-volume, quality-critical lenses. Only used when llm_provider == 'gemini'.
-    model_audience: str = "gemini-2.5-flash"
-    model_experts: str = "gemini-2.5-pro"
-    model_rewrite: str = "gemini-2.5-pro"
+    model_audience: str = "gemini-3.6-flash"
+    model_experts: str = "gemini-3.1-pro-preview"
+    model_rewrite: str = "gemini-3.1-pro-preview"
     # Audience Simulator ("Living Audience") reaction agents. The social-post
     # lens uses the stronger multimodal model; the 1000-agent cliffhanger panel
     # uses the audience/Flash tier because statefulness comes from persisted
     # identity + memory, not from choosing the slowest model.
-    model_sim: str = "gemini-2.5-pro"
+    model_sim: str = "gemini-3.1-pro-preview"
 
     # --- Generation ----------------------------------------------------------
     temperature: float = 0.9        # variety across personas
-    # Gemini 2.5 spends output tokens on "thinking" — keep this generous so the
+    # Gemini spends output tokens on "thinking" — keep this generous so the
     # thinking budget never starves the structured JSON output.
     max_output_tokens: int = 8192
     concurrency: int = 10           # simultaneous LLM calls in the batch runner

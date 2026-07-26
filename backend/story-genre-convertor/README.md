@@ -68,12 +68,12 @@ persist across shells:
 set -a && . ./.env && set +a
 ```
 
-Model defaults to `gemini-2.5-pro` — extraction and alignment are reasoning tasks
-(decomposing causality, judging structural equivalence) where a flash-tier model
-gets sloppy about causal edges. Override without touching code:
+Model defaults to `gemini-3.1-pro-preview` — extraction and alignment are
+reasoning tasks (decomposing causality, judging structural equivalence) where a
+flash-tier model gets sloppy about causal edges. Override without touching code:
 
 ```bash
-export GEMINI_MODEL=gemini-2.5-flash    # cheaper; re-run calibrate.py after switching
+export GEMINI_MODEL=gemini-3.6-flash    # cheaper; re-run calibrate.py after switching
 export VERTEX_LOCATION=us-east5         # if a region runs short on quota
 ```
 

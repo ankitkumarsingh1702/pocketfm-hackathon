@@ -7,10 +7,11 @@ import FidelityReport from '../genre/FidelityReport'
 import GenrePicker from '../genre/GenrePicker'
 import HistoryView from '../genre/HistoryView'
 import LiveScenes from '../genre/LiveScenes'
+import PipelineExplainer from '../genre/PipelineExplainer'
 import RewriteView from '../genre/RewriteView'
 import RunStatus from '../genre/RunStatus'
 import SkeletonView from '../genre/SkeletonView'
-import { Button, Disclosure, Tabs } from '../primitives'
+import { Button, Disclosure, SideSheet, Tabs } from '../primitives'
 import StoryPicker from '../StoryPicker'
 import { useToast } from '../toast/useToast'
 
@@ -37,6 +38,7 @@ export default function GenreConverterTab() {
   const toast = useToast()
   const [mode, setMode] = useState('convert')
   const [view, setView] = useState('rewrite')
+  const [explainerOpen, setExplainerOpen] = useState(false)
 
   // .txt upload: read client-side, land the text in the source box.
   const fileInputRef = useRef(null)
@@ -96,7 +98,20 @@ export default function GenreConverterTab() {
     <div style={{ paddingTop: 4, display: 'flex', flexDirection: 'column', gap: 36 }}>
       {/* Convert / History switch. Both stay mounted so a running job's live
           view survives a look at the history. */}
-      <Tabs tabs={MODE_TABS} active={mode} onChange={setMode} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <Tabs tabs={MODE_TABS} active={mode} onChange={setMode} />
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => setExplainerOpen(true)}>
+          How it works
+        </Button>
+      </div>
+
+      {explainerOpen && (
+        <SideSheet title="How the Genre Converter works" onClose={() => setExplainerOpen(false)}>
+          <PipelineExplainer />
+        </SideSheet>
+      )}
 
       <div hidden={mode !== 'convert'} style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
       {/* -------------------------------------------------------- source --- */}

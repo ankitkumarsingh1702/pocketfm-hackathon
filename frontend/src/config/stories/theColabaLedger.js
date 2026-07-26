@@ -29,7 +29,7 @@ export default [
   {
     title: 'The Bronze Trail',
     scenes: [
-      `Farhan visits Chor Bazaar dealer Hussain Merchant on Mutton Street, who examines photographs of the missing Nataraja and identifies it as a twelfth-century Chola bronze worth at minimum eighty lakh rupees on the black market.`,
+      `Farhan visits Chor Bazaar dealer Hussain Merchant on Mutton Street, who examines photographs of the missing Nataraja and identifies it as a twelfth-century Chola bronze, cast around 1150 AD, worth at minimum eighty lakh rupees on the black market.`,
       `Temple records at the Brihadeeswara Temple in Thanjavur confirm that a matching Nataraja, catalogued as Item BT-1187, was reported stolen on 14 February 2020 during a renovation.`,
       `Hussain tells Farhan that the buyer known as "R.M." has purchased at least six bronzes through intermediaries over the past decade but has never appeared in person; all payments arrive via wire transfer from a company called Ridgemont Maritime.`,
     ],
@@ -47,7 +47,7 @@ export default [
     scenes: [
       `Mrs. Agnes Pereira, seventy-eight, resident of Flat 3A since 1972, tells Farhan she heard footsteps in Flat 4B every night for the past twenty-nine years and assumed the tenant was a merchant seaman on irregular shifts.`,
       `Retired constable Dilip Sawant, tracked down at his son's flat in Chembur, admits that ACP Arvind Deshpande ordered the 1994 investigation closed within forty-eight hours and threatened to transfer anyone who objected.`,
-      `Farhan drives to Deshpande's Bandra bungalow that evening; the retired ACP, now seventy-one, opens the door in a silk kurta and says only, "Palande owed people you don't want to investigate, Farhan. I did you a favour."`,
+      `Farhan drives to Deshpande's Bandra bungalow that evening; the retired ACP, now seventy-one years old, opens the door in a silk kurta and says only, "Palande owed people you don't want to investigate, Farhan. I did you a favour."`,
     ],
   },
   {
@@ -85,7 +85,7 @@ export default [
   {
     title: 'The Coded Ledger',
     scenes: [
-      `Meera Shenoy, senior curator at the Chhatrapati Shivaji Maharaj Vastu Sangrahalaya, examines the ledger from Rao's study and determines that the forty-seven entries dating back to 1992 use a substitution code where each bronze is identified by its origin temple's Pincode and a two-letter suffix.`,
+      `Meera Shenoy, senior curator at the Chhatrapati Shivaji Maharaj Vastu Sangrahalaya, examines the ledger from Rao's study and determines that all forty-seven entries, the earliest dating back to 1992, use a substitution code where each bronze is identified by its origin temple's Pincode and a two-letter suffix.`,
       `Cross-referencing the decoded entries with the Archaeological Survey of India's theft registry, Meera matches thirty-one bronzes to reported thefts across Tamil Nadu, Karnataka, and Andhra Pradesh spanning thirty-two years.`,
       `The earliest entry, dated 4 March 1992, reads "609-312-NT, acquired, source: S.P." — the Pincode matches Thanjavur, NT indicates Nataraja, and S.P. are the initials of Sunil Palande.`,
     ],
@@ -237,7 +237,7 @@ export default [
   {
     title: 'The Deshpande Confession',
     scenes: [
-      `Farhan confronts ACP Arvind Deshpande at Colaba Station's interview room with Dr. Kamat's diary, a 1994 bank deposit slip showing 2 lakh rupees credited to Deshpande's Union Bank account on 10 November 1994, and Dilip Sawant's signed statement.`,
+      `Farhan confronts the sixty-eight-year-old ACP Arvind Deshpande at Colaba Station's interview room with Dr. Kamat's diary, a 1994 bank deposit slip showing 2 lakh rupees credited to Deshpande's Union Bank account on 10 November 1994, and Dilip Sawant's signed statement.`,
       `Deshpande, after forty minutes of silence, admits he accepted the payment from Sunil Palande to close the 1994 case as suicide, suppress the nail-scraping evidence, and have Farhan reassigned to Worli Station within the month.`,
       `Deshpande adds one detail Farhan did not expect: the order to close the case did not originate with Palande alone but came through a phone call from a man Deshpande knew only as "Mr. M," whose private number Deshpande wrote on a matchbook he has kept in his desk drawer for thirty years.`,
     ],
@@ -285,7 +285,7 @@ export default [
   {
     title: `The Forger's Hand`,
     scenes: [
-      `Handwriting analyst Dr. Rukmini Patil, retained by the CBI, examines the final ledger entry, "Bronze Nataraja, sold, buyer: R.M.," and determines with ninety-five percent certainty that it was written not by Vikram Rao but by Sunil Palande, based on seven distinctive letter formations including the looped R and the compressed M.`,
+      `Handwriting analyst Dr. Rukmini Patil, retained by the CBI, examines the sixty-third and final entry in the coded ledger, "Bronze Nataraja, sold, buyer: R.M.," and determines with ninety-five percent certainty that it was written not by Vikram Rao but by Sunil Palande, based on seven distinctive letter formations including the looped R and the compressed M.`,
       `Farhan now understands the staging: Palande entered the study through the passage, poisoned Rao with oleander tea, wrote the final entry to implicate Malhotra directly, set the wall clock electromagnet to freeze at 3:40 AM, submerged Rao's wristwatch at 10:30 PM, and exited before Lily checked the door at 10:15.`,
       `But one question remains: the basement surveillance footage shows a second figure removing the Nataraja at 3:38 AM, six hours after the murder, wearing a gold Cartier Tank watch, and Palande has never owned a Cartier; someone else took the bronze after Rao was already dead.`,
     ],
@@ -311,7 +311,7 @@ export default [
     scenes: [
       `Sunil Palande, recovering in JJ Hospital Room 307 under twenty-four-hour police guard, is formally charged with the murders of Anil Tendulkar in 1994 and Vikram Rao in 2024; in a bedside statement witnessed by Priya and a magistrate, he confesses to both killings and names Rajan Malhotra as the network's financier.`,
       `Palande explains the Nataraja's disappearance: he did not take the bronze because he intended to frame Malhotra, but someone removed it before dawn, someone who had a key, knew the passages, and wore a Cartier Tank watch; he names Rohan Menon as the only other person who had ever entered the basement storeroom.`,
-      `Farhan files the chargesheet at Esplanade Court at 4 PM listing Palande, Malhotra, and Menon as accused; but as he steps out of the courthouse into the Colaba evening, Priya calls with news from Interpol London: the stolen Nataraja has surfaced at a Christie's auction preview on King Street, consigned forty-eight hours ago by an anonymous seller using the initials "N.R."`,
+      `Farhan files the chargesheet at Esplanade Court at 4 PM listing Palande, Malhotra, and Menon as accused; but as he steps out of the courthouse into the Colaba evening, Priya calls with news from Interpol London: the stolen tenth-century Chola Nataraja, dated to around 950 AD, has surfaced at a Christie's auction preview on King Street, consigned forty-eight hours ago by an anonymous seller using the initials "N.R."`,
     ],
   },
 ]

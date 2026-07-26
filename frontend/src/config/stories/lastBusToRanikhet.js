@@ -29,7 +29,7 @@ export default [
   {
     title: 'The Doctor Explains',
     scenes: [
-      `Mrs. Bhatt finally admits she knew Major Joshi; she was the attending physician at the Ranikhet military hospital in June 1998 when seven soldiers were brought in from the Chaubatia bunker with chemical burns, and only Joshi survived the night.`,
+      `Mrs. Bhatt finally admits she knew Major Joshi; she was the attending physician at the Ranikhet military hospital in June 1997 when seven soldiers were brought in from the Chaubatia bunker with chemical burns, and only Joshi survived the night.`,
       `She produces a laminated hospital discharge summary from her medical bag — patient Vikram Joshi, discharged 12 July 1998, with a note she herself signed reading "patient discharged against advice; claims remaining six are not dead, only stored."`,
       `Taneja slams his fist on the seat rail and shouts that Mrs. Bhatt's hospital killed his brother, Lance Naik Ravi Taneja, that same night; he says he boarded this bus specifically to confront whoever showed up at the Major's address, and the steel box was his proof of negligence.`,
     ],
@@ -85,7 +85,7 @@ export default [
   {
     title: 'The Soldier Speaks',
     scenes: [
-      `Mehra sits in the seventh row beside the Major's body and tells the group that on the night of June 14, 1998, Major Joshi ordered seven soldiers into the Chaubatia bunker to destroy a cache of unmarked chemical shells left from a classified 1962 border program.`,
+      `Mehra sits in the seventh row beside the Major's body and tells the group that on the night of June 14, 1998, Major Joshi ordered eight soldiers into the Chaubatia bunker to destroy a cache of unmarked chemical shells left from a classified 1962 border program.`,
       `Six soldiers, including Mehra and Taneja's brother Ravi, were sealed inside when Joshi locked the bunker's blast door from outside; Mehra says Joshi claimed the ventilation would hold, but the shells began leaking within an hour and the screaming lasted until dawn.`,
       `Mehra pulls the brass cylinder's cap off, revealing a thin rolled document inside — a signed order from a Colonel Deshpande authorizing Joshi to "contain and deny" the shell cache, with a handwritten addendum: "No survivors, no inquiry, destroy this order."`,
     ],
@@ -158,7 +158,7 @@ export default [
     title: 'Everyone Has a Reason',
     scenes: [
       `The group stands in the freezing bus at 4:20 AM and Parvati lists the connections aloud: Taneja, brother of a victim; Kiran, daughter of a victim; Mrs. Bhatt, complicit doctor; Sameer, investigating journalist; Brother Anshu, Parvati's confessor and messenger; Hari Lal, the original bus driver from the 1998 route; and Mehra, the only soldier who escaped the bunker.`,
-      `Hari Lal confirms he drove the military transport that carried the seven soldiers to Chaubatia on June 14, 1998, and has driven the 9:40 night service every year since, waiting for the night someone would board with the brass cylinder.`,
+      `Hari Lal confirms he drove the military transport that carried the seven soldiers to Chaubatia on June 14, 1998, and has driven the 10:15 night service every year since, waiting for the night someone would board with the brass cylinder.`,
       `The dead Major's body in seat 7 has changed position again: his right arm now extends toward the aisle, index finger pointing at the dashboard, where a small brass plate neither Hari Lal nor anyone else noticed before reads "Property of Kumaon Depot 7 — Return to Origin."`,
     ],
   },

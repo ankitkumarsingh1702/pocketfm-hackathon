@@ -10,6 +10,7 @@ from __future__ import annotations
 from app.engine.aggregate import aggregate_sim, reaction_view
 from app.engine.audience_agent import build_social_prompt
 from app.graph.audience_store import post_key
+from app.lenses.audience_sim import resolve_canon
 from app.schemas import Persona, SocialReaction, Story
 
 
@@ -117,6 +118,39 @@ def test_build_social_prompt_text_only():
     assert "LOOK at it" not in user
     assert "YOUR HISTORY WITH THIS CREATOR" not in user
     assert user.strip().endswith("React now.")
+
+
+def test_resolve_canon_prefers_client_recap_then_graph_then_empty():
+    # The client's episode-scoped recap wins over the whole-show graph canon.
+    assert resolve_canon("Ep1-5 recap", "whole-show bible", 2000) == "Ep1-5 recap"
+    # Standalone post (no recap): fall back to graph canon.
+    assert resolve_canon(None, "whole-show bible", 2000) == "whole-show bible"
+    assert resolve_canon("", "whole-show bible", 2000) == "whole-show bible"
+    # Neither available: empty (build_social_prompt then skips the canon slot).
+    assert resolve_canon(None, None, 2000) == ""
+    assert resolve_canon("", "", 2000) == ""
+
+
+def test_resolve_canon_hard_caps_long_recap():
+    # A long season's recap is bounded as defense-in-depth against token blowup.
+    assert resolve_canon("x" * 5000, None, 2000) == "x" * 2000
+
+
+def test_story_so_far_threads_into_prompt_via_canon_slot():
+    # A posted episode carries story_so_far; it surfaces in the agent prompt so a
+    # listener reacting to episode N is grounded in episodes 1..N-1.
+    story = Story(
+        title="The Ninth Ring",
+        episode="Episode 6",
+        text="Episode 6 teaser...",
+        story_so_far="Episode 1: The Ledger Gap Opens\nEpisode 2: Line 9 Rings",
+    )
+    assert story.story_so_far  # field accepted by the schema
+    canon = resolve_canon(story.story_so_far, None, 2000)
+    _, user = build_social_prompt(_persona(0), story, canon=canon)
+    assert "EPISODE: Episode 6" in user
+    assert "WHAT YOU REMEMBER OF THE STORY SO FAR" in user
+    assert "The Ledger Gap Opens" in user
 
 
 def test_reaction_view_maps_fields():

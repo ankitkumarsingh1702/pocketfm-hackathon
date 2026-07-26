@@ -1,5 +1,6 @@
 import { CANON_PANELS } from '../../config/constants'
 import { AGENT_NODES, AGENT_NODE_LABELS } from '../../utils/canon'
+import { splitScenes } from '../../utils/story'
 import HowItWorks from '../HowItWorks'
 import StoryPicker from '../StoryPicker'
 import {
@@ -7,6 +8,7 @@ import {
   Disclosure,
   GraphCanvas,
   GraphLegend,
+  Icon,
   MetricNumber,
   Pill,
   ProgressLine,
@@ -26,14 +28,17 @@ const HOW_IT_WORKS = {
     { title: 'Every agent reads it', body: 'This shared memory is what each agent reads before it reacts.' },
   ],
   holes: [
-    { title: 'Paste an episode', body: 'Drop in the new episode script you want to publish.' },
+    { title: 'Load a show', body: 'Pick a ready-made show — the scan reads all of its episodes, not just one.' },
     {
-      title: 'Cross-check the whole canon',
+      title: 'Read every episode',
       body:
-        'We read every fact from all past episodes in the graph and catch contradictions between ' +
-        'far-apart episodes — the continuity a human can’t hold across thousands of pages.',
+        'The AI builds the show’s canon across all episodes and finds where its own facts disagree ' +
+        'between far-apart episodes — the continuity a human can’t hold across thousands of pages.',
     },
-    { title: 'Get ranked fixes', body: 'Each issue cites the exact clashing episodes and a concrete fix.' },
+    {
+      title: 'See the clashing lines',
+      body: 'Each contradiction opens like a book — the two episodes side by side, the exact lines highlighted, with a fix.',
+    },
   ],
   planner: [
     { title: 'Give a soft ending', body: 'Paste the episode and the weak ending to improve.' },
@@ -380,8 +385,8 @@ function CanonComposer({
         {resetError && <span style={{ fontSize: 13, color: 'var(--danger)' }}>{resetError}</span>}
       </div>
       <p style={{ margin: '12px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)' }}>
-        Preview is extract-only. “Ingest” persists this tab’s canon membership in Neo4j; it never
-        replaces or deletes the seeded ANDHERA demo.
+        Preview is extract-only. “Ingest” optionally persists this script to the shared graph for the
+        other agents to read — it only affects your own session.
       </p>
       <LiveExtractionPanel preview={preview} />
     </SurfaceCard>
@@ -478,8 +483,196 @@ function SeverityTag({ severity }) {
   )
 }
 
-/** Plot Hole Hunter panel — graph-grounded continuity issues. */
-function PlotHolesPanel({ plotHoles, runPlotHoles }) {
+// --- Story-scoped plot holes: the "book / highlighter" view ---------------
+// A loaded ready-made show is scanned directly from its episode scripts, so the
+// result names the exact clashing sentence on each side. We locate that sentence
+// in the episode text and highlight it, laying the two episodes out like an open
+// book. Nothing here touches the seeded demo canon.
+
+/** Soft-red highlighter mark for a clashing sentence. */
+const MARK_STYLE = {
+  background: 'var(--accent-soft)',
+  color: 'var(--ink)',
+  boxShadow: 'inset 0 0 0 1px var(--accent-line)',
+  borderRadius: 'var(--radius-sm)',
+  padding: '1px 4px',
+}
+
+const pageStyle = {
+  flex: '1 1 300px',
+  minWidth: 260,
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-md)',
+  padding: 'var(--space-5)',
+}
+
+const proseStyle = {
+  margin: 0,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 15,
+  lineHeight: 1.85,
+  color: 'var(--ink)',
+  whiteSpace: 'pre-wrap',
+}
+
+/** Straighten quotes + collapse whitespace for tolerant matching. */
+function normalizeQuote(s) {
+  return String(s || '')
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Strip a leading "Scene N:" prefix so a scene reads as plain prose. */
+function stripScenePrefix(s) {
+  return String(s || '').replace(/^\s*Scene\s+\d+\s*:\s*/i, '').trim()
+}
+
+/** Find the episode in a loaded show by the label the scan returned. */
+function episodeByLabel(episodes, label) {
+  const digits = String(label || '').match(/\d+/)
+  if (digits) {
+    const n = Number(digits[0])
+    const byNumber = episodes.find((e) => e.n === n)
+    if (byNumber) return byNumber
+  }
+  const norm = (v) => String(v || '').toLowerCase().replace(/\s+/g, ' ').trim()
+  return episodes.find((e) => norm(e.label) === norm(label)) || null
+}
+
+/** The scene (plain prose) within an episode that contains the quote. */
+function sceneWithQuote(episodeText, quote) {
+  const scenes = splitScenes(episodeText).map(stripScenePrefix)
+  const needle = normalizeQuote(quote)
+  const hit = needle && scenes.find((s) => normalizeQuote(s).includes(needle))
+  return hit || scenes[0] || stripScenePrefix(episodeText)
+}
+
+/** Render a scene with its clashing sentence wrapped in a highlighter mark. */
+function HighlightedScene({ scene, quote }) {
+  const q = String(quote || '').trim()
+  if (!q) return <p style={proseStyle}>{scene}</p>
+  const lc = scene.toLowerCase()
+  let start = lc.indexOf(q.toLowerCase())
+  let len = q.length
+  if (start < 0) {
+    // Tolerant fallback: match a distinctive leading fragment of the sentence.
+    const frag = q.replace(/[.?!"']+$/, '').slice(0, 48)
+    start = frag ? lc.indexOf(frag.toLowerCase()) : -1
+    len = frag.length
+  }
+  if (start < 0) return <p style={proseStyle}>{scene}</p>
+  return (
+    <p style={proseStyle}>
+      {scene.slice(0, start)}
+      <mark style={MARK_STYLE}>{scene.slice(start, start + len)}</mark>
+      {scene.slice(start + len)}
+    </p>
+  )
+}
+
+/** One "page" of the book: an episode's relevant scene, quote highlighted. */
+function BookPage({ episode, label, quote }) {
+  const scene = episode ? sceneWithQuote(episode.text, quote) : stripScenePrefix(quote)
+  const heading = episode
+    ? `${episode.label}${episode.title ? ` · ${episode.title}` : ''}`
+    : label
+  return (
+    <div style={pageStyle}>
+      <div className="label-upper" style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 10 }}>
+        {heading}
+      </div>
+      <HighlightedScene scene={scene} quote={quote} />
+    </div>
+  )
+}
+
+/** One contradiction, laid out as an open book spread. */
+function ContradictionSpread({ contradiction, episodes }) {
+  const c = contradiction
+  const epA = episodeByLabel(episodes, c.episode_a)
+  const epB = episodeByLabel(episodes, c.episode_b)
+  return (
+    <SurfaceCard>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <SeverityTag severity={c.severity} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 650, color: 'var(--ink)' }}>
+          <Icon name="book" size={16} /> {c.subject}
+        </span>
+        <span style={CITE_PILL} title="The two episodes that disagree">
+          {`${c.episode_a} ↔ ${c.episode_b}`}
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <BookPage episode={epA} label={c.episode_a} quote={c.quote_a} />
+        <BookPage episode={epB} label={c.episode_b} quote={c.quote_b} />
+      </div>
+      {c.detail && (
+        <p style={{ margin: '14px 0 6px', fontSize: 14, color: 'var(--ink)', lineHeight: 1.55 }}>
+          {c.detail}
+        </p>
+      )}
+      {c.fix && (
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--ink)' }}>
+          <strong>Fix:</strong> {c.fix}
+        </p>
+      )}
+    </SurfaceCard>
+  )
+}
+
+/** Story-scoped plot holes for a loaded show — the book / highlighter view. */
+function StoryPlotHolesView({ story, scan, run }) {
+  const { loading, data, error } = scan
+  const episodes = story.episodes || []
+  const contradictions = data?.contradictions || []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <Button onClick={run} disabled={loading}>
+          {loading ? 'Reading every episode…' : 'Scan this show for plot holes'}
+        </Button>
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          {data
+            ? `${story.title} · read ${data.episodes_scanned || episodes.length} episodes · ${contradictions.length} contradiction${contradictions.length === 1 ? '' : 's'}`
+            : `${story.title} · ${episodes.length} episodes — scanned directly, not the seeded demo`}
+        </span>
+      </div>
+
+      {loading && (
+        <LoadingState label={`Reading all ${episodes.length} episodes for contradictions…`} />
+      )}
+      {error && <ErrorState message={error} />}
+      {data && contradictions.length === 0 && !loading && (
+        <EmptyState
+          title="No contradictions found"
+          hint="This show’s canon holds together across its episodes."
+        />
+      )}
+
+      {contradictions.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {contradictions.map((c, i) => (
+            <ContradictionSpread key={i} contradiction={c} episodes={episodes} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Plot Hole panel — book view for a loaded show, else the whole-graph scan. */
+function PlotHolesPanel({ plotHoles, runPlotHoles, loadedStory, storyScan, runStoryScan }) {
+  if ((loadedStory?.episodes?.length || 0) > 1) {
+    return <StoryPlotHolesView story={loadedStory} scan={storyScan} run={runStoryScan} />
+  }
+  return <GraphPlotHolesView plotHoles={plotHoles} runPlotHoles={runPlotHoles} />
+}
+
+/** Whole-graph plot-hole view — for custom pasted text (fallback). */
+function GraphPlotHolesView({ plotHoles, runPlotHoles }) {
   const { loading, error, data } = plotHoles
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1147,7 +1340,13 @@ export default function StoryCanonTab(props) {
 
       {activePanel === 'graph' && <CanonGraphPanel graph={graph} refresh={refresh} />}
       {activePanel === 'holes' && (
-        <PlotHolesPanel plotHoles={props.plotHoles} runPlotHoles={props.runPlotHoles} />
+        <PlotHolesPanel
+          plotHoles={props.plotHoles}
+          runPlotHoles={props.runPlotHoles}
+          loadedStory={props.loadedStory}
+          storyScan={props.storyScan}
+          runStoryScan={props.runStoryScan}
+        />
       )}
       {activePanel === 'planner' && (
         <PlannerPanel

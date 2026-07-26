@@ -15,7 +15,7 @@ export default [
     scenes: [
       `Director Kavitha Sundaram, age sixty-one, oversees all twelve collection sectors from the 40th floor of the Revenue Spire. She tells Devika the vault alarm was a sensor malfunction and asks why her badge logged a sub-level entry at 02:17.`,
       `Devika claims she was recalibrating extractor unit E-4490 for the morning's scheduled collections. Sundaram accepts the excuse but assigns a compliance shadow — a junior auditor named Faizan Ali, twenty-three, fresh from the Revenue Academy in Mysuru.`,
-      `After Devika leaves, Sundaram opens a sealed file on her terminal labelled "Operation Cradle, 2058." The file contains 347 canister IDs — all children from the Spire orphanage — and Devika's name is highlighted in amber, meaning her canister was never meant to survive.`,
+      `After Devika leaves, Sundaram opens a sealed file on her terminal labelled "Operation Cradle, 2057." The file contains 347 canister IDs — all children from the Spire orphanage — and Devika's name is highlighted in amber, meaning her canister was never meant to survive.`,
     ],
   },
   {
@@ -30,7 +30,7 @@ export default [
     title: 'The Redacted Boy',
     scenes: [
       `Devika searches the Spire's citizen registry for male wards born between 2048 and 2050. She finds eleven matches, but one record — Citizen ID MR-7688 — has been entirely expunged, leaving only a processing note: "Transferred to Directive Nine, 2058, authorized K. Sundaram."`,
-      `Prof. Iyer explains that Directive Nine was the internal code for Operation Cradle, the mass extraction of orphan memories. He says the redacted boy was named Arjun, and he was the first child to resist the extractor — his neural pattern rejected the siphon three times before they sedated him.`,
+      `Prof. Iyer explains that Directive Nine was the internal code for Operation Cradle, the mass extraction of orphan memories. He says the redacted boy was named Arjun, and he was the first child to resist the extractor — his neural pattern rejected the siphon five times before they sedated him.`,
       `Faizan finds Devika in the archive room after hours and asks what she is researching. She deflects, but Faizan reveals that his older brother, a former Spire technician named Idris Ali, disappeared in 2064 after filing a complaint about irregular canister transfers from Sub-Level 9.`,
     ],
   },
@@ -45,7 +45,7 @@ export default [
   {
     title: 'Thermal Substation 7-K',
     scenes: [
-      `Prof. Iyer identifies Thermal Substation 7-K as a passive extraction node — a device that siphons ambient memories from nearby residents without their knowledge or consent. He says the Spire built six such nodes between 2065 and 2069, codenamed "Taproot stations."`,
+      `Prof. Iyer identifies Thermal Substation 7-K as a passive extraction node — a device that siphons ambient memories from nearby residents without their knowledge or consent. He says the Spire built eight such nodes between 2065 and 2069, codenamed "Taproot stations."`,
       `Devika and Iyer enter the substation through a maintenance hatch. Inside, they find rows of unmarked canisters receiving a continuous feed of raw memory light from the residential conduit. A manifest screen lists the project lead as Dr. Lata Venkatesh, Chief Neuroscientist, Revenue Spire.`,
       `As they photograph the manifest, the substation's internal camera activates and a voice over the intercom says, "Auditor Rao, you are in a restricted zone. Director Sundaram has been notified." The hatch locks magnetically behind them.`,
     ],
@@ -327,7 +327,7 @@ export default [
     scenes: [
       `Devika releases the 2057 session minutes to Zara Sheikh, five independent news outlets, and the Bengaluru High Court simultaneously. The documents prove that the Revenue Council knowingly authorized the extraction of children's memories without consent, that four adults died in the 2054 pilot trial, and that Vikram Joshi personally designed the legal framework that classified orphan memories as state property.`,
       `The Bengaluru High Court issues an emergency injunction halting all memory tax collection citywide, pending a full judicial inquiry. Justice Preethi Narayan, presiding, orders the immediate preservation of all Spire records and the suspension of Director Sundaram and Council Chair Joshi from their positions.`,
-      `Protests swell across Bengaluru. In Cubbon Park, 60,000 citizens gather under banners reading "Our Memories Are Not Your Revenue." Captain Deshpande's daughter, Kavya, speaks from the stage about her degraded recall. On the Spire's 40th floor, the lights go dark for the first time since the building was converted from an orphanage in 2058.`,
+      `Protests swell across Bengaluru. In Cubbon Park, 60,000 citizens gather under banners reading "Our Memories Are Not Your Revenue." Captain Deshpande's daughter, Kavya, speaks from the stage about her degraded recall. On the Spire's 40th floor, the lights go dark for the first time since the building was converted from an orphanage in 2059.`,
     ],
   },
   {
@@ -383,7 +383,7 @@ export default [
     scenes: [
       `Dr. Venkatesh works for thirty-six continuous hours at the print shop, combining the forty-four percent Aggregate source code with her own original Taproot schematics. She identifies the reversal pathway: if the Aggregate's woven memory structure is exposed to a precisely modulated counter-frequency — the exact inverse of the 847.3 megahertz synchronization pulse — the individual memories will separate and return to their original canisters.`,
       `The counter-frequency must be broadcast from the same rooftop antenna array, using the same coupling mechanism — but without the crystal, which shattered during the transfer. Venkatesh says canister MR-7721, now carrying Arjun's consciousness, could serve as a temporary biological coupler if connected to the array for exactly four minutes. The risk: Arjun's consciousness might not survive a second transfer.`,
-      `Devika looks at Prof. Iyer. His grandson is asleep inside a canister, the only link to reversing what the Spire did to 347 children. Iyer holds the canister and closes his eyes. When he opens them, he says, "Arjun resisted the extractor three times when he was ten. He would resist being the reason we stopped." He hands the canister to Venkatesh. Tara Bhat's earpiece crackles with a report: Kamala Iyer has been taken to the second Aggregate chamber beneath Vidhana Soudha, and Hari Prasad is attempting to use her as a biological synchronization source for the backup grid.`,
+      `Devika looks at Prof. Iyer. His grandson is asleep inside a canister, the only link to reversing what the Spire did to 347 children. Iyer holds the canister and closes his eyes. When he opens them, he says, "Arjun resisted the extractor twice when he was ten. He would resist being the reason we stopped." He hands the canister to Venkatesh. Tara Bhat's earpiece crackles with a report: Kamala Iyer has been taken to the second Aggregate chamber beneath Vidhana Soudha, and Hari Prasad is attempting to use her as a biological synchronization source for the backup grid.`,
     ],
   },
   {

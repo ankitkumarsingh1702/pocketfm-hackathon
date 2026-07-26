@@ -18,6 +18,7 @@ import {
 import { ErrorState } from '../StateViews'
 import StoryPicker from '../StoryPicker'
 import ImagePicker from '../ImagePicker'
+import { buildStorySoFar } from '../../lib/storySoFar'
 // The agent-profile drawer + its form controls are styled by the Writers Room
 // stylesheet (and its --ui-* token bridge). Import them so the drawer renders
 // correctly when this lens is the first one opened.
@@ -104,7 +105,12 @@ function ReactionCard({ r }) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
         <span style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{who || 'Listener'}</span>
-        <span style={{ ...num, fontSize: 13, color: 'var(--muted)' }}>hook {r.hook_score}</span>
+        <span
+          title="Hook score — how gripping this listener found the post (0–100)"
+          style={{ ...num, fontSize: 12, color: 'var(--muted)', cursor: 'help', whiteSpace: 'nowrap' }}
+        >
+          Hook {r.hook_score}/100
+        </span>
       </div>
       {r.segment && <SectionLabel style={{ fontSize: 10 }}>{r.segment}</SectionLabel>}
       {r.comment && (
@@ -286,7 +292,8 @@ export default function AudienceSimulatorTab() {
         <SectionLabel style={{ marginBottom: 8 }}>How the Living Audience works</SectionLabel>
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--muted)' }}>
           Each listener is a real agent. It <strong style={{ color: 'var(--ink)' }}>sees your image</strong>,
-          {' '}recalls how it reacted to your past posts from the shared knowledge graph, deliberates, then
+          {' '}<strong style={{ color: 'var(--ink)' }}>knows the story so far</strong> up to the episode you
+          post, recalls how it reacted to your past posts from the shared knowledge graph, deliberates, then
           decides one thing to do — scroll past, like, comment, share, save, subscribe or binge. Edit any
           profile below and that listener&rsquo;s behaviour changes on the next run.
         </p>
@@ -299,6 +306,11 @@ export default function AudienceSimulatorTab() {
             onSelect={(s) => {
               setPostField('title', s.title)
               setPostField('text', s.text)
+              // Carry the episode label + a recap of the episodes before it, so
+              // agents react to episode N knowing episodes 1..N-1 — swapping
+              // episodes changes what they "remember", not just the teaser.
+              setPostField('episode', s.episode || '')
+              setPostField('storySoFar', buildStorySoFar(s.episodes, s.episodeN))
             }}
             label="Load a ready-made story to test"
           />
@@ -437,9 +449,14 @@ export default function AudienceSimulatorTab() {
       {/* Reaction feed */}
       {feed.length > 0 && (
         <div>
-          <SectionLabel style={{ marginBottom: 16 }}>
+          <SectionLabel style={{ marginBottom: 6 }}>
             {result ? 'Reactions' : 'Live reactions'} · {formatInt(feed.length)} shown
           </SectionLabel>
+          <p style={{ margin: '0 0 16px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+            Each card is one agent&rsquo;s take — their comment, how they felt, the one action they&rsquo;d take, and{' '}
+            <strong style={{ color: 'var(--ink)' }}>Hook</strong> (how gripping they found it, 0–100). Open{' '}
+            &ldquo;Why they reacted&rdquo; for their private reasoning.
+          </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
             {feed.map((r, i) => (
               <ReactionCard key={`${r.persona_id}-${i}`} r={r} />
@@ -469,7 +486,6 @@ function ProgressWithCount({ pct, progress, runMeta }) {
       <span className="label-upper" style={{ fontSize: 12 }}>
         {formatInt(progress.done)} of {formatInt(progress.total)} agents reacted
         {progress.dropped > 0 ? ` · ${formatInt(progress.dropped)} dropped` : ''}
-        {runMeta?.model ? ` · ${runMeta.model}` : ''}
         {runMeta?.hasImage ? ' · image-aware' : ''}
       </span>
     </div>
