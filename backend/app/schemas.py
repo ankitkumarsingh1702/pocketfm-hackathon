@@ -195,6 +195,16 @@ class NarrationRequest(BaseModel):
     optimized: str
 
 
+class AgentReactRequest(BaseModel):
+    """A teaser/post for ONE addressed agent to react to live (Agent API / MCP)."""
+
+    text: str
+    title: str = "Untitled post"
+    image_base64: str | None = None
+    image_mime: str | None = None
+    story_so_far: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Knowledge graph — LLM extraction (Gemini-safe: str / Literal / int / list of
 # models only; NO free dict/Any, which the Vertex response_schema rejects)

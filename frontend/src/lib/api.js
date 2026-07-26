@@ -106,6 +106,19 @@ export function getAudienceMember(id) {
 }
 
 /**
+ * POST /api/agents/{id}/react -> AudienceReactionView
+ * Make ONE addressed agent react live to a teaser (and grow its memory).
+ * @param {string} id agent id
+ * @param {{text:string, title?:string}} payload
+ */
+export function reactAgent(id, { text, title } = {}) {
+  return request(`/api/agents/${encodeURIComponent(id)}/react`, {
+    method: 'POST',
+    body: title ? { text, title } : { text },
+  })
+}
+
+/**
  * POST /api/audience-sim/generate -> AudienceLibrary
  * Synthesise a diverse audience of listener-agents (persisted by default).
  */

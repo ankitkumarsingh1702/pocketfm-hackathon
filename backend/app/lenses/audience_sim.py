@@ -21,10 +21,11 @@ from collections.abc import Callable
 
 from app.config import settings
 from app.db.firestore import save_simulation
-from app.engine.aggregate import aggregate_sim
+from app.engine.aggregate import aggregate_sim, reaction_view
 from app.engine.audience_agent import run_social_reactions
 from app.engine.cache import Cache
 from app.graph.audience_store import (
+    get_audience_member,
     load_audience_members,
     save_audience_members,
     write_member_reactions,
@@ -38,6 +39,7 @@ from app.schemas import (
     AudienceSimRequest,
     GeneratePersonasRequest,
     Persona,
+    Story,
 )
 
 _SOURCE = "Audience Simulator"
@@ -136,6 +138,40 @@ async def stream_audience_sim(
     await write_member_reactions(req.story, pairs, source=_SOURCE)
 
     return result.model_dump()
+
+
+async def react_one_agent(agent_id: str, story: Story, source: str = "Agent API") -> dict | None:
+    """One addressed agent reacts LIVE to a post, and remembers it.
+
+    Loads the persona by id, runs the same perceive→recall→react pipeline the
+    panel uses (grounded in the story-so-far / graph canon), persists the reaction
+    as a REACTED_TO edge (so the agent's history grows), and returns the reaction
+    as an ``AudienceReactionView`` dict. Returns ``None`` when no such agent
+    exists. Shared by the per-agent HTTP endpoint and the MCP ``ask_agent`` tool.
+    """
+    persona = await get_audience_member(agent_id)
+    if persona is None:
+        return None
+    llm = get_llm()
+    cache = Cache(settings.cache_dir)
+    model = settings.model_for("sim")
+    graph_canon = render_canon_memory(await fetch_canon_subgraph(story, source=source))
+    canon = resolve_canon(story.story_so_far, graph_canon, settings.canon_max_chars)
+    pairs, _ = await run_social_reactions(
+        [persona],
+        story,
+        llm,
+        cache,
+        model=model,
+        canon=canon,
+        canon_fp=canon_fingerprint(canon),
+        source=source,
+    )
+    if not pairs:
+        return None
+    _, reaction = pairs[0]
+    await write_member_reactions(story, pairs, source=source)
+    return reaction_view(persona, reaction).model_dump()
 
 
 async def generate_audience(req: GeneratePersonasRequest) -> AudienceLibrary:
