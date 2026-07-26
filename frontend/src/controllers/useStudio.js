@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { DEFAULT_STORY_META, SAMPLE_STORY } from '../config/constants'
 import { isBlank, lastScene } from '../utils/story'
+import { useAgentDirectory } from './useAgentDirectory'
 import { useCanon } from './useCanon'
 import { useCliffhangerOptimizer } from './useCliffhangerOptimizer'
 import { useDbMemory } from './useDbMemory'
@@ -28,6 +29,7 @@ export function useStudio(activeTab) {
   const writersRoom = useWritersRoom()
   const canon = useCanon()
   const dbMemory = useDbMemory(activeTab === 'db')
+  const agentDirectory = useAgentDirectory(activeTab === 'agents')
 
   // The Audience Simulator ('sim') is self-contained (its own controller), so it
   // is not part of the shared run/loading orchestration here.
@@ -73,6 +75,7 @@ export function useStudio(activeTab) {
     writersRoom,
     canon,
     dbMemory,
+    agentDirectory,
     // orchestration
     run,
     isLoading: activeLoading,
