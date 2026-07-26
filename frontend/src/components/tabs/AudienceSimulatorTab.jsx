@@ -257,22 +257,19 @@ const ROSTER_PREVIEW = 12
 export default function AudienceSimulatorTab() {
   const sim = useAudienceSim()
   const fileRef = useRef(null)
-  const sizeRef = useRef(null)
 
   const {
     library, roster, segments, activeAgent, openAgent, closeAgent, updateAgent,
     generate, generating, genError,
     post, setPostField, setImage, clearImage,
-    run, stop, running, canRun, recent, progress, runMeta, result, error,
+    run, stop, running, canRun, panelSize, setPanelSize, recent, progress, runMeta, result, error,
   } = sim
 
   const feed = result ? result.reactions : recent
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0
+  const isDefaults = !library || library.source === 'defaults'
 
-  const onGenerate = () => {
-    const n = Number(sizeRef.current?.value) || 200
-    generate(n)
-  }
+  const onGenerate = () => generate(panelSize)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 40, paddingTop: 8 }}>
@@ -348,7 +345,7 @@ export default function AudienceSimulatorTab() {
               </Button>
             ) : (
               <Button variant="primary" onClick={run} disabled={!canRun}>
-                <Icon name="play" size={16} /> Run {formatInt(roster.length)} agents
+                <Icon name="play" size={16} /> Run {formatInt(panelSize)} agents
               </Button>
             )}
           </div>
@@ -359,11 +356,16 @@ export default function AudienceSimulatorTab() {
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
           <SectionLabel>
-            Your audience — {formatInt(roster.length)} members
-            {library?.source ? ` · ${library.source}` : ''}
+            {isDefaults
+              ? `Example archetypes — Run synthesises your ${formatInt(panelSize)}-listener audience`
+              : `Your audience — ${formatInt(roster.length)} members`}
           </SectionLabel>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <select ref={sizeRef} defaultValue={200} style={{ ...inputStyle, padding: '8px 12px', minHeight: 36 }}>
+            <select
+              value={panelSize}
+              onChange={(e) => setPanelSize(Number(e.target.value))}
+              style={{ ...inputStyle, padding: '8px 12px', minHeight: 36 }}
+            >
               {PANEL_SIZES.map((n) => (
                 <option key={n} value={n}>{formatInt(n)} listeners</option>
               ))}
