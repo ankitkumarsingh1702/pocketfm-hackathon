@@ -7,6 +7,7 @@ import StoryPicker from './components/StoryPicker'
 import { useStatusToast } from './hooks/useStatusToast'
 import { useToast } from './components/toast/useToast'
 import { audienceSummary, cloneAgent, expertSummary, segmentOptions } from './lib/agents'
+import { retentionScore } from './utils/writersRoom'
 
 // A short Hindi-English horror-thriller Episode 7 excerpt, deliberately written
 // with a saggy middle (repetitive corridor/room/stairs beats) and a soft,
@@ -421,11 +422,14 @@ export default function WritersRoom() {
 
   const audienceStats = useMemo(() => {
     const responded = audienceLog.filter((a) => !a.error && a.reaction)
-    const following = responded.filter((a) => a.reaction.will_continue).length
+    const returning = responded.filter((a) => a.reaction.will_continue).length
+    const retentionSum = responded.reduce((sum, a) => sum + retentionScore(a.reaction), 0)
     const hookSum = responded.reduce((sum, a) => sum + (Number(a.reaction.hook_score) || 0), 0)
     return {
       responded: responded.length,
-      followingPct: responded.length ? (following / responded.length) * 100 : 0,
+      returning,
+      // Graded retention — matches the backend verdict so live and final agree.
+      followingPct: responded.length ? (retentionSum / responded.length) * 100 : 0,
       avgHook: responded.length ? hookSum / responded.length : 0,
     }
   }, [audienceLog])
@@ -707,6 +711,11 @@ export default function WritersRoom() {
                 <div className="meter__track">
                   <div className="meter__fill" style={{ width: `${pct(finalAudience.following_pct)}%` }} />
                 </div>
+                {finalAudience.respondent_count > 0 && (
+                  <p className="meter__note">
+                    {finalAudience.returning_count} of {finalAudience.respondent_count} would start the next episode
+                  </p>
+                )}
               </div>
               <div className="meter">
                 <div className="meter__head">

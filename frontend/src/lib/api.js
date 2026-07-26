@@ -73,6 +73,39 @@ export function getAudienceLibrary() {
 }
 
 /**
+ * GET /api/audience-sim/members -> { members[], total, limit, offset }
+ * Server-side search / filter / pagination over the persisted listener-agent
+ * population (1000s). `params` keys: q, segment, city, gender, genres[], ageMin,
+ * ageMax, hasMemory, limit, offset.
+ */
+export function getAudienceMembers(params = {}) {
+  const sp = new URLSearchParams()
+  const { q, segment, city, gender, genres, ageMin, ageMax, hasMemory, limit, offset } = params
+  if (q) sp.set('q', q)
+  if (segment) sp.set('segment', segment)
+  if (city) sp.set('city', city)
+  if (gender) sp.set('gender', gender)
+  ;(genres || []).forEach((g) => g && sp.append('genre', g))
+  if (ageMin != null) sp.set('age_min', String(ageMin))
+  if (ageMax != null) sp.set('age_max', String(ageMax))
+  if (hasMemory != null) sp.set('has_memory', String(hasMemory))
+  if (limit != null) sp.set('limit', String(limit))
+  if (offset != null) sp.set('offset', String(offset))
+  const qs = sp.toString()
+  return request(`/api/audience-sim/members${qs ? `?${qs}` : ''}`)
+}
+
+/** GET /api/audience-sim/members/facets -> { segments[], cities[], genders[], genres[], total } */
+export function getAudienceFacets() {
+  return request('/api/audience-sim/members/facets')
+}
+
+/** GET /api/audience-sim/members/{id} -> { profile, memory[], memory_count } */
+export function getAudienceMember(id) {
+  return request(`/api/audience-sim/members/${encodeURIComponent(id)}`)
+}
+
+/**
  * POST /api/audience-sim/generate -> AudienceLibrary
  * Synthesise a diverse audience of listener-agents (persisted by default).
  */

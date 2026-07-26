@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { AGENTS, PERSONA_MODEL } from '../../config/constants'
 import { audienceSummary, displayGenre, effectiveTemp } from '../../lib/agents'
 import { groupActivityBySource, initialsFor, timeAgo } from '../../utils/agentDirectory'
+import AgentDetailDrawer from '../AgentDetailDrawer'
+import AudiencePopulation from '../AudiencePopulation'
 import { Button, Disclosure, MetricNumber, Pill } from '../primitives'
-import { EmptyState, ErrorState, LoadingState } from '../StateViews'
+import { ErrorState, LoadingState } from '../StateViews'
 
 /** Section heading in the studio's uppercase-label style. */
 function SectionLabel({ children, style }) {
@@ -333,6 +336,7 @@ export default function AgentDirectoryTab({
   setLive,
 }) {
   const navigate = useNavigate()
+  const [openAgent, setOpenAgent] = useState(null)
   const bySource = groupActivityBySource(activity.data)
   const g = graph.data
   const f = facts.data
@@ -361,10 +365,10 @@ export default function AgentDirectoryTab({
         }}
       >
         <p style={{ margin: 0, maxWidth: 640, fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
-          {AGENTS.length} reasoning agents and a cast of personas, all working over{' '}
-          <strong style={{ color: 'var(--ink)' }}>one shared knowledge graph</strong>. Each profile
-          shows what the agent does, the method it runs, and its real reads and writes to that memory
-          — updating live.
+          {AGENTS.length} reasoning agents and thousands of stateful listener agents, all working
+          over <strong style={{ color: 'var(--ink)' }}>one shared knowledge graph</strong>. Search or
+          filter the population, then open any agent to read its profile, character memory, and full
+          history — updating live.
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <ConnectionPill health={health} />
@@ -403,57 +407,102 @@ export default function AgentDirectoryTab({
               key={agent.id}
               agent={agent}
               stats={bySource[agent.source]}
-              onOpen={() => navigate(agent.route)}
+              onOpen={() => setOpenAgent(agent)}
             />
           ))}
         </div>
       </section>
 
-      {/* Persona cast */}
-      <section aria-label="Persona cast" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Expert panel — the small cast convened for the Writers' Room */}
+      <section aria-label="Expert panel" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <SectionLabel>The cast — personas the agents convene</SectionLabel>
-          <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.55, maxWidth: 640 }}>
-            The Writers&rsquo; Room and Audience Simulator run these personas. Each one&rsquo;s system
-            prompt is its character memory — open it to read exactly how it thinks.
+          <SectionLabel>Expert panel{roster ? ` · ${roster.experts.length}` : ''}</SectionLabel>
+          <p style={{ margin: 0, fontSize: 13.5, color: 'var(--muted)', lineHeight: 1.55, maxWidth: 660 }}>
+            The Writers&rsquo; Room convenes these expert personas. Each one&rsquo;s system prompt is
+            its character memory — open a card to read exactly how it thinks.
           </p>
         </div>
-
         {personas.error && <ErrorState message={personas.error} />}
-        {personas.loading && !roster && <LoadingState label="Loading the persona cast…" />}
-        {roster && roster.isEmpty && (
-          <EmptyState
-            title="No personas found"
-            hint="The backend returned an empty roster — check that the persona YAML files are present."
-          />
-        )}
-
-        {roster && !roster.isEmpty && (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <SectionLabel style={{ color: 'var(--muted)' }}>
-                Expert panel · {roster.experts.length}
-              </SectionLabel>
-              <div style={gridStyle}>
-                {roster.experts.map((persona) => (
-                  <PersonaCard key={persona.id} persona={persona} />
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <SectionLabel style={{ color: 'var(--muted)' }}>
-                Audience panel · {roster.audience.length}
-              </SectionLabel>
-              <div style={gridStyle}>
-                {roster.audience.map((persona) => (
-                  <PersonaCard key={persona.id} persona={persona} />
-                ))}
-              </div>
-            </div>
-          </>
+        {personas.loading && !roster && <LoadingState label="Loading the expert panel…" />}
+        {roster && roster.experts.length > 0 && (
+          <div style={gridStyle}>
+            {roster.experts.map((persona) => (
+              <PersonaCard key={persona.id} persona={persona} />
+            ))}
+          </div>
         )}
       </section>
+
+      {/* Audience agents — the full stateful population (1000s), filterable */}
+      <AudiencePopulation active />
+
+      {/* Reasoning-agent detail: profile · context · memory · history */}
+      {openAgent && (
+        <AgentDetailDrawer
+          onClose={() => setOpenAgent(null)}
+          name={openAgent.name}
+          subtitle={
+            openAgent.route === '/canon' && openAgent.id !== 'canon'
+              ? 'Runs inside Story Canon'
+              : 'Reasoning agent'
+          }
+          badge={openAgent.hub ? 'Shared memory' : 'Reasoning agent'}
+          hub={openAgent.hub}
+          description={openAgent.role}
+          facts={[
+            { label: 'Runs at', value: openAgent.route },
+            { label: 'Reads memory', value: openAgent.reads ? 'Yes' : 'No' },
+            { label: 'Writes memory', value: openAgent.writes ? 'Yes' : 'No' },
+          ]}
+          chipGroups={[{ label: 'Methods', items: openAgent.methods }]}
+          memoryDescription={openAgent.memory}
+          history={{
+            title: 'Recent memory activity',
+            count: bySource[openAgent.source]?.total || 0,
+            empty: 'No memory activity yet — run this agent to see live reads & writes.',
+            items: (a?.events || [])
+              .filter((e) => e.source === openAgent.source)
+              .slice(0, 12)
+              .map((e, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    padding: '8px 12px',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface)',
+                  }}
+                >
+                  <OpTag op={e.op} />
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)' }}>
+                    {e.fn}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--dim)' }}>· {timeAgo(e.ts)}</span>
+                  {e.detail && (
+                    <div style={{ flexBasis: '100%', fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
+                      {e.detail}
+                    </div>
+                  )}
+                </div>
+              )),
+          }}
+          primaryAction={
+            openAgent.route
+              ? {
+                  label: `Open ${openAgent.name} →`,
+                  onClick: () => {
+                    navigate(openAgent.route)
+                    setOpenAgent(null)
+                  },
+                }
+              : null
+          }
+        />
+      )}
     </div>
   )
 }

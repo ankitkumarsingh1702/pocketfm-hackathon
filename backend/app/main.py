@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -456,6 +456,66 @@ async def audience_sim_memory(limit: int = 24) -> dict:
         "total": total,
         "shown": len(rows),
         "remembering": sum(1 for row in rows if row["memory_count"] > 0),
+    }
+
+
+# --- Agent Directory: the full listener-agent population --------------------
+# The directory surfaces the whole persisted audience (1000s of stateful agents)
+# with server-side search / filter / pagination, plus per-agent detail.
+
+
+@app.get("/api/audience-sim/members")
+async def audience_members(
+    q: str | None = None,
+    segment: str | None = None,
+    city: str | None = None,
+    gender: str | None = None,
+    genre: list[str] = Query(default=[]),
+    age_min: int | None = None,
+    age_max: int | None = None,
+    has_memory: bool | None = None,
+    limit: int = 48,
+    offset: int = 0,
+) -> dict:
+    """A filtered, sorted, paginated page of audience agents + the true total."""
+    from app.graph.audience_store import (
+        count_audience_members_filtered,
+        load_audience_members_page,
+    )
+
+    limit = max(1, min(int(limit), 100))
+    offset = max(0, int(offset))
+    genres = [g for g in genre if g] or None
+    filters = dict(
+        q=q, segment=segment, city=city, gender=gender, genres=genres,
+        age_min=age_min, age_max=age_max, has_memory=has_memory,
+    )
+    members = await load_audience_members_page(limit=limit, offset=offset, **filters)
+    total = await count_audience_members_filtered(**filters)
+    return {"members": members, "total": total, "limit": limit, "offset": offset}
+
+
+@app.get("/api/audience-sim/members/facets")
+async def audience_members_facets() -> dict:
+    """Distinct segment / city / gender / genre values (+ counts) for the filters."""
+    from app.graph.audience_store import audience_facets
+
+    return await audience_facets()
+
+
+@app.get("/api/audience-sim/members/{member_id}")
+async def audience_member_detail(member_id: str) -> dict:
+    """One audience agent's full profile + its remembered reactions (history)."""
+    from app.graph.audience_store import get_audience_member, recall_member_memory
+
+    persona = await get_audience_member(member_id)
+    if persona is None:
+        raise HTTPException(status_code=404, detail="Audience agent not found")
+    memory = await recall_member_memory(member_id, limit=50)
+    return {
+        "profile": persona.model_dump(),
+        "memory": memory,
+        "memory_count": len(memory),
     }
 
 

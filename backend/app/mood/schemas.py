@@ -267,7 +267,9 @@ class ClarifyingQuestion(BaseModel):
 
     question: str
     options: list[ClarifyOption] = Field(min_length=2, max_length=4)
-    skip_label: str = "Kuch bhi chalega"
+    # The interface's own voice, so plain English — Hinglish belongs in what a
+    # listener types, not in the labels written back at them.
+    skip_label: str = "Anything is fine"
 
     @model_validator(mode="after")
     def _options_do_something(self) -> "ClarifyingQuestion":
@@ -327,7 +329,7 @@ class ResultCard(BaseModel):
 
 class Shelf(BaseModel):
     id: str
-    label: str = Field(description="human, e.g. 'Sit in it'")
+    label: str = Field(description="human, e.g. 'Stay with the feeling'")
     subtitle: str
     destination: Destination
     target_axes: MoodAxes = Field(description="frontend sends this back on refine")
