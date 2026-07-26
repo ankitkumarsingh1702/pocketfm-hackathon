@@ -532,6 +532,188 @@ async def audience_facets() -> dict:
     return out
 
 
+# --- mutation path (agent edit / create / memory reset) ---------------------
+# These make each agent WRITE-addressable: edit a profile in place, spawn a new
+# listener, or clear one agent's memory. Identity (key/member_id) is immutable
+# on edit so the agent's REACTED_TO history stays attached.
+
+
+async def update_audience_member(
+    member_id: str,
+    *,
+    name: str | None = None,
+    segment: str | None = None,
+    age: int | None = None,
+    gender: str | None = None,
+    city: str | None = None,
+    genres: list[str] | None = None,
+    traits: list[str] | None = None,
+    system_prompt: str | None = None,
+    temperature: float | None = None,
+    source: str = "Agent API",
+) -> Persona | None:
+    """Update an existing agent's mutable profile fields in place.
+
+    Only the fields passed (non-None) are changed. Identity (``key``/
+    ``member_id``) is never touched, so the agent keeps its memory (its
+    ``REACTED_TO`` edges). When ``segment`` changes, the ``BELONGS_TO`` cohort
+    edge is re-linked so the graph view stays consistent. Returns the refreshed
+    Persona, or None if the agent doesn't exist / the graph is unavailable.
+    """
+    driver = get_driver()
+    if driver is None:
+        return None
+    updates = {
+        "name": name,
+        "segment": segment,
+        "age": age,
+        "gender": gender,
+        "city": city,
+        "genres": list(genres) if genres is not None else None,
+        "traits": list(traits) if traits is not None else None,
+        "system_prompt": system_prompt,
+        "temperature": temperature,
+    }
+    updates = {k: v for k, v in updates.items() if v is not None}
+    key = f"AudienceMember:{_slug(member_id)}"
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            # MATCH (never MERGE) so a bad id can't silently create a ghost node.
+            found = await (
+                await session.run(
+                    "MATCH (m:AudienceMember) WHERE m.member_id=$id OR m.key=$key "
+                    "RETURN m.key AS key LIMIT 1",
+                    id=member_id,
+                    key=key,
+                )
+            ).single()
+            if not found:
+                return None
+            node_key = found["key"]
+            if updates:
+                set_parts = ", ".join(f"m.{f} = ${f}" for f in updates)
+                await session.run(
+                    f"MATCH (m:AudienceMember {{key:$node_key}}) SET {set_parts}",
+                    node_key=node_key,
+                    **updates,
+                )
+            if "segment" in updates:
+                # Keep the cohort edge + segment node in sync with the property.
+                await session.run(
+                    "MATCH (m:AudienceMember {key:$node_key}) "
+                    "OPTIONAL MATCH (m)-[b:BELONGS_TO]->(:AudienceSegment) DELETE b "
+                    "WITH m "
+                    "MERGE (s:Canon:AudienceSegment {key:$seg_key}) "
+                    "SET s.type='AudienceSegment', s.name=$segment "
+                    "MERGE (m)-[:BELONGS_TO]->(s)",
+                    node_key=node_key,
+                    seg_key=_segment_key(updates["segment"]),
+                    segment=updates["segment"],
+                )
+        record_activity(
+            "write",
+            "update_audience_member",
+            source,
+            f"edited agent '{member_id}': {', '.join(updates) or 'no fields'}",
+            {"fields": list(updates)},
+        )
+        return await get_audience_member(member_id)
+    except Exception as exc:  # noqa: BLE001 - best-effort
+        logger.warning("update_audience_member failed: %s", exc)
+        record_activity("skipped", "update_audience_member", source, f"edit failed: {exc}")
+        return None
+
+
+async def create_audience_member(
+    *,
+    name: str,
+    segment: str | None = None,
+    age: int | None = None,
+    gender: str | None = None,
+    city: str | None = None,
+    genres: list[str] | None = None,
+    traits: list[str] | None = None,
+    system_prompt: str | None = None,
+    temperature: float | None = None,
+    source: str = "Agent API",
+) -> Persona | None:
+    """Create a brand-new listener agent and persist it. Returns the Persona.
+
+    A usable persona prompt is generated from the traits/genres/city when
+    ``system_prompt`` is omitted, so the new agent can react in character.
+    """
+    agent_id = f"aud-{uuid4().hex}"
+    if not system_prompt:
+        head = f"You are {name}, a PocketFM listener"
+        if city:
+            head += f" from {city}"
+        if segment:
+            head += f" in the {segment} audience"
+        parts = [head + "."]
+        if genres:
+            parts.append("You mostly enjoy " + ", ".join(genres) + ".")
+        if traits:
+            parts.append("You are " + ", ".join(traits) + ".")
+        parts.append("React to teasers honestly, in your own voice.")
+        system_prompt = " ".join(parts)
+    persona = Persona(
+        id=agent_id,
+        name=name,
+        kind="audience",
+        segment=segment,
+        age=age,
+        gender=gender,
+        city=city,
+        genres=list(genres or []),
+        traits=list(traits or []),
+        temperature=temperature,
+        system_prompt=system_prompt,
+    )
+    written = await save_audience_members([persona], source=source)
+    if not written:
+        return None
+    return await get_audience_member(agent_id)
+
+
+async def reset_member_memory(member_id: str, source: str = "Agent API") -> int:
+    """Delete one agent's reaction history (its ``REACTED_TO`` edges).
+
+    Only that agent's memory edges are removed; the agent node and the shared
+    Post nodes stay. Returns the number of reactions cleared (0 if none / the
+    agent is missing / the graph is unavailable).
+    """
+    driver = get_driver()
+    if driver is None:
+        return 0
+    key = f"AudienceMember:{_slug(member_id)}"
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            rec = await (
+                await session.run(
+                    "MATCH (m:AudienceMember) WHERE m.member_id=$id OR m.key=$key "
+                    "OPTIONAL MATCH (m)-[r:REACTED_TO]->(:Post) "
+                    "WITH collect(r) AS rs "
+                    "FOREACH (x IN rs | DELETE x) "
+                    "RETURN size(rs) AS n",
+                    id=member_id,
+                    key=key,
+                )
+            ).single()
+            deleted = int(rec["n"]) if rec else 0
+        if deleted:
+            record_activity(
+                "write",
+                "reset_member_memory",
+                source,
+                f"cleared {deleted} reaction(s) from agent '{member_id}'",
+                {"forgotten": deleted},
+            )
+        return deleted
+    except Exception as exc:  # noqa: BLE001 - best-effort
+        logger.warning("reset_member_memory failed: %s", exc)
+        return 0
+
+
 async def recall_members_memories(
     member_ids: list[str],
     limit: int = 4,
