@@ -120,12 +120,50 @@ def _reject_if_expensive_job_active() -> None:
             ),
         )
 
+# Always allow the Claude web/desktop origins so the hosted MCP server can be
+# added as a custom connector from claude.ai (browser preflight needs CORS).
+# Appended after settings so an env override of CORS_ORIGINS never drops them.
+_cors_origins = list(settings.cors_origin_list)
+for _o in ("https://claude.ai", "https://www.claude.ai", "https://claude.com"):
+    if _o not in _cors_origins:
+        _cors_origins.append(_o)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Let browser clients read the MCP session header on the streamable-HTTP
+    # transport (harmless when stateless).
+    expose_headers=["Mcp-Session-Id", "mcp-session-id"],
 )
+
+
+class _MCPPathNormalizer:
+    """Serve the MCP endpoint at both ``/mcp`` and ``/mcp/`` (no redirect).
+
+    Claude custom connectors and other MCP clients normalize away a trailing
+    slash, so they POST to ``/mcp``. The streamable-HTTP app is mounted at
+    ``/mcp`` with its route at the sub-app root, which answers ``/mcp/`` but
+    405s the bare ``/mcp``. Rewrite the bare path to ``/mcp/`` in place — with
+    no client-visible 307 redirect, so the POST body survives.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http" and scope.get("path") == "/mcp":
+            scope = dict(scope)
+            scope["path"] = "/mcp/"
+            raw = scope.get("raw_path")
+            if isinstance(raw, (bytes, bytearray)) and not bytes(raw).endswith(b"/"):
+                scope["raw_path"] = bytes(raw) + b"/"
+        await self.app(scope, receive, send)
+
+
+# Added last → outermost, so the path is normalized before CORS/routing.
+app.add_middleware(_MCPPathNormalizer)
 
 
 @app.get("/health")
