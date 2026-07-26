@@ -455,7 +455,17 @@ const DETAIL_TITLE = {
  * (and why it was made), every fact and contradiction, and every read/write
  * with the agent that did it.
  */
-export default function DbMemoryTab({ activity, health, graph, facts, refresh, live, setLive }) {
+export default function DbMemoryTab({
+  activity,
+  health,
+  graph,
+  facts,
+  refresh,
+  live,
+  setLive,
+  scope,
+  setScope,
+}) {
   const [selected, setSelected] = useState(null)
   const a = activity.data
   const g = graph.data
@@ -498,6 +508,53 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
           </Button>
         </div>
       </div>
+
+      <div
+        aria-label="Canon graph scope"
+        style={{
+          display: 'inline-flex',
+          alignSelf: 'flex-start',
+          padding: 4,
+          gap: 4,
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--surface-raised)',
+        }}
+      >
+        {[
+          ['session', 'Your story'],
+          ['full', 'Full canon'],
+        ].map(([value, label]) => {
+          const active = scope === value
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setScope(value)}
+              style={{
+                minHeight: 44,
+                padding: '8px 16px',
+                border: active ? '1px solid var(--ink)' : '1px solid transparent',
+                borderRadius: 'var(--radius-sm)',
+                background: active ? 'var(--ink)' : 'transparent',
+                color: active ? 'white' : 'var(--muted)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                fontWeight: 650,
+                cursor: 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+      <p style={{ margin: '-22px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)' }}>
+        {scope === 'session'
+          ? 'Only canon ingested in this browser tab. Seeded ANDHERA data is excluded.'
+          : 'All persisted canon, including the seeded ANDHERA demo and every session.'}
+      </p>
 
       {/* Clickable stat strip */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, flexWrap: 'wrap', marginLeft: -14 }}>
@@ -558,8 +615,12 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
             {graph.error && <ErrorState message={graph.error} />}
             {g && g.isEmpty && (
               <EmptyState
-                title="Graph is empty"
-                hint="Ingest an episode in the Story Canon tab to build the shared memory."
+                title={scope === 'session' ? 'Your story has not been ingested yet' : 'Graph is empty'}
+                hint={
+                  scope === 'session'
+                    ? 'Ingest the current episode in Story Canon. The seeded demo stays hidden here.'
+                    : 'Ingest an episode in the Story Canon tab to build shared memory.'
+                }
               />
             )}
             {g && !g.isEmpty && (

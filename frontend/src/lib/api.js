@@ -84,9 +84,9 @@ export function canonHealth() {
   return request('/api/canon/health')
 }
 
-/** GET /api/canon/graph -> CanonGraph { nodes[], edges[], stats } */
-export function getCanonGraph() {
-  return request('/api/canon/graph')
+/** GET /api/canon/graph -> full canon, or one browser-session scope. */
+export function getCanonGraph(batch) {
+  return request(batch ? `/api/canon/graph?batch=${encodeURIComponent(batch)}` : '/api/canon/graph')
 }
 
 /** GET /api/canon/activity -> { events: ActivityEvent[] } (recent reads/writes) */
@@ -95,16 +95,26 @@ export function getCanonActivity(limit = 100) {
 }
 
 /** GET /api/canon/facts -> { facts[], conflicts[], dangling_clues[], episode_count } */
-export function getCanonFacts() {
-  return request('/api/canon/facts')
+export function getCanonFacts(batch) {
+  return request(batch ? `/api/canon/facts?batch=${encodeURIComponent(batch)}` : '/api/canon/facts')
+}
+
+/** Extract canon for live preview without writing to memory. */
+export function previewCanon(story) {
+  return request('/api/canon/preview', { method: 'POST', body: { story } })
 }
 
 /**
  * POST /api/canon/ingest -> IngestResult
  * @param {{title:string, episode:string, text:string}} story
  */
-export function ingestCanon(story) {
-  return request('/api/canon/ingest', { method: 'POST', body: { story } })
+export function ingestCanon(story, batch) {
+  return request('/api/canon/ingest', { method: 'POST', body: { story, batch } })
+}
+
+/** Remove exactly one session's memberships; seeded/full canon is untouched. */
+export function resetCanonSession(batch) {
+  return request('/api/canon/reset', { method: 'POST', body: { batch } })
 }
 
 /** POST /api/lenses/plot-holes -> PlotHoleResult */
@@ -116,8 +126,12 @@ export function findPlotHoles(story) {
  * POST /api/plan/cliffhanger/stream -> NDJSON tree-search events.
  * @param {{story:object, weakExcerpt:string, beamWidth?:number, depth?:number}} payload
  */
-export function planCliffhangerStream({ story, weakExcerpt, beamWidth, depth }, onEvent, signal) {
-  const body = { story, weak_excerpt: weakExcerpt }
+export function planCliffhangerStream(
+  { story, weakExcerpt, batch, beamWidth, depth },
+  onEvent,
+  signal,
+) {
+  const body = { story, weak_excerpt: weakExcerpt, batch }
   if (beamWidth) body.beam_width = beamWidth
   if (depth) body.depth = depth
   return ndjsonStream('/api/plan/cliffhanger/stream', body, onEvent, signal)

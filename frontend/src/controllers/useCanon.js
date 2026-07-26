@@ -7,8 +7,11 @@ import {
   ingestCanon,
   mdpOptimizeStream,
   planCliffhangerStream,
+  previewCanon,
+  resetCanonSession,
   showrunnerStream,
 } from '../lib/api'
+import { SESSION_BATCH } from '../utils/session'
 import {
   emptyAgent,
   emptyMdp,
@@ -38,6 +41,7 @@ export function useCanon() {
 
   const graph = useAsyncLens(getCanonGraph, toCanonGraphView)
   const { run: loadGraph } = graph
+  const loadSessionGraph = useCallback(() => loadGraph(SESSION_BATCH), [loadGraph])
 
   const [ingesting, setIngesting] = useState(false)
   const [ingestResult, setIngestResult] = useState(null)
@@ -45,8 +49,43 @@ export function useCanon() {
 
   // Load the current canon once on mount.
   useEffect(() => {
-    loadGraph()
-  }, [loadGraph])
+    loadSessionGraph()
+  }, [loadSessionGraph])
+
+  // Debounced extract-only preview. It proves what the current script becomes
+  // before the user chooses to persist anything into the graph.
+  const [preview, setPreview] = useState({ loading: false, data: null, error: null })
+  const previewAbort = useRef(null)
+  useEffect(() => {
+    const trimmed = text.trim()
+    if (trimmed.length < 24) {
+      previewAbort.current?.abort()
+      setPreview({ loading: false, data: null, error: null })
+      return undefined
+    }
+    const timer = setTimeout(async () => {
+      previewAbort.current?.abort()
+      const controller = new AbortController()
+      previewAbort.current = controller
+      setPreview((current) => ({ ...current, loading: true, error: null }))
+      try {
+        const data = await previewCanon({ title, episode, text })
+        if (!controller.signal.aborted) setPreview({ loading: false, data, error: null })
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setPreview({
+            loading: false,
+            data: null,
+            error: err.message || 'Live extraction preview failed',
+          })
+        }
+      }
+    }, 900)
+    return () => {
+      clearTimeout(timer)
+      previewAbort.current?.abort()
+    }
+  }, [text, title, episode])
 
   const ingest = useCallback(async () => {
     if (isBlank(text)) return
@@ -54,15 +93,36 @@ export function useCanon() {
     setIngestError(null)
     setIngestResult(null)
     try {
-      const res = await ingestCanon({ title, episode, text })
+      const res = await ingestCanon({ title, episode, text }, SESSION_BATCH)
       setIngestResult(res)
-      await loadGraph()
+      await loadSessionGraph()
     } catch (err) {
       setIngestError(err.message || 'Ingest failed')
     } finally {
       setIngesting(false)
     }
-  }, [text, title, episode, loadGraph])
+  }, [text, title, episode, loadSessionGraph])
+
+  const [resetting, setResetting] = useState(false)
+  const [resetError, setResetError] = useState(null)
+  const resetSession = useCallback(async () => {
+    setResetting(true)
+    setResetError(null)
+    try {
+      await resetCanonSession(SESSION_BATCH)
+      setIngestResult(null)
+      await loadSessionGraph()
+    } catch (err) {
+      setResetError(err.message || 'Session reset failed')
+    } finally {
+      setResetting(false)
+    }
+  }, [loadSessionGraph])
+
+  const clearText = useCallback(() => {
+    setText('')
+    setIngestResult(null)
+  }, [])
 
   // --- Plot Hole Hunter (graph-grounded) ---
   const plotHoles = useAsyncLens(findPlotHoles, toPlotHolesView)
@@ -93,7 +153,13 @@ export function useCanon() {
     setPlanner({ ...emptyPlanner(), running: true })
     try {
       await planCliffhangerStream(
-        { story: { title, episode, text }, weakExcerpt, beamWidth: 3, depth: 2 },
+        {
+          story: { title, episode, text },
+          weakExcerpt,
+          batch: SESSION_BATCH,
+          beamWidth: 3,
+          depth: 2,
+        },
         (ev) => setPlanner((prev) => reducePlanner(prev, ev)),
         controller.signal,
       )
@@ -157,12 +223,19 @@ export function useCanon() {
     text,
     setText,
     graph,
-    refresh: loadGraph,
+    refresh: loadSessionGraph,
     ingest,
     ingesting,
     ingestResult,
     ingestError,
     canIngest: !isBlank(text) && !ingesting,
+    preview,
+    resetSession,
+    resetting,
+    resetError,
+    clearText,
+    isSample: text === SAMPLE_STORY,
+    sessionBatch: SESSION_BATCH,
     // planning
     plotHoles,
     runPlotHoles,

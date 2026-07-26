@@ -14,8 +14,10 @@ import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.config import settings
+from app.config import BACKEND_DIR, settings
 from app.db.activity import get_recent_activity_durable
 from app.engine.cache import Cache
 from app.engine.mdp import policy_search
@@ -27,9 +29,14 @@ from app.graph.store import (
     fetch_contradiction_candidates,
     fetch_full_graph,
     ingest_extraction,
+    reset_canon_batch,
 )
 from app.lenses.audience import run_audience
-from app.lenses.audience_sim import generate_audience, list_audience, stream_audience_sim
+from app.lenses.audience_sim import (
+    generate_audience,
+    list_audience,
+    stream_audience_sim,
+)
 from app.lenses.cliffhanger import run_cliffhanger
 from app.lenses.plot_holes import find_plot_holes
 from app.lenses.showrunner import run_showrunner
@@ -42,6 +49,9 @@ from app.schemas import (
     AudienceResult,
     AudienceSimRequest,
     CanonGraph,
+    CanonPreviewResult,
+    CanonResetRequest,
+    CanonResetResult,
     CliffhangerRequest,
     CliffhangerResult,
     GeneratePersonasRequest,
@@ -165,9 +175,28 @@ async def canon_health() -> dict:
 
 
 @app.get("/api/canon/graph", response_model=CanonGraph)
-async def canon_graph() -> CanonGraph:
-    """Return the full story-canon graph (nodes + edges) for visualization."""
-    return await fetch_full_graph()
+async def canon_graph(batch: str | None = None) -> CanonGraph:
+    """Return full canon, or exactly one browser session when ``batch`` is set."""
+    return await fetch_full_graph(batch=batch)
+
+
+@app.post("/api/canon/preview", response_model=CanonPreviewResult)
+async def canon_preview(req: IngestRequest) -> CanonPreviewResult:
+    """Extract canon for the live UI preview without writing to Neo4j."""
+    try:
+        extraction = await extract_canon(
+            req.story,
+            get_llm(),
+            model=settings.model_for("audience"),
+        )
+        return CanonPreviewResult(
+            extraction=extraction,
+            entity_count=len(extraction.entities),
+            relation_count=len(extraction.relations),
+            fact_count=len(extraction.facts),
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/canon/ingest", response_model=IngestResult)
@@ -175,9 +204,15 @@ async def canon_ingest(req: IngestRequest) -> IngestResult:
     """Extract an episode's canon via the LLM and merge it into the graph."""
     try:
         extraction = await extract_canon(req.story, get_llm())
-        return await ingest_extraction(req.story, extraction)
+        return await ingest_extraction(req.story, extraction, batch=req.batch)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/canon/reset", response_model=CanonResetResult)
+async def canon_reset(req: CanonResetRequest) -> CanonResetResult:
+    """Clear only one session's memberships and session-owned graph records."""
+    return await reset_canon_batch(req.batch)
 
 
 @app.get("/api/canon/activity", response_model=ActivityFeed)
@@ -198,13 +233,17 @@ async def canon_activity(limit: int = 50) -> ActivityFeed:
 
 
 @app.get("/api/canon/facts")
-async def canon_facts() -> dict:
+async def canon_facts(batch: str | None = None) -> dict:
     """Atomic canon facts + structural contradictions + dangling clues.
 
     Powers the DB / Memory "Facts tracked" drill-down. ``record=False`` so this
     read (which the tab polls) never pollutes the activity feed.
     """
-    return await fetch_contradiction_candidates(source="DB / Memory", record=False)
+    return await fetch_contradiction_candidates(
+        source="DB / Memory",
+        record=False,
+        batch=batch,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +276,7 @@ async def plan_cliffhanger_stream(req: PlanRequest) -> StreamingResponse:
             panel_size=req.panel_size or settings.planner_panel_default,
             scout_size=req.scout_size or settings.planner_scout_default,
             finalist_count=req.finalist_count or settings.planner_finalists_default,
+            canon_batch=req.batch,
             on_event=emit,
         )
         return tree.model_dump()
@@ -338,11 +378,6 @@ async def audience_sim_run_stream(req: AudienceSimRequest) -> StreamingResponse:
 # Serve the built frontend when it is bundled into the image. This mount MUST
 # stay LAST so its catch-all "/" never shadows /health or the /api/* routes
 # declared above. When no build is present (local dev), this is a no-op.
-import os  # noqa: E402,F401
-from fastapi.staticfiles import StaticFiles  # noqa: E402
-from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
-
-from app.config import BACKEND_DIR  # noqa: E402
 
 static_dir = BACKEND_DIR / "static"
 

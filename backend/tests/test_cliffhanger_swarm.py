@@ -11,6 +11,8 @@ from app.engine.cliffhanger_swarm import (
 )
 from app.engine.search import beam_search
 from app.schemas import (
+    CanonGraph,
+    CanonNodeView,
     CliffhangerAgentVerdict,
     CliffhangerRating,
     Persona,
@@ -96,8 +98,17 @@ async def test_beam_search_uses_scout_then_full_matched_panel(monkeypatch, tmp_p
     async def fake_save(saved_members, **_kwargs):
         return len(saved_members)
 
-    async def fake_fetch(*_args, **_kwargs):
-        return {}
+    async def fake_fetch(*_args, **kwargs):
+        assert kwargs["batch"] == "session-test"
+        return CanonGraph(
+            nodes=[
+                CanonNodeView(
+                    id="Character:meera",
+                    label="Character",
+                    name="Meera",
+                )
+            ]
+        )
 
     async def fake_recall(ids, **_kwargs):
         return {
@@ -162,6 +173,7 @@ async def test_beam_search_uses_scout_then_full_matched_panel(monkeypatch, tmp_p
         panel_size=4,
         scout_size=2,
         finalist_count=1,
+        canon_batch="session-test",
         on_event=events.append,
     )
 
@@ -177,6 +189,8 @@ async def test_beam_search_uses_scout_then_full_matched_panel(monkeypatch, tmp_p
     assert tree.planned_evaluations == 22  # 2 scouts × 7 arms + 4 agents × 2 arms
     assert tree.completed_evaluations == 22
     assert tree.experiment_archived is True
+    assert tree.canon_scope == "session"
+    assert tree.canon_nodes_loaded == 1
     assert tree.verification_cached_agents == 0
     assert any(event["type"] == "agent_scored" for event in events)
     assert any(

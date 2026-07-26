@@ -6,6 +6,8 @@ non-empty audience and expert rosters.
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 from app.engine.aggregate import aggregate_audience
 from app.personas.loader import load_personas
 from app.schemas import DROP_STAGES, Persona, PersonaReaction, Story
@@ -58,7 +60,7 @@ def test_aggregate_binge_pct_and_monotonic_curve():
     # Everyone survives the very first stage (index 0), so retention starts at 1.0
     assert curve[0] == 1.0
     # Retention must be monotonically non-increasing across stages
-    for earlier, later in zip(curve, curve[1:]):
+    for earlier, later in pairwise(curve):
         assert later <= earlier
 
     assert len(result.sample_reactions) == 2
@@ -77,6 +79,16 @@ def test_load_personas_non_empty():
     experts = load_personas("expert")
     assert isinstance(audience, list) and len(audience) > 0
     assert isinstance(experts, list) and len(experts) > 0
+
+
+def test_fastapi_app_imports_with_all_lenses_registered():
+    """Regression guard: private helper refactors must not break server boot."""
+    from app.main import app
+
+    paths = {route.path for route in app.routes}
+    assert "/health" in paths
+    assert "/api/plan/cliffhanger/stream" in paths
+    assert "/api/mdp/optimize/stream" in paths
 
 
 def test_audience_verdict_math_offline():

@@ -29,13 +29,30 @@ from app.graph.driver import graph_probe
 from app.graph.store import fetch_canon_subgraph, render_canon_memory
 from app.lenses.audience_sim import resolve_audience
 from app.llm.base import LLMClient
-from app.schemas import AudienceSimRequest, PlanCandidate, SearchTree, Story
+from app.schemas import (
+    AudienceSimRequest,
+    Persona,
+    PersonaReaction,
+    PlanCandidate,
+    SearchTree,
+    Story,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class _Variants(BaseModel):
     rewrites: list[str]
+
+
+def _mean_hook(pairs: list[tuple[Persona, PersonaReaction]]) -> float:
+    """Compatibility scoring helper shared by the MDP policy-search lens."""
+    return sum(reaction.hook_score for _, reaction in pairs) / len(pairs) if pairs else 0.0
+
+
+def _swap(text: str, old: str, new: str) -> str:
+    """Replace the weak excerpt, or append when the exact excerpt is absent."""
+    return text.replace(old, new) if old and old in text else f"{text}\n{new}"
 
 
 async def _stateful_graph_ready() -> bool:
@@ -73,6 +90,7 @@ async def beam_search(
     panel_size: int = 1000,
     scout_size: int = 100,
     finalist_count: int = 3,
+    canon_batch: str | None = None,
     on_event: Callable[[dict], None] | None = None,
 ) -> SearchTree:
     """Search with scouts, then verify finalists on one stateful full cohort."""
@@ -113,9 +131,17 @@ async def beam_search(
             "the planner stopped before scoring."
         )
 
-    canon = render_canon_memory(
-        await fetch_canon_subgraph(story, source="Cliffhanger Planner")
+    if not canon_batch:
+        raise RuntimeError(
+            "A browser-session canon batch is required. "
+            "The planner will not read the seeded full canon."
+        )
+    canon_graph = await fetch_canon_subgraph(
+        story,
+        source="Cliffhanger Planner",
+        batch=canon_batch,
     )
+    canon = render_canon_memory(canon_graph)
     memories = (
         await recall_members_memories(
             [member.id for member in panel],
@@ -194,6 +220,8 @@ async def beam_search(
             "agentic": settings.sim_agentic,
             "memory_hits": memory_hits,
             "shared_canon_loaded": bool(canon),
+            "canon_scope": "session",
+            "canon_nodes_loaded": len(canon_graph.nodes),
         }
     )
 
@@ -416,4 +444,6 @@ async def beam_search(
         model=model,
         agentic=settings.sim_agentic,
         experiment_archived=experiment_archived,
+        canon_scope="session",
+        canon_nodes_loaded=len(canon_graph.nodes),
     )

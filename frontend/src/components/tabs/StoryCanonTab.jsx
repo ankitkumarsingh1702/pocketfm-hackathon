@@ -90,7 +90,169 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
-/** Composer: title/episode/text + the "Ingest episode" action. */
+const ENTITY_GROUPS = [
+  ['Character', 'Characters'],
+  ['Location', 'Locations'],
+  ['PlotThread', 'Plot threads'],
+  ['Clue', 'Clues'],
+  ['Theme', 'Themes'],
+]
+
+const extractionChipStyle = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12.5,
+  fontWeight: 600,
+  color: 'var(--ink)',
+  background: 'var(--surface-raised)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-pill)',
+  padding: '4px 11px',
+  lineHeight: 1.3,
+}
+
+function EntityGroup({ label, items }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <SectionLabel style={{ fontSize: 10 }}>
+        {label} · {items.length}
+      </SectionLabel>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {items.map((entity) => (
+          <span
+            key={entity.key || entity.name}
+            style={extractionChipStyle}
+            title={entity.description || ''}
+          >
+            {entity.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Extract-only preview: visible proof of what this script will persist. */
+function LiveExtractionPanel({ preview }) {
+  const { loading, data, error } = preview
+  if (!loading && !data && !error) return null
+
+  const extraction = data?.extraction
+  const entities = extraction?.entities || []
+  const relations = extraction?.relations || []
+  const facts = extraction?.facts || []
+  const nameByKey = Object.fromEntries(entities.map((entity) => [entity.key, entity.name]))
+  const byType = {}
+  for (const entity of entities) {
+    ;(byType[entity.type] || (byType[entity.type] = [])).push(entity)
+  }
+  const groups = [
+    ...ENTITY_GROUPS.filter(([type]) => byType[type]?.length).map(([type, label]) => [
+      label,
+      byType[type],
+    ]),
+    ...Object.keys(byType)
+      .filter((type) => !ENTITY_GROUPS.some(([known]) => known === type))
+      .map((type) => [type, byType[type]]),
+  ]
+  const hasContent = entities.length > 0 || facts.length > 0
+
+  return (
+    <SurfaceCard style={{ marginTop: 18, background: 'var(--surface)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 10,
+          flexWrap: 'wrap',
+          marginBottom: 14,
+        }}
+      >
+        <SectionLabel>Live extraction · what agents will remember</SectionLabel>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }} aria-live="polite">
+          {data
+            ? `${data.entity_count} entities · ${data.relation_count} connections · ${data.fact_count} facts${loading ? ' · updating…' : ''}`
+            : 'reading your script…'}
+        </span>
+      </div>
+
+      {loading && !data && <LoadingState label="Extracting canon from your script…" />}
+      {error && !data && (
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          Live preview is unavailable right now; durable ingest can still be retried.
+        </span>
+      )}
+      {data && !hasContent && !loading && (
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          No durable canon yet. Add a character, place, clue, or concrete fact.
+        </span>
+      )}
+
+      {hasContent && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {groups.map(([label, items]) => (
+            <EntityGroup key={label} label={label} items={items} />
+          ))}
+          {relations.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <SectionLabel style={{ fontSize: 10 }}>Connections · {relations.length}</SectionLabel>
+              {relations.slice(0, 6).map((relation, index) => (
+                <div
+                  key={`${relation.source_key}-${relation.type}-${relation.target_key}-${index}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    fontSize: 13,
+                  }}
+                >
+                  <strong>{nameByKey[relation.source_key] || relation.source_key}</strong>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 11,
+                      color: 'var(--accent-text-sm)',
+                    }}
+                  >
+                    {relation.type.replace(/_/g, ' ').toLowerCase()}
+                  </span>
+                  <span style={{ color: 'var(--dim)' }}>→</span>
+                  <strong>{nameByKey[relation.target_key] || relation.target_key}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+          {facts.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <SectionLabel style={{ fontSize: 10 }}>Atomic facts · {facts.length}</SectionLabel>
+              {facts.slice(0, 12).map((fact, index) => (
+                <div
+                  key={`${fact.subject_key}-${fact.predicate}-${index}`}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid var(--border)',
+                    borderLeft: '3px solid var(--accent)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-raised)',
+                    fontSize: 13,
+                    color: 'var(--ink)',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  <strong>{nameByKey[fact.subject_key] || fact.subject_key}</strong>{' '}
+                  <span style={{ color: 'var(--muted)' }}>· {fact.predicate} =</span>{' '}
+                  {fact.object}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </SurfaceCard>
+  )
+}
+
+/** Composer: current script + live preview + explicit session-safe persistence. */
 function CanonComposer({
   title,
   setTitle,
@@ -103,11 +265,50 @@ function CanonComposer({
   canIngest,
   ingestResult,
   ingestError,
+  preview,
+  isSample,
+  clearText,
+  resetSession,
+  resetting,
+  resetError,
   locked = false,
 }) {
   return (
     <SurfaceCard>
-      <SectionLabel style={{ marginBottom: 14 }}>Build the canon</SectionLabel>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          marginBottom: 14,
+        }}
+      >
+        <SectionLabel>Build the canon</SectionLabel>
+        {isSample && (
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            Showing a sample script ·{' '}
+            <button
+              type="button"
+              onClick={clearText}
+              disabled={locked}
+              style={{
+                minHeight: 44,
+                background: 'none',
+                border: 'none',
+                padding: '8px 0',
+                cursor: locked ? 'default' : 'pointer',
+                font: 'inherit',
+                color: 'var(--accent-text-sm)',
+                fontWeight: 650,
+              }}
+            >
+              clear and write your own
+            </button>
+          </span>
+        )}
+      </div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <input
           style={{ ...inputStyle, flex: '2 1 220px' }}
@@ -131,7 +332,7 @@ function CanonComposer({
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={locked}
-        placeholder="Paste an episode script — its characters, clues, and plot threads become canon."
+        placeholder="Paste an episode script — its characters, clues, and facts appear below as you type."
         aria-label="Episode script"
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
@@ -140,13 +341,42 @@ function CanonComposer({
         </Button>
         {ingestResult && (
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-            Added <strong style={{ color: 'var(--ink)' }}>{ingestResult.nodes_added}</strong> nodes,{' '}
-            <strong style={{ color: 'var(--ink)' }}>{ingestResult.edges_added}</strong> edges
+            Wrote <strong style={{ color: 'var(--ink)' }}>{ingestResult.nodes_added}</strong> nodes,{' '}
+            <strong style={{ color: 'var(--ink)' }}>{ingestResult.edges_added}</strong> edges,{' '}
+            <strong style={{ color: 'var(--ink)' }}>{ingestResult.facts_added || 0}</strong> facts
+            to this session
             {ingestResult.entities?.length ? ` · ${ingestResult.entities.slice(0, 6).join(', ')}` : ''}
           </span>
         )}
+        {ingestResult && (
+          <button
+            type="button"
+            onClick={resetSession}
+            disabled={resetting || locked}
+            style={{
+              minHeight: 44,
+              background: 'none',
+              border: 'none',
+              padding: '8px 0',
+              cursor: resetting || locked ? 'default' : 'pointer',
+              font: 'inherit',
+              fontSize: 13,
+              color: 'var(--muted)',
+              textDecoration: 'underline',
+            }}
+            title="Removes only this browser tab's memberships; seeded canon remains untouched"
+          >
+            {resetting ? 'Clearing…' : "Clear this session's canon"}
+          </button>
+        )}
         {ingestError && <span style={{ fontSize: 13, color: 'var(--danger)' }}>{ingestError}</span>}
+        {resetError && <span style={{ fontSize: 13, color: 'var(--danger)' }}>{resetError}</span>}
       </div>
+      <p style={{ margin: '12px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)' }}>
+        Preview is extract-only. “Ingest” persists this tab’s canon membership in Neo4j; it never
+        replaces or deletes the seeded ANDHERA demo.
+      </p>
+      <LiveExtractionPanel preview={preview} />
     </SurfaceCard>
   )
 }
@@ -189,10 +419,9 @@ function CanonGraphPanel({ graph, refresh }) {
       </div>
 
       <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', maxWidth: 620 }}>
-        This graph is the <strong style={{ color: 'var(--ink)' }}>shared memory</strong> every
-        agent reads before it reacts. The agents are stateful — they remember characters, clues,
-        and plot threads across episodes, and write their verdicts back here. Not stateless. Not
-        amnesiac.
+        This view contains <strong style={{ color: 'var(--ink)' }}>only this browser tab’s story</strong>.
+        The planner reads this same scope before its listener agents react; seeded ANDHERA data is
+        excluded.
       </p>
 
       <GraphLegend stats={stats} />
@@ -399,8 +628,9 @@ function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner, stopPl
             </h3>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--muted)' }}>
               Every requested agent gets a stable identity and listener profile. When the knowledge
-              graph is available, returning agents recall their own show-specific history; shared
-              canon is included when available. This run reports the verified memory coverage.
+              graph is available, returning agents recall their own show-specific history. Story
+              context comes only from this browser tab’s canon scope, never the seeded ANDHERA demo.
+              This run reports the exact memory and canon coverage it loaded.
             </p>
           </div>
           <div style={{ alignSelf: 'flex-start' }}>
@@ -422,6 +652,14 @@ function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner, stopPl
           />
           <Pill label="Finalists" value={meta.finalistCount ?? 3} />
           <Pill label="Search rounds" value="2" />
+          <Pill
+            label="Canon scope"
+            value={
+              meta.uniqueAgents
+                ? `this session · ${meta.canonNodesLoaded.toLocaleString()} nodes`
+                : 'this browser session'
+            }
+          />
         </div>
       </SurfaceCard>
 
@@ -592,8 +830,8 @@ function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner, stopPl
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.65, color: 'var(--muted)' }}>
               Each agent reviews the original and all candidate endings in one matched comparison
               alongside the complete episode. It uses its stable listener profile, recalls up to four
-              show-specific past reactions when available, reads shared story canon when available,
-              and returns a 0–100 hook score for every ending.
+              show-specific past reactions when available, reads only this browser session’s story
+              canon, and returns a 0–100 hook score for every ending.
             </p>
             <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--ink)' }}>
               <div>
@@ -643,6 +881,10 @@ function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner, stopPl
                 }
               />
               <Pill label="Audience source" value={meta.audienceSource || 'knowledge graph'} />
+              <Pill
+                label="Session canon loaded"
+                value={`${meta.canonNodesLoaded.toLocaleString()} nodes`}
+              />
               <Pill label="Model" value={meta.model || 'shown after start'} />
               <Pill
                 label="Experiment graph archive"

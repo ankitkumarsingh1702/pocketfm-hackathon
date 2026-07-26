@@ -229,13 +229,44 @@ class CanonGraph(BaseModel):
 
 class IngestRequest(BaseModel):
     story: Story
+    batch: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
 
 
 class IngestResult(BaseModel):
     episode_id: str
     nodes_added: int
     edges_added: int
+    facts_added: int = 0
+    batch: str = ""
     entities: list[str] = Field(default_factory=list)     # names ingested, for the UI
+    extraction: CanonExtraction | None = None
+
+
+class CanonPreviewResult(BaseModel):
+    extraction: CanonExtraction = Field(default_factory=CanonExtraction)
+    entity_count: int = 0
+    relation_count: int = 0
+    fact_count: int = 0
+
+
+class CanonResetRequest(BaseModel):
+    batch: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
+
+
+class CanonResetResult(BaseModel):
+    batch: str
+    nodes_deleted: int = 0
+    relationships_deleted: int = 0
+    memberships_deleted: int = 0
 
 
 class ActivityEvent(BaseModel):
@@ -333,6 +364,8 @@ class SearchTree(BaseModel):
     model: str = ""
     agentic: bool = False
     experiment_archived: bool = False
+    canon_scope: Literal["session"] = "session"
+    canon_nodes_loaded: int = 0
 
 
 class PlotHolesRequest(BaseModel):
@@ -342,6 +375,11 @@ class PlotHolesRequest(BaseModel):
 class PlanRequest(BaseModel):
     story: Story
     weak_excerpt: str
+    batch: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
     beam_width: int | None = None
     depth: int | None = None
     panel_size: int | None = None

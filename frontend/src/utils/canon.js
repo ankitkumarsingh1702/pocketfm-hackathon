@@ -285,6 +285,8 @@ export function emptyPlanner() {
       cachedAgents: 0,
       verificationCachedAgents: 0,
       experimentArchived: false,
+      canonScope: 'session',
+      canonNodesLoaded: 0,
     },
     recentAgents: [],
     runningScores: {},
@@ -329,6 +331,8 @@ export function reducePlanner(state, ev) {
           model: ev.model || '',
           agentic: Boolean(ev.agentic),
           sharedCanonLoaded: Boolean(ev.shared_canon_loaded),
+          canonScope: ev.canon_scope || 'session',
+          canonNodesLoaded: ev.canon_nodes_loaded || 0,
         },
       }
     case 'candidate_generated':
@@ -473,6 +477,8 @@ export function reducePlanner(state, ev) {
           cachedAgents: tree.cached_agents || 0,
           verificationCachedAgents: tree.verification_cached_agents || 0,
           experimentArchived: Boolean(tree.experiment_archived),
+          canonScope: tree.canon_scope || 'session',
+          canonNodesLoaded: tree.canon_nodes_loaded || 0,
         },
       }
     }
