@@ -82,7 +82,7 @@ jobs:
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --region "${{ vars.GCP_REGION }}" \
             --allow-unauthenticated \
-            --memory 1Gi --cpu 1 --timeout 900 --max-instances 1 \
+            --memory 2Gi --cpu 2 --timeout 900 --max-instances 5 \
             --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }}" \
             ${SECRET_FLAGS[@]+"${SECRET_FLAGS[@]}"} \
             --quiet
