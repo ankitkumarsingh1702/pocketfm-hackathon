@@ -10,8 +10,8 @@ WORKDIR /fe
 # passes `npm ci` locally can still fail here. Regenerate the lockfile with this
 # same pinned version, and verify with `npx -y npm@11.18.0 ci --dry-run`.
 RUN npm install -g npm@11.18.0
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+COPY frontend/package.json ./
+RUN npm i
 COPY frontend/ ./
 RUN npm run build
 
