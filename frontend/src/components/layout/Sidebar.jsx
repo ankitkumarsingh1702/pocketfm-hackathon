@@ -1,13 +1,10 @@
 import { NavLink } from "react-router-dom";
 
 import {
-  AUDIENCE_ARMY,
   LENSES,
   // UPCOMING_SUPERPOWERS,
 } from "../../config/constants";
-import { formatInt } from "../../utils/format";
 import { Icon, Wordmark } from "../primitives";
-import HealthBadge from "../HealthBadge";
 
 /**
  * Studio navigation rail. One `NavLink` per lens — the route, not component
@@ -16,7 +13,7 @@ import HealthBadge from "../HealthBadge";
  * off-canvas drawer via the `open` class; `onNavigate` lets the shell close
  * that drawer when a link is chosen.
  */
-export default function Sidebar({ open = false, health, onNavigate }) {
+export default function Sidebar({ open = false, onNavigate }) {
   return (
     <aside
       className={`sidebar${open ? " is-open" : ""}`}
@@ -60,13 +57,6 @@ export default function Sidebar({ open = false, health, onNavigate }) {
         ))}
       </div> */}
 
-      <div className="sidebar__foot">
-        <HealthBadge {...health} />
-        <span className="sidebar__foot-line">
-          Panel of {formatInt(AUDIENCE_ARMY)} simulated listeners · persona
-          simulation on Google Vertex AI
-        </span>
-      </div>
     </aside>
   );
 }
