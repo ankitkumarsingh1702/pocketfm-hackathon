@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from collections.abc import Callable
 
 from app.config import settings
 from app.engine.cache import Cache
@@ -144,6 +145,7 @@ async def run_reactions(
     model: str | None = None,
     canon: str | None = None,
     canon_fp: str | None = None,
+    on_reaction: Callable[[Persona, PersonaReaction, bool], None] | None = None,
 ) -> list[tuple[Persona, PersonaReaction]]:
     """Collect one ``PersonaReaction`` per persona, concurrently and cached.
 
@@ -154,12 +156,17 @@ async def run_reactions(
     ``canon`` (story-bible memory) is injected into every prompt; ``canon_fp``
     is folded into the cache key so injecting or changing memory never replays a
     reaction cached under different canon.
+
+    ``on_reaction(persona, reaction, cached)`` — when provided — is called once
+    per persona *as its reaction lands* (not at the end), so a caller can stream
+    honest live progress. It receives whether the reaction was a cache hit. When
+    omitted, the fast batched path is used and behaviour is unchanged.
     """
     sem = asyncio.Semaphore(settings.concurrency)
     story_hash = _story_hash(story)
     canon_key = canon_fp or "nocanon"
 
-    async def _one(persona: Persona) -> tuple[Persona, PersonaReaction]:
+    async def _one(persona: Persona) -> tuple[Persona, PersonaReaction, bool]:
         system, user = build_reaction_prompt(persona, story, canon)
         key = (
             cache.make_key(
@@ -179,7 +186,7 @@ async def run_reactions(
             cached = cache.get(key)
             if cached is not None:
                 try:
-                    return persona, PersonaReaction.model_validate(cached)
+                    return persona, PersonaReaction.model_validate(cached), True
                 except Exception:
                     # Corrupt/stale cache entry — regenerate below.
                     pass
@@ -196,9 +203,33 @@ async def run_reactions(
 
         if cache is not None and key is not None:
             cache.set(key, reaction.model_dump())
-        return persona, reaction
+        return persona, reaction, False
 
-    results = await asyncio.gather(
-        *(_one(p) for p in personas), return_exceptions=True
-    )
-    return [r for r in results if not isinstance(r, BaseException)]
+    # Fast path: no live observer, so batch and return in one shot (unchanged).
+    if on_reaction is None:
+        results = await asyncio.gather(
+            *(_one(p) for p in personas), return_exceptions=True
+        )
+        return [
+            (persona, reaction)
+            for item in results
+            if not isinstance(item, BaseException)
+            for persona, reaction, _cached in [item]
+        ]
+
+    # Streaming path: emit each reaction the moment it resolves. A single failed
+    # persona is dropped (not raised) exactly like the batched path.
+    tasks = [asyncio.ensure_future(_one(p)) for p in personas]
+    pairs: list[tuple[Persona, PersonaReaction]] = []
+    for future in asyncio.as_completed(tasks):
+        try:
+            persona, reaction, cached = await future
+        except Exception:
+            continue
+        pairs.append((persona, reaction))
+        try:
+            on_reaction(persona, reaction, cached)
+        except Exception:
+            # A misbehaving observer must never sink the run.
+            pass
+    return pairs

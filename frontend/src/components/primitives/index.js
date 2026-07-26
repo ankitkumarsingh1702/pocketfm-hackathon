@@ -1,4 +1,5 @@
 /** Barrel export for the presentational primitive components. */
+export { default as AgentLogConsole } from './AgentLogConsole'
 export { default as BarChart } from './BarChart'
 export { default as Button } from './Button'
 export { default as Disclosure } from './Disclosure'

@@ -1,6 +1,15 @@
 import { signed } from '../../utils/format'
-import { Button, Icon, MetricNumber, Pill, ProgressLine, ScoreGauge, SurfaceCard } from '../primitives'
-import { EmptyState, ErrorState, LoadingState } from '../StateViews'
+import {
+  AgentLogConsole,
+  Button,
+  Icon,
+  MetricNumber,
+  Pill,
+  ProgressLine,
+  ScoreGauge,
+  SurfaceCard,
+} from '../primitives'
+import { EmptyState, ErrorState } from '../StateViews'
 
 /** Visually-hidden text for screen-reader-only announcements. */
 const srOnly = {
@@ -52,23 +61,11 @@ function EndingCard({ label, text, score, gaugeLabel, elevated, audio }) {
 }
 
 /**
- * Cliffhanger Optimizer results. Pure view of the cliffhanger view-model:
- * before → after hook scores, the original vs optimized endings, and the
- * rationale behind the rewrite. The "hear the difference" bar and per-card
- * players turn the score lift into an audible A/B (state comes from `narration`).
+ * The before → after result of a completed optimize: the hook-score lift, the
+ * "hear the difference" A/B bar, the original vs optimized endings, and the
+ * rationale behind the rewrite.
  */
-export default function CliffhangerOptimizerTab({ loading, error, data, narration }) {
-  if (loading) return <LoadingState label="Scoring rewrites against the listener panel…" />
-  if (error) return <ErrorState message={error} />
-  if (!data) {
-    return (
-      <EmptyState
-        title="No rewrite yet"
-        hint="Run the optimizer to rewrite the episode's ending and A/B test the hook lift."
-      />
-    )
-  }
-
+function ResultsView({ data, narration }) {
   const n = narration ?? {}
   const clips = n.clips
   const isLoading = n.status === 'loading'
@@ -117,7 +114,7 @@ export default function CliffhangerOptimizerTab({ loading, error, data, narratio
       : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 40, paddingTop: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap' }}>
         <MetricNumber value={data.before} size="lg" tone="muted" />
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 40, color: 'var(--accent)' }}>
@@ -199,6 +196,57 @@ export default function CliffhangerOptimizerTab({ loading, error, data, narratio
           </p>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Cliffhanger Optimizer results.
+ *
+ * The run now streams: instead of a bare spinner, an `AgentLogConsole` shows the
+ * optimizer's work live — the rewrite, then each simulated listener's before /
+ * after hook score as it lands, CLI-style. The log stays available (collapsible)
+ * after the run so you can see exactly what every agent did. When the terminal
+ * result arrives, `ResultsView` renders the before → after lift and the audible
+ * A/B (state comes from `narration`).
+ */
+export default function CliffhangerOptimizerTab({
+  error,
+  data,
+  log,
+  progress,
+  running,
+  stop,
+  narration,
+}) {
+  const hasLog = Array.isArray(log) && log.length > 0
+
+  // Nothing has run yet — prompt the first optimize.
+  if (!running && !hasLog && !data && !error) {
+    return (
+      <EmptyState
+        title="No rewrite yet"
+        hint="Run the optimizer to rewrite the episode's ending and A/B test the hook lift. You'll see every agent score live as it runs."
+      />
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 40, paddingTop: 8 }}>
+      {data && <ResultsView data={data} narration={narration} />}
+
+      {(running || hasLog) && (
+        <AgentLogConsole
+          log={log}
+          running={running}
+          progress={progress}
+          onStop={stop}
+          title="Agent activity"
+          defaultOpen
+        />
+      )}
+
+      {error && !running && <ErrorState message={error} />}
     </div>
   )
 }
