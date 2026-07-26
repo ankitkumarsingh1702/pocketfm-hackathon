@@ -40,6 +40,7 @@ from app.lenses.audience_sim import (
 from app.lenses.cliffhanger import run_cliffhanger
 from app.lenses.plot_holes import find_plot_holes
 from app.lenses.showrunner import run_showrunner
+from app.lenses.story_scan import scan_story
 from app.lenses.writers_room import run_writers_room, stream_writers_room
 from app.llm.factory import get_llm
 from app.personas.loader import load_personas
@@ -63,6 +64,8 @@ from app.schemas import (
     PlotHolesRequest,
     ShowrunnerRequest,
     SimulateRequest,
+    StoryScanRequest,
+    StoryScanResult,
     WritersRoomRequest,
     WritersRoomResult,
 )
@@ -263,6 +266,19 @@ async def plot_holes(req: PlotHolesRequest) -> PlotHoleResult:
     """Plot Hole Hunter: graph-grounded continuity/contradiction detection."""
     try:
         return await find_plot_holes(req.story)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/lenses/story-plot-holes", response_model=StoryScanResult)
+async def story_plot_holes(req: StoryScanRequest) -> StoryScanResult:
+    """Scan ONE loaded show's episodes for cross-episode contradictions.
+
+    Story-scoped (never the seeded canon) and returns the exact clashing sentence
+    on each side so the UI can highlight them like facing pages of a book.
+    """
+    try:
+        return await scan_story(req)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
 

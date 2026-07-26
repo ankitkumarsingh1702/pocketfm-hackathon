@@ -177,6 +177,21 @@ export function findPlotHoles(story) {
 }
 
 /**
+ * POST /api/lenses/story-plot-holes -> StoryScanResult
+ * Scans ONE loaded show's episodes for cross-episode contradictions — story-scoped
+ * (never the seeded canon). Sends every episode's text so the result can cite the
+ * exact clashing sentence on each side, for the book / highlighter view.
+ * @param {{title:string, episodes:{label:string,text:string}[]}} story
+ */
+export function scanStoryPlotHoles(story) {
+  const episodes = (story.episodes || []).map((e) => ({ episode: e.label, text: e.text }))
+  return request('/api/lenses/story-plot-holes', {
+    method: 'POST',
+    body: { title: story.title, episodes },
+  })
+}
+
+/**
  * POST /api/plan/cliffhanger/stream -> NDJSON tree-search events.
  * @param {{story:object, weakExcerpt:string, beamWidth?:number, depth?:number}} payload
  */
