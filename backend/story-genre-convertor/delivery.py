@@ -20,11 +20,19 @@ earlier and made local. The check costs one call per scene and saves a rewrite.
     python delivery.py --selftest        # merge logic, no credentials
 """
 
+import os
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
 from models import Beat
+
+# Ballots per in-flight delivery check. One judgment is not reproducible — the
+# same comparison has scored 68% and 93% on different runs — and here the
+# asymmetry is sharp: a false "delivered" ships a broken pivot silently, a false
+# "missing" merely costs one retry. So the gate votes, and disagreement resolves
+# against the scene.
+DELIVERY_VOTES = int(os.environ.get("DELIVERY_VOTES", "2"))
 
 CHECK_SYSTEM = """You are given a passage of prose and a list of plot events.
 
@@ -119,12 +127,64 @@ def _render(beats: List[Beat]) -> str:
     return "\n".join(lines)
 
 
-def check_delivery(prose: str, beats: List[Beat]) -> DeliveryReport:
+def check_delivery(prose: str, beats: List[Beat], temperature: float = 0.0) -> DeliveryReport:
     """One call. Deliberately not told what the writer claimed."""
     from llm import structured  # deferred so --selftest needs no credentials
 
     prompt = f"{_render(beats)}\n\nPASSAGE:\n{prose}"
-    return structured(CHECK_SYSTEM, prompt, DeliveryReport, temperature=0)
+    return structured(CHECK_SYSTEM, prompt, DeliveryReport, temperature=temperature)
+
+
+def merge_delivery(
+    ballots: List[DeliveryReport], beats: List[Beat], threshold: Optional[int] = None
+) -> DeliveryReport:
+    """Merge independent ballots into one report. Pure, so it is selftestable.
+
+    A beat counts delivered when at least `threshold` ballots found it on the
+    page; the default is ALL of them — the strict form the in-flight gate wants,
+    where any doubt buys a retry. Final measurement passes a majority threshold
+    instead, so one stray "no" cannot report a delivered pivot as dropped. A
+    ballot that returned no verdict for a beat counts as a no: silence is not
+    consent.
+    """
+    need = len(ballots) if threshold is None else max(1, min(threshold, len(ballots)))
+    verdicts: List[BeatVerdict] = []
+    for beat in beats:
+        found = [v for ballot in ballots for v in ballot.verdicts if v.beat_id == beat.id]
+        yes = [v for v in found if v.delivered]
+        tally = f"{len(yes)}/{len(ballots)} ballots"
+        if len(yes) >= need:
+            verdicts.append(
+                BeatVerdict(beat_id=beat.id, delivered=True, position=yes[0].position, note=tally)
+            )
+        else:
+            reasons = [v.note for v in found if not v.delivered and v.note]
+            why = reasons[0] if reasons else ("no ballot returned a verdict" if not found else "")
+            note = f"{why} ({tally})" if why else tally
+            verdicts.append(BeatVerdict(beat_id=beat.id, delivered=False, position=0, note=note))
+    return DeliveryReport(verdicts=verdicts)
+
+
+def check_delivery_voted(
+    prose: str,
+    beats: List[Beat],
+    votes: int = DELIVERY_VOTES,
+    threshold: Optional[int] = None,
+) -> DeliveryReport:
+    """`votes` independent ballots, merged by `merge_delivery`.
+
+    The first ballot runs at temperature 0 as before; the extra ballots run
+    warmer, because identical deterministic reads are correlated and voting
+    correlated ballots buys nothing.
+    """
+    if votes <= 1:
+        return check_delivery(prose, beats)
+    from concurrent.futures import ThreadPoolExecutor
+
+    temps = [0.0] + [0.5] * (votes - 1)
+    with ThreadPoolExecutor(max_workers=votes) as pool:
+        ballots = list(pool.map(lambda t: check_delivery(prose, beats, temperature=t), temps))
+    return merge_delivery(ballots, beats, threshold)
 
 
 def check_links(prose: str, edges: List[tuple], beats: List[Beat]) -> LinkReport:
@@ -239,6 +299,28 @@ def _selftest() -> int:
     print("an honest writer produces no overclaim")
     assert reconcile(["b1"], thin, beats) == []
     print("  claimed only what it delivered -> nothing recorded")
+
+    print("voting: the strict gate needs every ballot")
+    split = merge_delivery([report(b1=True, b2=True, b3=True), thin], beats)
+    got = {v.beat_id: v.delivered for v in split.verdicts}
+    assert got == {"b1": True, "b2": False, "b3": False}, got
+    print("  one dissenting ballot -> not delivered")
+
+    print("voting: majority threshold for measurement")
+    majority = merge_delivery(
+        [report(b1=True, b2=True, b3=True), thin, report(b1=True, b2=True, b3=False)],
+        beats,
+        threshold=2,
+    )
+    got = {v.beat_id: v.delivered for v in majority.verdicts}
+    assert got == {"b1": True, "b2": True, "b3": False}, got
+    print("  2 of 3 carries a beat; 1 of 3 does not")
+
+    print("voting: a ballot silent on a beat votes no")
+    silent = merge_delivery([report(b1=True), report(b1=True, b2=True)], beats)
+    got = {v.beat_id: v.delivered for v in silent.verdicts}
+    assert got == {"b1": True, "b2": False, "b3": False}, got
+    print("  missing verdicts cannot carry a beat")
 
     print()
     print("delivery check OK")

@@ -33,13 +33,24 @@ import re
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
+
+# Optional progress hook: (done, total, note). The CLI passes nothing and prints
+# to stderr as before; the HTTP service passes one so a browser can watch a
+# forty-minute run without reading a log file.
+ProgressFn = Optional[Callable[[int, int, str], None]]
 
 from pydantic import BaseModel, Field
 
 from bible import ProposedFact, StoryBible, check_continuity, merge_proposals
 from casting import cast, check_casting, to_bible
-from delivery import check_delivery, check_links, delivered_ids, preserved_edges, undelivered
+from delivery import (
+    check_delivery_voted,
+    check_links,
+    delivered_ids,
+    preserved_edges,
+    undelivered,
+)
 from extract import extract_clean
 from genre_pack import GenrePack, available_packs, load_pack
 from models import Beat, Role, StorySkeleton
@@ -256,6 +267,7 @@ def extract_book(
     limit: int = 0,
     target_words: int = 2500,
     verbose: bool = True,
+    on_progress: ProgressFn = None,
 ) -> BookSkeleton:
     """Segment, extract every chunk, unify, and reduce upward."""
     from llm import structured
@@ -267,6 +279,9 @@ def extract_book(
         store.touch(stage="segment", chunks=len(chunks), note=f"{len(chunks)} chunks")
         for chunk in chunks:
             store.put_chunk(chunk.index, chunk.text)
+    if on_progress:
+        total_words = sum(c.words for c in chunks)
+        on_progress(0, len(chunks), f"split into {len(chunks)} chapters ({total_words} words)")
 
     if verbose:
         total = sum(c.words for c in chunks)
@@ -286,6 +301,13 @@ def extract_book(
         if store:
             store.put_json(f"skeletons/chapter-{chunk.index:03d}.json", chapter)
             store.touch(stage="extract", note=f"{chapter.id} extracted")
+        if on_progress:
+            on_progress(
+                len(chapters),
+                len(chunks),
+                f"{chapter.id}: {len(chapter.skeleton.beats)} beats, "
+                f"{len(chapter.skeleton.load_bearing_ids)} load-bearing",
+            )
         if verbose:
             print(
                 f"    {chapter.id} {chunk.words:>5}w -> {len(chapter.skeleton.beats):>2} beats, "
@@ -473,9 +495,10 @@ def write_scene(
         )
         prompt = REDO_PREFIX.format(missing=complaint) + "\n\n" + prompt
 
-    from transform import TRANSFORM_TEMPERATURE
+    from transform import RETRY_TEMPERATURE, TRANSFORM_TEMPERATURE
 
-    return structured(SCENE_SYSTEM, prompt, LongScene, temperature=TRANSFORM_TEMPERATURE)
+    temperature = RETRY_TEMPERATURE if missing else TRANSFORM_TEMPERATURE
+    return structured(SCENE_SYSTEM, prompt, LongScene, temperature=temperature)
 
 
 def write_chapter(
@@ -489,6 +512,7 @@ def write_chapter(
     is_first: bool = False,
     is_last: bool = False,
     verbose: bool = True,
+    on_progress: ProgressFn = None,
 ) -> str:
     """Write one chapter, scene by scene, checking delivery as it goes."""
     scenes = plan_scenes(chapter.skeleton, MAX_BEATS_PER_SCENE)
@@ -501,19 +525,22 @@ def write_chapter(
             beats, chapter, plan, pack, story_bible, seam, is_first and n == 0, last_scene
         )
 
-        # Never trust beats_covered. Ask a reader that was not told what we hoped.
-        report = check_delivery(scene.prose, beats)
+        # Never trust beats_covered. Ask a voted reader that was not told what
+        # we hoped, and keep rewriting while a pivot is missing.
+        from transform import MAX_SCENE_ATTEMPTS
+
+        report = check_delivery_voted(scene.prose, beats)
         short = undelivered(report, beats, load_bearing_only=True)
         attempts = 1
-        if short:
+        while short and attempts < MAX_SCENE_ATTEMPTS:
             notes = {v.beat_id: v.note for v in report.verdicts if not v.delivered}
             scene = write_scene(
                 beats, chapter, plan, pack, story_bible, seam,
                 is_first and n == 0, last_scene, missing=short, missing_notes=notes,
             )
-            report = check_delivery(scene.prose, beats)
+            report = check_delivery_voted(scene.prose, beats)
             short = undelivered(report, beats, load_bearing_only=True)
-            attempts = 2
+            attempts += 1
 
         verified = delivered_ids(report, beats)
         added = merge_proposals(
@@ -548,6 +575,14 @@ def write_chapter(
 
         prose_parts.append(scene.prose.strip())
         seam = " ".join(scene.prose.split()[-SEAM_WORDS:])
+        if on_progress:
+            on_progress(
+                n + 1,
+                len(scenes),
+                f"{scene_id}: {len(scene.prose.split())} words, "
+                f"{len(verified)}/{len(beats)} beats delivered"
+                + (" (retried)" if attempts > 1 else ""),
+            )
 
     return "\n\n".join(prose_parts)
 
@@ -558,10 +593,15 @@ def write_chapter(
 
 
 def verify_chapter(chapter: ChapterSkeleton, prose: str) -> Dict[str, object]:
-    """Score one chapter's prose against its own beats. Bounded, and parallelisable."""
+    """Score one chapter's prose against its own beats. Bounded, and parallelisable.
+
+    Delivery is measured by three ballots merged at majority — measurement wants
+    2-of-3, unlike the in-flight gate's all-must-agree, so one stray "no" cannot
+    report a delivered pivot as dropped and trigger a pointless repair.
+    """
     beats = chapter.skeleton.beats
     edges = chapter.skeleton.causal_edges
-    delivery = check_delivery(prose, beats)
+    delivery = check_delivery_voted(prose, beats, votes=3, threshold=2)
     links = check_links(prose, edges, beats) if edges else None
 
     kept = set(delivered_ids(delivery, beats))

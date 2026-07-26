@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { MAX_CHARS, MIN_CHARS } from '../config/genre'
+import {
+  LONGFORM_MAX_CHARS,
+  LONGFORM_POLL_TIMEOUT_MS,
+  MAX_CHARS,
+  MIN_CHARS,
+  POLL_TIMEOUT_MS,
+} from '../config/genre'
 import * as genreApi from '../lib/genreApi'
 
 // Stable identities, so a poll that changes nothing does not re-render the
@@ -64,19 +70,28 @@ export function useGenreConverter() {
 
   const chars = source.trim().length
   const tooShort = chars > 0 && chars < MIN_CHARS
-  const tooLong = chars > MAX_CHARS
+  const tooLong = chars > LONGFORM_MAX_CHARS
+  /** Past the short pipeline: this convert will run chapter by chapter. */
+  const longform = chars > MAX_CHARS && !tooLong
 
   /** Why the run button is disabled, in words, or null when it is enabled. */
   const blocker = (() => {
     if (running) return 'A conversion is already running.'
     if (chars === 0) return 'Paste a story first.'
     if (tooShort) return `${MIN_CHARS - chars} more characters needed — this is too short to have a plot.`
-    if (tooLong) return `${chars - MAX_CHARS} characters over the limit. Novel length needs a different pipeline.`
+    if (tooLong) return `${(chars - LONGFORM_MAX_CHARS).toLocaleString()} characters over the long-form ceiling.`
     if (!genre) return 'Choose a genre.'
     return null
   })()
 
   const canRun = blocker === null
+
+  /** Skeleton-only extraction stays short-lane-only; long stories must Convert. */
+  const extractBlocker =
+    !blocker && longform
+      ? `Skeleton-only extraction runs on stories up to ${MAX_CHARS.toLocaleString()} characters.`
+      : blocker
+  const canExtract = extractBlocker === null
 
   // --- running --------------------------------------------------------------
 
@@ -102,7 +117,12 @@ export function useGenreConverter() {
             : await genreApi.submitConvert(text, genre, controller.signal)
 
         setJob(submitted)
-        const finished = await genreApi.pollJob(submitted.id, setJob, controller.signal)
+        const finished = await genreApi.pollJob(
+          submitted.id,
+          setJob,
+          controller.signal,
+          submitted.lane === 'longform' ? LONGFORM_POLL_TIMEOUT_MS : POLL_TIMEOUT_MS,
+        )
         setResult(finished.result)
       } catch (err) {
         if (err.name === 'AbortError') return // stopped on purpose; leave state as-is
@@ -150,7 +170,8 @@ export function useGenreConverter() {
    * now" for a minute is exactly the disconnection this is meant to remove.
    */
   const activeScene = useMemo(() => {
-    if (!running || job?.stage !== 'transform') return null
+    // 'transform' is the short lane's writing stage; 'write' is the long-form one.
+    if (!running || (job?.stage !== 'transform' && job?.stage !== 'write')) return null
     const plan = partial.scene_plan ?? []
     const done = new Set((partial.scenes ?? []).map((s) => s.scene))
     return plan.find((entry) => !done.has(entry.scene))?.scene ?? null
@@ -167,8 +188,11 @@ export function useGenreConverter() {
     chars,
     tooShort,
     tooLong,
+    longform,
     blocker,
     canRun,
+    extractBlocker,
+    canExtract,
     // lifecycle
     convert,
     extract,

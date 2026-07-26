@@ -14,11 +14,23 @@ from __future__ import annotations
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from app.lenses.audience_sim import react_one_agent
 from app.schemas import Story
 
-mcp = FastMCP("PocketFM Simulated Studio", stateless_http=True)
+mcp = FastMCP(
+    "PocketFM Simulated Studio",
+    stateless_http=True,
+    # Serve the streamable-HTTP endpoint at the sub-app root so mounting it at
+    # "/mcp" yields exactly "/mcp" (not "/mcp/mcp").
+    streamable_http_path="/",
+    # This is a public, hosted MCP server behind Cloud Run's own domain, so the
+    # SDK's default DNS-rebinding Host allow-list (localhost only) would 421 every
+    # real request. Disable it; the endpoint is read-mostly and unauthenticated
+    # by design for the demo.
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+)
 
 
 @mcp.tool()

@@ -9,8 +9,11 @@
 /** api.py MIN_CHARS — shorter than this has no plot to extract. */
 export const MIN_CHARS = 400
 
-/** api.py MAX_CHARS — longer than this needs the pipeline in LONGFORM.md. */
+/** api.py MAX_CHARS — past this a conversion runs the long-form lane instead. */
 export const MAX_CHARS = 60000
+
+/** api.py LONGFORM_MAX_CHARS — the long-form lane's own ceiling (~70k words). */
+export const LONGFORM_MAX_CHARS = 400000
 
 /**
  * How often to ask the service how a running job is doing.
@@ -35,25 +38,36 @@ export const POLL_SCHEDULE = [
 ]
 
 /**
- * Stop polling after this long. A conversion is five to eight minutes; twenty
- * is well past "slow" and into "something is wrong".
+ * Stop polling after this long. A short conversion is five to eight minutes;
+ * twenty is well past "slow" and into "something is wrong". A long-form run
+ * writes a chapter at a time and legitimately takes most of an hour.
  */
 export const POLL_TIMEOUT_MS = 20 * 60 * 1000
+export const LONGFORM_POLL_TIMEOUT_MS = 90 * 60 * 1000
 
-/** Human labels for the job's `stage` field. */
+/** Human labels for the job's `stage` field, across both lanes. */
 export const STAGE_LABELS = {
   extract: 'Extracting the plot skeleton',
   transform: 'Writing the rewrite, scene by scene',
+  cast: 'Casting the roles, once, up front',
+  outline: 'Outlining the chapters',
+  write: 'Writing, chapter by chapter',
   verify: 'Checking every beat against the page',
 }
 
 /** The stages a conversion moves through, in order, for the progress checklist. */
 export const STAGE_ORDER = ['extract', 'transform', 'verify']
 
+/** The long-form lane's stages: chapters, a fixed cast, and a story bible. */
+export const LONGFORM_STAGE_ORDER = ['extract', 'cast', 'outline', 'write', 'verify']
+
 /** Short forms of the same, for the checklist where space is tight. */
 export const STAGE_SHORT = {
   extract: 'Extract',
   transform: 'Rewrite',
+  cast: 'Cast',
+  outline: 'Outline',
+  write: 'Write',
   verify: 'Verify',
 }
 

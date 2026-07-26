@@ -57,9 +57,10 @@ You paste text (or upload a `.txt`) and press **Convert story**.
 
 1. The browser sends the text and your chosen genre to `POST /api/convert`.
 2. The service checks the basics before spending anything: at least 400
-   characters (shorter has no plot to extract), at most 60,000 (longer needs a
-   different pipeline), and the genre must be one of the packs on disk
-   (`anime`, `comedy`, `horror`, `romance`, `thriller`).
+   characters (shorter has no plot to extract), and the genre must be one of
+   the packs on disk (`anime`, `comedy`, `horror`, `romance`, `thriller`).
+   Up to 60,000 characters the job runs this scene-by-scene pipeline; past
+   that it switches to the chapter-based long-form lane (see `LONGFORM.md`).
 3. It creates a **job** with an id and returns it immediately — the work is far
    too long to hold a web request open. The browser then polls
    `GET /api/jobs/{id}` (every 20 seconds at first, tightening to 5 seconds as
