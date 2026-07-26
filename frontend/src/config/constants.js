@@ -30,15 +30,15 @@ export const LENSES = [
     blurb:
       "A panel of simulated listeners reacts to your episode before a single real one hears it — continue-rate, drop-off, and reactions by segment.",
   },
-  {
-    id: "opt",
-    path: "/cliffhanger",
-    label: "Cliffhanger Optimizer",
-    icon: "zap",
-    title: "Cliffhanger Optimizer",
-    blurb:
-      "Predicts the probability of binge-listening and rewrites your ending, then A/B tests the hook lift against the listener panel.",
-  },
+  // {
+  //   id: "opt",
+  //   path: "/cliffhanger",
+  //   label: "Cliffhanger Optimizer",
+  //   icon: "zap",
+  //   title: "Cliffhanger Optimizer",
+  //   blurb:
+  //     "Predicts the probability of binge-listening and rewrites your ending, then A/B tests the hook lift against the listener panel.",
+  // },
   {
     id: "room",
     path: "/writers-room",
@@ -47,6 +47,24 @@ export const LENSES = [
     title: "AI Writers Room",
     blurb:
       "Your experts and your audience react to an episode — live, as each voice lands.",
+  },
+  {
+    id: "genre",
+    path: "/genre",
+    label: "Story Rewrite Engine",
+    icon: "shuffle",
+    title: "Story Rewrite Engine",
+    blurb:
+      "Rewrite a story in another genre. The plot is extracted into a genre-neutral skeleton, rewritten scene by scene, then checked beat by beat against the page.",
+  },
+  {
+    id: "mood",
+    path: "/mood",
+    label: "Mood Search",
+    icon: "heart",
+    title: "Mood-First Search",
+    blurb:
+      "Listeners search by how they want to feel, not by genre. An ambiguous feeling comes back as three readings side by side, each pointing at the arc that delivers it — never a 200-episode series.",
   },
   {
     id: "canon",
@@ -65,24 +83,6 @@ export const LENSES = [
     title: "DB / Memory",
     blurb:
       "Live proof the agents share one memory: every graph read and write, as it happens.",
-  },
-  {
-    id: "genre",
-    path: "/genre",
-    label: "Genre Converter",
-    icon: "shuffle",
-    title: "Genre Converter",
-    blurb:
-      "Rewrite a story in another genre. The plot is extracted into a genre-neutral skeleton, rewritten scene by scene, then checked beat by beat against the page.",
-  },
-  {
-    id: "mood",
-    path: "/mood",
-    label: "Mood Search",
-    icon: "heart",
-    title: "Mood-First Search",
-    blurb:
-      "Listeners search by how they want to feel, not by genre. An ambiguous feeling comes back as three readings side by side, each pointing at the arc that delivers it — never a 200-episode series.",
   },
 ];
 
@@ -235,15 +235,15 @@ export const SUPERPOWERS = [
   { label: "Cliffhanger Optimizer", live: true },
   { label: "AI Writers Room", live: true },
   { label: "Plot Hole Hunter", live: true },
-  { label: "AI Producer", live: false },
-  { label: "AI Rewrite Engine", live: false },
+  // { label: "AI Producer", live: false },
+  // { label: "AI Rewrite Engine", live: false },
 ];
 
 /**
  * Superpowers named in the sidebar but not yet wired to a backend, so the
  * roadmap stays visible without pretending to be navigable.
  */
-export const UPCOMING_SUPERPOWERS = ["AI Producer", "AI Rewrite Engine"];
+// export const UPCOMING_SUPERPOWERS = ["AI Producer", "AI Rewrite Engine"];
 
 /** Simulated-listener panel size advertised in the header pill. */
 export const AUDIENCE_ARMY = 1000;

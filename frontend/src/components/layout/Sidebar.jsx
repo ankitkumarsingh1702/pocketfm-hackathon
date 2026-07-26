@@ -1,9 +1,13 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink } from "react-router-dom";
 
-import { AUDIENCE_ARMY, LENSES, UPCOMING_SUPERPOWERS } from '../../config/constants'
-import { formatInt } from '../../utils/format'
-import { Icon, Wordmark } from '../primitives'
-import HealthBadge from '../HealthBadge'
+import {
+  AUDIENCE_ARMY,
+  LENSES,
+  // UPCOMING_SUPERPOWERS,
+} from "../../config/constants";
+import { formatInt } from "../../utils/format";
+import { Icon, Wordmark } from "../primitives";
+import HealthBadge from "../HealthBadge";
 
 /**
  * Studio navigation rail. One `NavLink` per lens — the route, not component
@@ -14,18 +18,26 @@ import HealthBadge from '../HealthBadge'
  */
 export default function Sidebar({ open = false, health, onNavigate }) {
   return (
-    <aside className={`sidebar${open ? ' is-open' : ''}`} aria-label="Studio navigation">
+    <aside
+      className={`sidebar${open ? " is-open" : ""}`}
+      aria-label="Studio navigation"
+    >
       <Wordmark size={19} />
 
       <nav className="side-nav" aria-label="Lenses">
-        <div className="side-nav__label label-upper" style={{ fontSize: 11 }}>
+        <div
+          className="side-nav__label label-upper page-head__eyebrow"
+          style={{ fontSize: 11 }}
+        >
           Lenses
         </div>
         {LENSES.map((lens) => (
           <NavLink
             key={lens.id}
             to={lens.path}
-            className={({ isActive }) => `side-link${isActive ? ' is-active' : ''}`}
+            className={({ isActive }) =>
+              `side-link${isActive ? " is-active" : ""}`
+            }
             onClick={onNavigate}
           >
             <span className="side-link__icon">
@@ -36,7 +48,7 @@ export default function Sidebar({ open = false, health, onNavigate }) {
         ))}
       </nav>
 
-      <div className="side-soon">
+      {/* <div className="side-soon">
         <div className="side-nav__label label-upper" style={{ fontSize: 11 }}>
           Coming soon
         </div>
@@ -46,15 +58,15 @@ export default function Sidebar({ open = false, health, onNavigate }) {
             {name}
           </span>
         ))}
-      </div>
+      </div> */}
 
       <div className="sidebar__foot">
         <HealthBadge {...health} />
         <span className="sidebar__foot-line">
-          Panel of {formatInt(AUDIENCE_ARMY)} simulated listeners · persona simulation on Google
-          Vertex AI
+          Panel of {formatInt(AUDIENCE_ARMY)} simulated listeners · persona
+          simulation on Google Vertex AI
         </span>
       </div>
     </aside>
-  )
+  );
 }
