@@ -23,7 +23,8 @@ def test_pcm_to_wav_has_riff_header():
 
 
 def test_chirp_voice_id_derives_from_bare_name():
-    assert tts._chirp_voice_id("Charon") == "en-US-Chirp3-HD-Charon"
+    lang = settings.tts_language_code
+    assert tts._chirp_voice_id("Charon") == f"{lang}-Chirp3-HD-Charon"
     # Already-qualified ids pass through unchanged.
     assert tts._chirp_voice_id("en-US-Chirp3-HD-Fenrir") == "en-US-Chirp3-HD-Fenrir"
 
