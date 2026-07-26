@@ -11,7 +11,6 @@ import PageHeader from '../components/layout/PageHeader'
 import StoryInput from '../components/StoryInput'
 import StoryPicker from '../components/StoryPicker'
 import { Icon, Wordmark } from '../components/primitives'
-import HealthBadge from '../components/HealthBadge'
 import AgentDirectoryTab from '../components/tabs/AgentDirectoryTab'
 import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
 import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
@@ -159,7 +158,6 @@ export default function StudioShell() {
         </button>
         <Wordmark size={16} />
         <span className="topbar__spacer" />
-        <HealthBadge {...studio.health} />
       </header>
 
       {navOpen && (
@@ -171,7 +169,7 @@ export default function StudioShell() {
         />
       )}
 
-      <Sidebar open={navOpen} health={studio.health} onNavigate={() => setNavOpen(false)} />
+      <Sidebar open={navOpen} onNavigate={() => setNavOpen(false)} />
 
       <main id="main" className="content">
         <div className="content__inner">
