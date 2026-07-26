@@ -17,7 +17,7 @@ import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
 import DbMemoryTab from '../components/tabs/DbMemoryTab'
 import GenreConverterTab from '../components/tabs/GenreConverterTab'
 import MoodSearchTab from '../components/tabs/MoodSearchTab'
-import StoryCanonTab from '../components/tabs/StoryCanonTab'
+import StoryCanonTab, { PlannerPanel } from '../components/tabs/StoryCanonTab'
 import WritersRoom from '../WritersRoom'
 
 const LENS_BY_PATH = new Map(LENSES.map((lens) => [lens.path, lens]))
@@ -205,6 +205,15 @@ export default function StudioShell() {
           </section>
           <section className="lens-panel" hidden={activeTab !== 'opt'} aria-label="Cliffhanger Optimizer">
             <CliffhangerOptimizerTab {...studio.cliffhanger} />
+          </section>
+          <section className="lens-panel" hidden={activeTab !== 'planner'} aria-label="Cliffhanger Planner">
+            <PlannerPanel
+              weakExcerpt={studio.canon.weakExcerpt}
+              setWeakExcerpt={studio.canon.setWeakExcerpt}
+              planner={studio.canon.planner}
+              runPlanner={studio.canon.runPlanner}
+              stopPlanner={studio.canon.stopPlanner}
+            />
           </section>
           <section className="lens-panel" hidden={activeTab !== 'room'} aria-label="Writers Room">
             <WritersRoom />

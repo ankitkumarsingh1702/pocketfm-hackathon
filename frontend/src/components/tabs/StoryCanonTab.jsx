@@ -762,7 +762,7 @@ function PlannerMetric({ label, value, detail, tone = 'ink' }) {
 }
 
 /** Cliffhanger Planner panel — streamed, stateful 1,000-agent search. */
-function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner, stopPlanner }) {
+export function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner, stopPlanner }) {
   const ranked = [...planner.candidates]
     .filter((candidate) => typeof candidate.hookScore === 'number')
     .sort((a, b) => {

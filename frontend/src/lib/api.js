@@ -116,6 +116,22 @@ export function cliffhanger(story, weakExcerpt) {
   })
 }
 
+/**
+ * POST /api/lenses/cliffhanger/narrate -> NarrationResult
+ *
+ * Voices both endings (base64 audio, one call) so the UI can play an audible
+ * A/B: the original read flat, the optimized cliffhanger read with dramatic,
+ * in-character tension.
+ *
+ * @param {{original:string, optimized:string}} endings
+ */
+export function narrateCliffhanger({ original, optimized }) {
+  return request('/api/lenses/cliffhanger/narrate', {
+    method: 'POST',
+    body: { original, optimized },
+  })
+}
+
 // --- Knowledge graph (Story Canon) -----------------------------------------
 
 /** GET /api/canon/health -> { configured, online } */

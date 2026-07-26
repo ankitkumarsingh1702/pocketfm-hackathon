@@ -56,6 +56,24 @@ class Settings(BaseSettings):
     max_output_tokens: int = 8192
     concurrency: int = 10           # simultaneous LLM calls in the batch runner
 
+    # --- Narration TTS ("hear the difference") -------------------------------
+    # Voices the two Cliffhanger endings so the hook-score lift is *audible*: the
+    # weak original read flat, the optimized cliffhanger read with dramatic,
+    # in-character tension. Chirp 3 HD (Cloud TTS, GA) is the reliable engine;
+    # Gemini 2.5 native TTS (preview) is tried first for richer delivery when
+    # ``tts_engine`` allows and it proves reachable, else we fall back to Chirp.
+    # Voice names are the shared Gemini/Chirp set (bare, e.g. "Charon"); the
+    # Chirp voice id is derived as "<lang>-Chirp3-HD-<voice>".
+    tts_engine: str = "auto"           # "auto" (Gemini→Chirp) | "chirp" | "gemini"
+    tts_model: str = "gemini-2.5-flash-preview-tts"
+    tts_location: str = "us-central1"  # preview-TTS region may differ; override if 404
+    tts_language_code: str = "en-US"
+    tts_voice_flat: str = "Vindemiatrix"  # soft, even girl voice — the passive original read
+    tts_voice_dramatic: str = "Achernar"  # soft girl voice — the dramatic optimized read
+    tts_rate_flat: float = 0.98
+    tts_rate_dramatic: float = 1.06
+    tts_max_chars: int = 1200          # cap synth input (payload + latency guard)
+
     # --- Persistence ---------------------------------------------------------
     use_firestore: bool = True
     firestore_database: str = "(default)"

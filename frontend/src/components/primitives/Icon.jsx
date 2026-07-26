@@ -78,6 +78,18 @@ const PATHS = {
   ),
   play: <polygon points="6 4 20 12 6 20 6 4" />,
   stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
+  pause: (
+    <>
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </>
+  ),
+  volume: (
+    <>
+      <polygon points="4 9 8 9 13 5 13 19 8 15 4 15 4 9" />
+      <path d="M17 8a4 4 0 0 1 0 8" />
+    </>
+  ),
   sparkles: (
     <>
       <path d="M12 3l1.8 4.6L18.5 9.4l-4.7 1.8L12 16l-1.8-4.8L5.5 9.4l4.7-1.8z" />
