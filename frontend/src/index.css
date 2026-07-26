@@ -203,8 +203,12 @@ a:hover {
    them and lets an exact width through. */
 :root {
   --scrollbar-size: 6px; /* down from the ~16px OS default */
-  --scrollbar-thumb: var(--accent);
-  --scrollbar-thumb-hover: var(--accent-press);
+  /* The deeper red — the same token as the "Simulated Studio" eyebrow, not the
+     brighter `--accent`, which reads orange at this size. A 6px bar is a thin
+     sliver of colour, so it needs the darker end of the palette to read as red
+     at all; the same reason small red text uses this token. */
+  --scrollbar-thumb: var(--accent-text-sm);
+  --scrollbar-thumb-hover: var(--ink);
   --scrollbar-track: transparent;
 }
 
