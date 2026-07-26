@@ -131,7 +131,7 @@ def test_mood_retrieval():
         "labels are human",
         all(
             resolve_entry(c, store, DESTINATION_TARGETS["sit_with"]).label.startswith(
-                ("Start at Ep", "Start from")
+                ("Start at track", "Start from")
             )
             for c in cand
         ),

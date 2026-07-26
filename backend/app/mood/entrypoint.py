@@ -111,7 +111,7 @@ def resolve_entry(
     if episode <= 1:
         label = "Start from the beginning"
     else:
-        label = f"Start at Ep {episode} \u2014 {arc_label}{_commitment_hint(fp, episode)}"
+        label = f"Start at track {episode} \u2014 {arc_label}{_commitment_hint(fp, episode)}"
 
     return EntryPoint(
         episode=episode,

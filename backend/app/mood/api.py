@@ -243,6 +243,18 @@ def baseline_search(body: dict):
 @router.get("/profiles")
 def profiles():
     """The 10 curated demo listeners. Mood-query tab reads this for the picker."""
+    def _dropoff(p):
+        try:
+            return int(p.attrs.get("typical_dropoff_episode")) or None
+        except (TypeError, ValueError):
+            return None
+
+    def _heaviness(p):
+        try:
+            return round(float(p.attrs["tolerance_for_heaviness"]), 2)
+        except (KeyError, TypeError, ValueError):
+            return None
+
     return {"profiles": [
         {
             "persona_id": p.persona_id,
@@ -250,6 +262,8 @@ def profiles():
             "slot": p.slot,
             "language": p.language,
             "completion_rate": round(p.completion_rate, 2),
+            "typical_dropoff_episode": _dropoff(p),
+            "tolerance_for_heaviness": _heaviness(p),
             "history_count": len(p.history),
             "finished": sorted(p.finished_series())[:5],
         }

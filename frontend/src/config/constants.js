@@ -28,7 +28,7 @@ export const LENSES = [
     icon: "users",
     title: "Audience Simulator",
     blurb:
-      'Post an episode teaser and image; thousands of agentic listeners react live before release. Each one sees the image, remembers your past posts, and decides to scroll, like, share, or subscribe — edit a profile and its behaviour changes.',
+      "Post an episode teaser and image; thousands of agentic listeners react live before release. Each one sees the image, remembers your past posts, and decides to scroll, like, share, or subscribe — edit a profile and its behaviour changes.",
   },
   {
     id: "opt",
