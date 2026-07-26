@@ -86,6 +86,39 @@ class Settings(BaseSettings):
     tts_rate_dramatic: float = 2.12    # 2x speed (Chirp clamps to its 2.0 max)
     tts_max_chars: int = 1200          # cap synth input (payload + latency guard)
 
+    # --- Sarvam (AI Producer) ------------------------------------------------
+    # The AI Producer lens runs on Sarvam end-to-end: its four sub-agents reason
+    # on Sarvam's OpenAI-compatible chat LLM, and the Voice Casting Director makes
+    # casting *audible* by rendering a short sample line per character with Sarvam
+    # TTS (bulbul:v3). ``sarvam_api_key`` is the repo's only external API key — it
+    # is read from the environment / Secret Manager (mirroring ``neo4j_password``
+    # above), never hardcoded or logged. When it is unset the /api/lenses/producer*
+    # endpoints return a clear 4xx instead of failing mid-run.
+    sarvam_api_key: str = ""
+    sarvam_api_base_url: str = "https://api.sarvam.ai"
+    # Chat LLM. sarvam-30b (64K ctx) is fast + strong enough for the producer's
+    # structured plans; sarvam-105b (128K) is available for heavier synthesis.
+    # Per call we disable Sarvam's reasoning mode so the token budget produces the
+    # JSON answer rather than internal thinking (Sarvam counts both against tokens).
+    sarvam_llm_model: str = "sarvam-30b"
+    sarvam_temperature: float = 0.5
+    sarvam_max_tokens: int = 3000
+    sarvam_timeout_seconds: float = 60.0
+    # Voice casting TTS. bulbul:v3 returns base64 WAV; ``target_language_code`` is
+    # BCP-47 (en-IN for the English library, hi-IN for the Hindi library). The
+    # casting agent may only pick from ``sarvam_voices`` (validated in the lens;
+    # an invalid pick falls back to the first). Names are the bulbul:v3 speaker set.
+    sarvam_tts_model: str = "bulbul:v3"
+    sarvam_tts_codec: str = "wav"
+    sarvam_voices: list[str] = [
+        "shubh", "aditya", "rahul", "rohan", "kabir", "varun", "dev",
+        "ritu", "priya", "neha", "pooja", "kavya", "ishita", "shreya", "tanya",
+    ]
+    sarvam_tts_max_chars: int = 400    # a short casting sample line per character
+    sarvam_tts_concurrency: int = 4    # simultaneous casting-sample TTS calls
+    producer_max_characters: int = 6   # cap TTS calls per run (latency + cost)
+    producer_max_script_chars: int = 8000  # cap script text fed to each sub-agent
+
     # --- Persistence ---------------------------------------------------------
     use_firestore: bool = True
     firestore_database: str = "(default)"

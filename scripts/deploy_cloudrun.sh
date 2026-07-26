@@ -26,14 +26,25 @@ gcloud services enable \
   artifactregistry.googleapis.com \
   --project "${PROJECT}"
 
-# Mount Neo4j knowledge-graph credentials from Secret Manager, but only if the
-# secrets exist — a graph-less deploy still works (the app degrades gracefully).
-SECRET_FLAGS=()
+# Mount secrets from Secret Manager, but only those that exist — the app degrades
+# gracefully without them (empty canon; AI Producer returns 503). gcloud takes a
+# single --set-secrets, so collect every mapping and join once.
+SECRET_MAPPINGS=()
 if gcloud secrets describe NEO4J_URI --project "${PROJECT}" >/dev/null 2>&1; then
-  SECRET_FLAGS+=(--set-secrets "NEO4J_URI=NEO4J_URI:latest,NEO4J_USERNAME=NEO4J_USERNAME:latest,NEO4J_PASSWORD=NEO4J_PASSWORD:latest")
+  SECRET_MAPPINGS+=("NEO4J_URI=NEO4J_URI:latest" "NEO4J_USERNAME=NEO4J_USERNAME:latest" "NEO4J_PASSWORD=NEO4J_PASSWORD:latest")
   echo "==> Mounting Neo4j secrets from Secret Manager."
 else
   echo "==> No NEO4J_URI secret found — deploying without the knowledge graph."
+fi
+if gcloud secrets describe SARVAM_API_KEY --project "${PROJECT}" >/dev/null 2>&1; then
+  SECRET_MAPPINGS+=("SARVAM_API_KEY=SARVAM_API_KEY:latest")
+  echo "==> Mounting Sarvam API key from Secret Manager."
+else
+  echo "==> No SARVAM_API_KEY secret found — the AI Producer returns 503 until it is set."
+fi
+SECRET_FLAGS=()
+if [ ${#SECRET_MAPPINGS[@]} -gt 0 ]; then
+  SECRET_FLAGS+=(--set-secrets "$(IFS=,; echo "${SECRET_MAPPINGS[*]}")")
 fi
 
 echo "==> Deploying ${SERVICE} to Cloud Run from source..."
