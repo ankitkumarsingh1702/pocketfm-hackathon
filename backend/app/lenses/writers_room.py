@@ -45,6 +45,27 @@ from app.schemas import (
 # here never reached the payoff, so their reason is a genuine confusion point.
 _EARLY_DROP: set[str] = {"hook", "early", "middle"}
 
+# Weights for the graded "still following" retention estimate. Explicit
+# continue-intent dominates; the engagement gradient keeps the number honest.
+# A raw will_continue tally can only land on 0% or 100% because a weak episode
+# makes the whole panel answer "no" in lockstep — collapsing to a hard 0% that
+# reads as broken. Folding in each listener's hook score yields a continuous
+# read that still reflects a faint pulse of interest instead of a flat zero.
+_INTENT_WEIGHT = 0.7
+_ENGAGEMENT_WEIGHT = 0.3
+
+
+def _retention_score(reaction: PersonaReaction) -> float:
+    """One listener's graded likelihood of staying with the story, in 0..1.
+
+    Blends explicit continue-intent (0.7) with the normalised hook score (0.3)
+    so the panel's collective read tracks episode quality smoothly rather than
+    snapping between 0% and 100%.
+    """
+    intent = 1.0 if reaction.will_continue else 0.0
+    engagement = max(0.0, min(1.0, reaction.hook_score / 100.0))
+    return _INTENT_WEIGHT * intent + _ENGAGEMENT_WEIGHT * engagement
+
 
 def _story_text(story: Story) -> str:
     """Render a story into a compact prompt-friendly block."""
@@ -80,10 +101,16 @@ def _audience_verdict(pairs: list[tuple[Persona, PersonaReaction]]) -> AudienceV
             comprehension=_comprehension(0.0),
             confusion_points=[],
             representative_quotes=[],
+            returning_count=0,
+            respondent_count=0,
         )
 
-    following_pct = round(100 * _mean([1.0 if r.will_continue else 0.0 for r in reactions]), 1)
+    # Graded retention (0-100): continue-intent blended with the engagement
+    # gradient, so a weak episode reads as a low-but-honest number instead of a
+    # hard 0%. See _retention_score for the rationale.
+    following_pct = round(100 * _mean([_retention_score(r) for r in reactions]), 1)
     avg_engagement = round(_mean([float(r.hook_score) for r in reactions]), 1)
+    returning_count = sum(1 for r in reactions if r.will_continue)
 
     # Confusion points: distinct reasons from listeners who dropped before the climax.
     confusion_points: list[str] = []
@@ -119,6 +146,8 @@ def _audience_verdict(pairs: list[tuple[Persona, PersonaReaction]]) -> AudienceV
         comprehension=_comprehension(following_pct),
         confusion_points=confusion_points,
         representative_quotes=quotes,
+        returning_count=returning_count,
+        respondent_count=len(reactions),
     )
 
 

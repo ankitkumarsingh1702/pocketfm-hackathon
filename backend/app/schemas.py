@@ -118,11 +118,13 @@ class ExpertFeedback(BaseModel):
 class AudienceVerdict(BaseModel):
     """The audience's collective voice in the Writers Room: are they following?"""
 
-    following_pct: float                 # % of listeners who stay with the story
+    following_pct: float                 # graded % still engaged (continue-intent + hook blend)
     avg_engagement: float                # mean hook score, 0-100
     comprehension: str                   # plain-language read on whether they follow it
     confusion_points: list[str]          # where the audience got lost
     representative_quotes: list[str]     # a few raw listener reactions
+    returning_count: int = 0             # listeners who'd start the next episode (raw intent)
+    respondent_count: int = 0            # listeners who returned a reaction (denominator)
 
 
 class WritersRoomResult(BaseModel):
