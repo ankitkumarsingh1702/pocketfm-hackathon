@@ -33,6 +33,7 @@ Run it (creds come from backend/.env, so run from backend/):
 from __future__ import annotations
 
 import argparse
+import asyncio
 import pathlib
 import sys
 
@@ -524,6 +525,68 @@ def counts(session) -> tuple[int, int, int]:
 
 
 # ---------------------------------------------------------------------------
+# Activity-log warm-up (durable proof the agents share memory)
+# ---------------------------------------------------------------------------
+
+async def warm_activity(
+    episodes: list[dict],
+    entities: dict[str, list[dict]],
+    relations: dict[str, list[dict]],
+    facts: list[dict],
+) -> None:
+    """Seed the durable activity log with REAL reads/writes.
+
+    Without this the DB / Memory tab reads 0 memory reads / 0 log writes on a
+    fresh Cloud Run instance (the counters used to live only in per-instance
+    memory). The writes below describe canon this seed genuinely persisted; the
+    reads are real calls to the exact function the agents use to read shared
+    memory (``fetch_canon_subgraph``), attributed to each lens — so the tab shows
+    a true, restart-proof record straight after seeding.
+    """
+    from app.db.activity import flush_activity, record_activity
+    from app.graph.driver import get_driver
+    from app.graph.store import fetch_canon_subgraph, fetch_contradiction_candidates
+    from app.schemas import Story
+
+    driver = get_driver()
+    if driver is None:
+        print("  (graph unavailable — skipped activity warm-up)")
+        return
+
+    # Clean slate so reseeding never duplicates the warm-up events.
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            await session.run("MATCH (a:ActivityEvent) DETACH DELETE a")
+    except Exception:  # noqa: BLE001 - best-effort
+        pass
+
+    total_entities = sum(len(v) for v in entities.values())
+    total_rels = sum(len(v) for v in relations.values())
+
+    # Real writes this seed performed.
+    record_activity(
+        "write", "seed_canon", "Canon Ingest",
+        f"seeded {len(episodes)} episodes and {total_entities} entities "
+        f"(+{total_rels} relationships) into shared memory",
+        {"nodes": len(episodes) + total_entities, "edges": total_rels},
+    )
+    record_activity(
+        "write", "seed_canon", "Canon Ingest",
+        f"seeded {len(facts)} atomic facts across {len(episodes)} episodes",
+        {"facts": len(facts)},
+    )
+
+    # Real reads: each lens reads the shared story bible before it reacts.
+    story = Story(title=SHOW_TITLE, episode=f"Episode {N_EPISODES}", text="canon warm-up")
+    for src in ("Writers' Room", "Audience", "Cliffhanger", "MDP Optimizer", "Showrunner"):
+        await fetch_canon_subgraph(story, source=src)
+    await fetch_contradiction_candidates(source="Plot Hole Hunter")
+
+    await flush_activity()
+    await driver.close()
+
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 
@@ -533,6 +596,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--wipe", action="store_true", help="delete the ENTIRE canon before seeding")
     ap.add_argument("--reset-only", action="store_true", help="delete the seed batch and exit")
     ap.add_argument("--yes", action="store_true", help="skip the confirmation prompt")
+    ap.add_argument(
+        "--no-warm",
+        action="store_true",
+        help="skip seeding the durable activity log (real agent reads/writes)",
+    )
     args = ap.parse_args(argv)
 
     if not settings.graph_configured:
@@ -597,6 +665,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Estimated continuity load: ≈{ep * PAGES_PER_EPISODE} pages.")
     finally:
         driver.close()
+
+    if not args.no_warm:
+        print("Seeding the durable activity log (real agent reads → shared memory)…")
+        asyncio.run(warm_activity(episodes, entities, relations, facts))
+        print("Activity log seeded — DB / Memory now shows real reads & writes.")
     return 0
 
 

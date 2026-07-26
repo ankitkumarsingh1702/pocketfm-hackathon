@@ -1,7 +1,7 @@
 import { CANON_PANELS } from '../../config/constants'
 import { AGENT_NODES, AGENT_NODE_LABELS } from '../../utils/canon'
 import HowItWorks from '../HowItWorks'
-import { Button, GraphCanvas, MetricNumber, SurfaceCard, Tabs } from '../primitives'
+import { Button, GraphCanvas, GraphLegend, MetricNumber, SurfaceCard, Tabs } from '../primitives'
 import { EmptyState, ErrorState, LoadingState } from '../StateViews'
 
 /** Plain-language "input → what the AI does → output" for each canon panel. */
@@ -75,41 +75,6 @@ const inputStyle = {
   padding: '10px 12px',
   width: '100%',
   boxSizing: 'border-box',
-}
-
-/** Dot colour per node type, matching GraphCanvas. */
-const LEGEND_DOT = {
-  Episode: 'var(--accent)',
-  Character: 'var(--ink)',
-  AudienceSegment: 'var(--accent)',
-  Fact: 'var(--dim)',
-}
-
-function Legend({ stats }) {
-  const types = Object.keys(stats).filter((k) => k !== 'edges')
-  if (!types.length) return null
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-      {types.map((t) => (
-        <span
-          key={t}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--muted)' }}
-        >
-          <span
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: LEGEND_DOT[t] || 'var(--surface-raised)',
-              border: `1.5px solid ${LEGEND_DOT[t] || 'var(--ink)'}`,
-              flexShrink: 0,
-            }}
-          />
-          {t} · {stats[t]}
-        </span>
-      ))}
-    </div>
-  )
 }
 
 /** Composer: title/episode/text + the "Ingest episode" action. */
@@ -213,8 +178,8 @@ function CanonGraphPanel({ graph, refresh }) {
         amnesiac.
       </p>
 
-      <Legend stats={stats} />
-      <SurfaceCard style={{ padding: 'var(--space-4)' }}>
+      <GraphLegend stats={stats} />
+      <SurfaceCard style={{ padding: 'var(--space-4)', background: 'var(--surface-raised)' }}>
         <GraphCanvas data={graph.data} />
       </SurfaceCard>
     </div>

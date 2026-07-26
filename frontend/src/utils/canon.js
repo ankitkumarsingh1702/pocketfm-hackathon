@@ -46,7 +46,11 @@ export function toCanonGraphView(result) {
 
   // Facts are metadata for continuity search (Phase 2), not story-bible
   // entities — keep them out of the node-link view but surface their count.
-  const factCount = allNodes.filter((n) => n.label === 'Fact').length
+  // Prefer the backend's true Fact total (the node query is capped at 500, so
+  // counting only the returned Fact nodes would undercount a large canon).
+  const sampledFactCount = allNodes.filter((n) => n.label === 'Fact').length
+  const factCount =
+    result.stats && typeof result.stats.Fact === 'number' ? result.stats.Fact : sampledFactCount
   const rawNodes = allNodes.filter((n) => n.label !== 'Fact')
 
   // Per-type counts for the legend, derived from the rendered nodes.
@@ -376,11 +380,17 @@ export function reduceAgent(state, ev) {
 export function toActivityView(result) {
   if (!result) return null
   const raw = Array.isArray(result.events) ? result.events : []
+  // Prefer the backend's true totals (counted across the whole durable log);
+  // fall back to counting the returned page when they're absent.
+  const reads = typeof result.reads === 'number' ? result.reads : raw.filter((e) => e.op === 'read').length
+  const writes =
+    typeof result.writes === 'number' ? result.writes : raw.filter((e) => e.op === 'write').length
+  const total = typeof result.total === 'number' ? result.total : raw.length
   return {
     events: [...raw].reverse(),
-    reads: raw.filter((e) => e.op === 'read').length,
-    writes: raw.filter((e) => e.op === 'write').length,
-    total: raw.length,
+    reads,
+    writes,
+    total,
     isEmpty: raw.length === 0,
   }
 }

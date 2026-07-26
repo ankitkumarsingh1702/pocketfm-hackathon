@@ -411,7 +411,7 @@ async def fetch_full_graph(record: bool = False) -> CanonGraph:
     tab polls continuously) never floods the activity feed — the feed is meant to
     show agent memory reads and writes, not the visualization polling itself.
     """
-    return await _run_graph_query(
+    graph = await _run_graph_query(
         "MATCH (n:Canon) RETURN n.key AS id, coalesce(n.type,'Entity') AS label, "
         "coalesce(n.name,n.key) AS name, n.description AS description LIMIT 500",
         "MATCH (a:Canon)-[r]->(b:Canon) "
@@ -420,6 +420,19 @@ async def fetch_full_graph(record: bool = False) -> CanonGraph:
         fn="fetch_full_graph",
         record=record,
     )
+    # The node query is capped at 500 for the visualization, which undercounts
+    # Fact nodes (a large canon has thousands). Overwrite the Fact stat with the
+    # true total so "facts tracked" reflects the whole canon, not the sample.
+    driver = get_driver()
+    if driver is not None:
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                rec = await (await session.run("MATCH (f:Fact) RETURN count(f) AS c")).single()
+                if rec is not None:
+                    graph.stats["Fact"] = rec["c"]
+        except Exception as exc:  # noqa: BLE001 - best-effort; keep the capped count on failure
+            logger.warning("Fact-count query failed: %s", exc)
+    return graph
 
 
 async def fetch_canon_subgraph(story: Story, source: str = "") -> CanonGraph:

@@ -2,7 +2,7 @@
 export { default as BarChart } from './BarChart'
 export { default as Button } from './Button'
 export { default as Disclosure } from './Disclosure'
-export { default as GraphCanvas } from './GraphCanvas'
+export { default as GraphCanvas, GraphLegend } from './GraphCanvas'
 export { default as Icon } from './Icon'
 export { default as MetricNumber } from './MetricNumber'
 export { default as Pill } from './Pill'

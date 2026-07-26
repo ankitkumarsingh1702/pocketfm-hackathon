@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
-from app.db.activity import get_recent_activity
+from app.db.activity import get_recent_activity_durable
 from app.engine.cache import Cache
 from app.engine.mdp import policy_search
 from app.engine.search import beam_search
@@ -142,7 +142,11 @@ async def writers_room_stream(req: WritersRoomRequest) -> StreamingResponse:
 @app.get("/api/canon/health")
 async def canon_health() -> dict:
     """Report whether the knowledge graph is configured and live-reachable."""
-    return {"configured": settings.graph_configured, "online": await graph_probe()}
+    return {
+        "configured": settings.graph_configured,
+        "online": await graph_probe(),
+        "browser_url": settings.graph_browser_url,
+    }
 
 
 @app.get("/api/canon/graph", response_model=CanonGraph)
@@ -166,9 +170,16 @@ async def canon_activity(limit: int = 50) -> ActivityFeed:
     """Recent knowledge-graph reads/writes — live proof agents share memory.
 
     Each event names the agent (``source``), whether it read or wrote, and a
-    human-readable detail. Feeds the DB / Memory tab; observational only.
+    human-readable detail. Reads from the durable Neo4j log so the counts survive
+    a cold start / redeploy. Feeds the DB / Memory tab; observational only.
     """
-    return ActivityFeed(events=get_recent_activity(limit))
+    events, totals = await get_recent_activity_durable(limit)
+    return ActivityFeed(
+        events=events,
+        reads=totals["reads"],
+        writes=totals["writes"],
+        total=totals["total"],
+    )
 
 
 @app.get("/api/canon/facts")

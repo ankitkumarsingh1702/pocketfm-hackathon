@@ -246,6 +246,11 @@ class ActivityEvent(BaseModel):
 
 class ActivityFeed(BaseModel):
     events: list[ActivityEvent] = Field(default_factory=list)
+    # True totals across ALL persisted events (not just the returned page), so
+    # the DB / Memory tiles reflect the full durable history.
+    reads: int = 0
+    writes: int = 0
+    total: int = 0
 
 
 # ---------------------------------------------------------------------------

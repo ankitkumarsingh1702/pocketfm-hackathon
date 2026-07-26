@@ -1,7 +1,10 @@
 import { useState } from 'react'
 
-import { Button, GraphCanvas, MetricNumber, Pill, SurfaceCard } from '../primitives'
+import { Button, GraphCanvas, GraphLegend, MetricNumber, Pill, SurfaceCard } from '../primitives'
 import { EmptyState, ErrorState, LoadingState } from '../StateViews'
+
+/** Build-time fallback if the backend health payload has no browser_url. */
+const NEO4J_BROWSER_FALLBACK = import.meta.env.VITE_NEO4J_BROWSER_URL || ''
 
 /** Section heading in the studio's uppercase-label style. */
 function SectionLabel({ children, style }) {
@@ -124,40 +127,67 @@ function LiveDot() {
   )
 }
 
-/** Legend chip per node type, derived from graph stats. */
-function GraphLegend({ stats }) {
-  const types = Object.keys(stats || {}).filter((k) => k !== 'edges')
-  if (!types.length) return null
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-      {types.map((t) => (
-        <span
-          key={t}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--muted)' }}
-        >
-          <span
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: 'var(--surface-raised)',
-              border: '1.5px solid var(--ink)',
-              flexShrink: 0,
-            }}
-          />
-          {t} · {stats[t]}
-        </span>
-      ))}
-    </div>
-  )
-}
-
 function ConnectionPill({ health }) {
   const data = health.data
   if (!data) return <Pill label="Neo4j" value="checking…" />
   if (data.online) return <Pill label="Neo4j" value="online" tone="accent" />
   if (data.configured) return <Pill label="Neo4j" value="offline" />
   return <Pill label="Graph" value="not configured" />
+}
+
+/**
+ * "Open in Neo4j" — the arrow next to the status pill that jumps to the live
+ * database, so you can show the real graph in Neo4j during a demo. Uses the URL
+ * the backend derives from NEO4J_URI, falling back to a build-time override.
+ * Styled to match the secondary buttons in the same toolbar.
+ */
+function Neo4jLink({ health }) {
+  const data = health.data
+  const url = (data && data.browser_url) || NEO4J_BROWSER_FALLBACK
+  if (!url) return null
+  return (
+    <>
+      <style>{`
+        .db-neo4j-link { transition: background var(--dur-fast) var(--ease-standard); }
+        .db-neo4j-link:hover { background: var(--surface); }
+      `}</style>
+      <a
+        className="db-neo4j-link"
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Open the Neo4j database in a new tab"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 7,
+          minHeight: 36,
+          padding: '8px 14px',
+          border: '1px solid var(--ink)',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--surface-raised)',
+          color: 'var(--ink)',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: 'none',
+          whiteSpace: 'nowrap',
+          boxSizing: 'border-box',
+        }}
+      >
+        Open in Neo4j
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+          <path
+            d="M7 17L17 7M17 7H8M17 7V16"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </a>
+    </>
+  )
 }
 
 /** One clickable stat tile — the entry point to a drill-down. */
@@ -440,6 +470,7 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <ConnectionPill health={health} />
+          <Neo4jLink health={health} />
           <Button variant={live ? 'primary' : 'secondary'} size="sm" onClick={() => setLive(!live)}>
             {live && <LiveDot />}
             {live ? 'Live' : 'Paused'}
@@ -516,7 +547,7 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
             {g && !g.isEmpty && (
               <>
                 <GraphLegend stats={g.stats} />
-                <SurfaceCard style={{ padding: 'var(--space-4)' }}>
+                <SurfaceCard style={{ padding: 'var(--space-4)', background: 'var(--surface-raised)' }}>
                   <GraphCanvas data={g} />
                 </SurfaceCard>
               </>
