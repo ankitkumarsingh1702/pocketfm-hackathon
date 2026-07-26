@@ -31,6 +31,15 @@ export const LENSES = [
       "Post an episode teaser and image; thousands of agentic listeners react live before release. Each one sees the image, remembers your past posts, and decides to scroll, like, share, or subscribe — edit a profile and its behaviour changes.",
   },
   {
+    id: "a2a",
+    path: "/a2a",
+    label: "A2A · Word of Mouth",
+    icon: "share",
+    title: "A2A — Agent-to-Agent Word of Mouth",
+    blurb:
+      "Watch the agents talk to each other. Seed a post to a few listeners; when one shares, its own comment is passed to the peers who follow it — and the post cascades hop by hop through the social graph.",
+  },
+  {
     id: "opt",
     path: "/cliffhanger",
     label: "Cliffhanger Optimizer",
@@ -188,6 +197,19 @@ export const AGENTS = [
     methods: ["Persona fan-out", "Knowledge graph", "LLM"],
     memory:
       "Reads canon, then writes each segment's verdict back as edges on the episode.",
+    reads: true,
+    writes: true,
+  },
+  {
+    id: "a2a",
+    name: "A2A Word-of-Mouth",
+    source: "A2A Word-of-Mouth",
+    route: "/a2a",
+    panel: null,
+    role: "Seeds a post to a few agents, then lets sharers pass their own comment to the peers who follow them — a real agent-to-agent cascade.",
+    methods: ["Agent-to-agent messaging", "Social graph", "Knowledge graph", "LLM"],
+    memory:
+      "Writes the FOLLOWS social graph and per-post INFLUENCED edges, plus each reaction back to shared memory.",
     reads: true,
     writes: true,
   },

@@ -32,6 +32,7 @@ from app.graph.store import (
     ingest_extraction,
     reset_canon_batch,
 )
+from app.lenses.a2a_sim import stream_a2a_cascade
 from app.lenses.audience import run_audience
 from app.lenses.audience_sim import (
     generate_audience,
@@ -47,6 +48,7 @@ from app.lenses.writers_room import run_writers_room, stream_writers_room
 from app.llm.factory import get_llm
 from app.personas.loader import load_personas
 from app.schemas import (
+    A2ACascadeRequest,
     ActivityFeed,
     AgentReactRequest,
     AudienceLibrary,
@@ -444,6 +446,37 @@ async def audience_sim_run_stream(req: AudienceSimRequest) -> StreamingResponse:
 
     async def run(emit) -> dict:
         return await stream_audience_sim(req, emit)
+
+    async def guarded_events():
+        try:
+            async for event in ndjson_events(run):
+                yield event
+        finally:
+            _expensive_job_lock.release()
+
+    return StreamingResponse(guarded_events(), media_type="application/x-ndjson")
+
+
+# ---------------------------------------------------------------------------
+# A2A — Agent-to-Agent Word-of-Mouth (social cascade, isolated from the sim)
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/a2a/cascade/stream")
+async def a2a_cascade_stream(req: A2ACascadeRequest) -> StreamingResponse:
+    """A2A Word-of-Mouth: seed a post into a peer network and stream the cascade.
+
+    Unlike the Audience Simulator (independent fan-out), here a spreading agent's
+    ACTUAL comment is injected into the prompt of the peers who follow it, so the
+    post propagates round by round. NDJSON events: ``run_started``,
+    ``round_started``, ``reaction`` / ``message`` (A->B), ``round_done``, then a
+    terminal ``done`` carrying the ``A2ACascadeResult``.
+    """
+    _reject_if_expensive_job_active()
+    await _expensive_job_lock.acquire()
+
+    async def run(emit) -> dict:
+        return await stream_a2a_cascade(req, emit)
 
     async def guarded_events():
         try:

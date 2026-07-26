@@ -12,6 +12,7 @@ import StoryInput from '../components/StoryInput'
 import StoryPicker from '../components/StoryPicker'
 import { Icon, Wordmark } from '../components/primitives'
 import AgentDirectoryTab from '../components/tabs/AgentDirectoryTab'
+import A2ATab from '../components/tabs/A2ATab'
 import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
 import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
 import DbMemoryTab from '../components/tabs/DbMemoryTab'
@@ -202,6 +203,9 @@ export default function StudioShell() {
           </section>
           <section className="lens-panel" hidden={activeTab !== 'sim'} aria-label="Audience Simulator">
             <AudienceSimulatorTab />
+          </section>
+          <section className="lens-panel" hidden={activeTab !== 'a2a'} aria-label="A2A Word of Mouth">
+            <A2ATab />
           </section>
           <section className="lens-panel" hidden={activeTab !== 'opt'} aria-label="Cliffhanger Optimizer">
             <CliffhangerOptimizerTab {...studio.cliffhanger} />
