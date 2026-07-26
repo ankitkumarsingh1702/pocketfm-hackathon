@@ -11,6 +11,7 @@ export const TABS = [
   { id: 'opt', label: 'Cliffhanger Optimizer' },
   { id: 'room', label: 'Writers Room' },
   { id: 'canon', label: 'Story Canon' },
+  { id: 'mood', label: 'Mood Search' },
 ]
 
 export const DEFAULT_TAB = 'sim'
@@ -36,6 +37,7 @@ export const SUPERPOWERS = [
   { label: 'Cliffhanger Optimizer', live: true },
   { label: 'AI Writers Room', live: true },
   { label: 'Plot Hole Hunter', live: true },
+  { label: 'Mood-First Search', live: true },
   { label: 'AI Producer', live: false },
   { label: 'AI Rewrite Engine', live: false },
 ]
