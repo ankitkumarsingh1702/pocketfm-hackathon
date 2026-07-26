@@ -10,6 +10,7 @@ Exposes a health check, the persona roster, and the three simulation lenses.
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,6 +48,7 @@ from app.llm.factory import get_llm
 from app.personas.loader import load_personas
 from app.schemas import (
     ActivityFeed,
+    AgentReactRequest,
     AudienceLibrary,
     AudienceResult,
     AudienceSimRequest,
@@ -67,13 +69,40 @@ from app.schemas import (
     PlotHolesRequest,
     ShowrunnerRequest,
     SimulateRequest,
+    Story,
     StoryScanRequest,
     StoryScanResult,
     WritersRoomRequest,
     WritersRoomResult,
 )
 
-app = FastAPI(title="Simulated Studio API")
+# --- MCP server (best-effort): every agent as a callable MCP entity ---------
+# Built before the app so its streamable-HTTP session manager can run for the
+# app's whole lifetime. If the `mcp` dependency or build fails, the studio still
+# comes up fully — only /mcp is unavailable (mirrors the mood-router guard).
+try:
+    from app.mcp_server import mcp as _mcp
+
+    _mcp_http_app = _mcp.streamable_http_app()
+except Exception as _mcp_err:  # noqa: BLE001 - never let MCP take the API down
+    import logging as _logging
+
+    _logging.getLogger("uvicorn.error").warning("MCP server unavailable: %s", _mcp_err)
+    _mcp = None
+    _mcp_http_app = None
+
+
+@asynccontextmanager
+async def _lifespan(_app: "FastAPI"):
+    """Run the MCP streamable-HTTP session manager for the app's lifetime."""
+    if _mcp is not None:
+        async with _mcp.session_manager.run():
+            yield
+    else:
+        yield
+
+
+app = FastAPI(title="Simulated Studio API", lifespan=_lifespan)
 # Bounded gate on expensive agent runs: allow up to settings.max_concurrent_runs
 # at once (was a single Lock) so concurrent demos / judges don't block one
 # another, while still capping total in-flight load. Semaphore.acquire()/
@@ -519,6 +548,53 @@ async def audience_member_detail(member_id: str) -> dict:
     }
 
 
+# --- Per-agent "agent API": each agent is an addressable, callable entity ---
+# Canonical /api/agents/{id} surface (mirrored by the MCP server at /mcp). GET
+# returns the agent's profile + memory; POST makes THAT agent react live and
+# remember it.
+
+
+@app.get("/api/agents/{agent_id}")
+async def agent_detail(agent_id: str) -> dict:
+    """One agent's full profile + its remembered reactions (history)."""
+    from app.graph.audience_store import get_audience_member, recall_member_memory
+
+    persona = await get_audience_member(agent_id)
+    if persona is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    memory = await recall_member_memory(agent_id, limit=50)
+    return {
+        "profile": persona.model_dump(),
+        "memory": memory,
+        "memory_count": len(memory),
+    }
+
+
+@app.post("/api/agents/{agent_id}/react")
+async def agent_react(agent_id: str, req: AgentReactRequest) -> dict:
+    """Make ONE addressed agent react live to a teaser — and grow its memory.
+
+    Runs the same perceive→recall→react pipeline the panel uses, for exactly this
+    agent, then persists the reaction so its history reflects the conversation.
+    """
+    from app.lenses.audience_sim import react_one_agent
+
+    story = Story(
+        title=req.title,
+        text=req.text,
+        image_base64=req.image_base64,
+        image_mime=req.image_mime,
+        story_so_far=req.story_so_far,
+    )
+    try:
+        view = await react_one_agent(agent_id, story)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+    if view is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return view
+
+
 # ---------------------------------------------------------------------------
 # Mood-First Search — feel-based discovery
 # ---------------------------------------------------------------------------
@@ -578,6 +654,12 @@ class SpaStaticFiles(StaticFiles):
         if response.status_code == 404:
             return await super().get_response("index.html", scope)
         return response
+
+
+# Mount the MCP server BEFORE the SPA catch-all so "/mcp" is never shadowed by
+# the SPA's "/" fallback. Each studio agent is then reachable via MCP.
+if _mcp_http_app is not None:
+    app.mount("/mcp", _mcp_http_app)
 
 
 if static_dir.is_dir():

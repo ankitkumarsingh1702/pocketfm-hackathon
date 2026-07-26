@@ -206,6 +206,8 @@ export default function AudiencePopulation({ active = true }) {
     selectedId,
     openMember,
     closeMember,
+    liveReaction,
+    askAgent,
     activeFilterCount,
   } = pop
 
@@ -378,10 +380,18 @@ export default function AudiencePopulation({ active = true }) {
       {/* Detail drawer */}
       {selectedId && (
         <AgentDetailDrawer
+          key={selectedId}
           onClose={closeMember}
           name={profile?.name || 'Agent'}
           subtitle={profile?.segment || 'Audience listener'}
           badge="Audience agent"
+          ask={{
+            loading: liveReaction.loading,
+            data: liveReaction.data,
+            error: liveReaction.error,
+            onAsk: askAgent,
+          }}
+          callInfo={{ agentId: selectedId }}
           facts={[
             { label: 'Segment', value: profile?.segment },
             { label: 'City', value: profile?.city },

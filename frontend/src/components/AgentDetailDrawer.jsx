@@ -26,9 +26,13 @@ export default function AgentDetailDrawer({
   systemPrompt,
   history,
   primaryAction,
+  ask,
+  callInfo,
 }) {
   const closeRef = useRef(null)
   const [shown, setShown] = useState(false)
+  const [draft, setDraft] = useState('')
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
   useEffect(() => {
     closeRef.current?.focus()
@@ -151,6 +155,50 @@ export default function AgentDetailDrawer({
           {description && (
             <p style={{ margin: 0, fontSize: 14, color: 'var(--ink)', lineHeight: 1.6 }}>{description}</p>
           )}
+
+          {ask && (
+            <section
+              style={{
+                border: '1px solid var(--accent-line)',
+                background: 'var(--accent-soft)',
+                borderRadius: 'var(--radius-md)',
+                padding: 14,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div className="label-upper" style={{ fontSize: 10, color: 'var(--accent-text-sm)' }}>
+                Ask this agent
+              </div>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Post a teaser or hook — this agent reacts in character, and remembers it."
+                rows={3}
+                aria-label="Teaser for this agent"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13.5,
+                  color: 'var(--ink)',
+                  background: 'var(--surface-raised)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '9px 11px',
+                  resize: 'vertical',
+                  lineHeight: 1.5,
+                }}
+              />
+              <div>
+                <Button size="sm" onClick={() => ask.onAsk?.(draft)} disabled={ask.loading || !draft.trim()}>
+                  {ask.loading ? 'Reacting…' : 'Ask'}
+                </Button>
+              </div>
+              {ask.error && <p style={{ margin: 0, fontSize: 12.5, color: 'var(--danger)' }}>{ask.error}</p>}
+              {ask.data && <ReactionResult r={ask.data} />}
+            </section>
+          )}
+
           {cleanFacts.length > 0 && (
             <section>
               <div className="label-upper" style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 10 }}>
@@ -258,6 +306,33 @@ export default function AgentDetailDrawer({
             </section>
           )}
 
+          {callInfo && (
+            <section style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+              <div className="label-upper" style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 8 }}>
+                Call this agent
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <code style={CODE_STYLE}>agent://{callInfo.agentId}</code>
+                <code style={{ ...CODE_STYLE, whiteSpace: 'pre-wrap' }}>
+                  {`curl -X POST ${origin}/api/agents/${callInfo.agentId}/react \\
+  -H 'Content-Type: application/json' \\
+  -d '{"text":"your teaser"}'`}
+                </code>
+                <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+                  MCP server:{' '}
+                  <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--ink)' }}>
+                    {origin}/mcp
+                  </code>{' '}
+                  — add it to your MCP client, then call{' '}
+                  <code style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--accent-text-sm)' }}>
+                    ask_agent
+                  </code>
+                  .
+                </div>
+              </div>
+            </section>
+          )}
+
           {primaryAction && (
             <div style={{ marginTop: 'auto', paddingTop: 8 }}>
               <Button variant="secondary" size="sm" onClick={primaryAction.onClick}>
@@ -269,5 +344,57 @@ export default function AgentDetailDrawer({
       </aside>
     </div>,
     document.body,
+  )
+}
+
+const CODE_STYLE = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: 11.5,
+  color: 'var(--ink)',
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-sm)',
+  padding: '8px 10px',
+  overflowX: 'auto',
+}
+
+/** The live in-character reaction returned by "Ask this agent". */
+function ReactionResult({ r }) {
+  const facts = [
+    r.will_listen ? 'will play' : 'skips',
+    r.sentiment,
+    r.engagement,
+    r.hook_score != null ? `hook ${r.hook_score}` : null,
+    r.emotion,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  return (
+    <div
+      style={{
+        background: 'var(--surface-raised)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-sm)',
+        padding: '10px 12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+      }}
+    >
+      {facts && <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--accent-text-sm)' }}>{facts}</div>}
+      {r.comment && (
+        <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5, fontStyle: 'italic' }}>“{r.comment}”</div>
+      )}
+      {r.reasoning && (
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+          <strong style={{ color: 'var(--ink)' }}>Why:</strong> {r.reasoning}
+        </div>
+      )}
+      {r.memory_note && (
+        <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+          <strong style={{ color: 'var(--ink)' }}>Remembered:</strong> {r.memory_note}
+        </div>
+      )}
+    </div>
   )
 }

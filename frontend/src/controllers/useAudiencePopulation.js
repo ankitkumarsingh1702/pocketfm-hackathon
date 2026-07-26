@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { getAudienceFacets, getAudienceMember, getAudienceMembers } from '../lib/api'
+import { getAudienceFacets, getAudienceMember, getAudienceMembers, reactAgent } from '../lib/api'
 
 /**
  * Agent Directory — audience-population controller.
@@ -40,6 +40,7 @@ export function useAudiencePopulation(active = true) {
   const [facets, setFacets] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [detail, setDetail] = useState({ loading: false, data: null, error: null })
+  const [liveReaction, setLiveReaction] = useState({ loading: false, data: null, error: null })
   const tokenRef = useRef(0)
 
   // Debounce the free-text query only (300ms); dropdowns/chips fire immediately.
@@ -131,8 +132,7 @@ export function useAudiencePopulation(active = true) {
     setFilters(EMPTY)
   }, [])
 
-  const openMember = useCallback(async (id) => {
-    setSelectedId(id)
+  const fetchDetail = useCallback(async (id) => {
     setDetail({ loading: true, data: null, error: null })
     try {
       const data = await getAudienceMember(id)
@@ -142,10 +142,38 @@ export function useAudiencePopulation(active = true) {
     }
   }, [])
 
+  const openMember = useCallback(
+    (id) => {
+      setSelectedId(id)
+      setLiveReaction({ loading: false, data: null, error: null })
+      fetchDetail(id)
+    },
+    [fetchDetail],
+  )
+
   const closeMember = useCallback(() => {
     setSelectedId(null)
     setDetail({ loading: false, data: null, error: null })
+    setLiveReaction({ loading: false, data: null, error: null })
   }, [])
+
+  // Talk to the currently-open agent: it reacts live and (on success) its memory
+  // is re-read so the history visibly grows.
+  const askAgent = useCallback(
+    async (teaser) => {
+      const text = String(teaser || '').trim()
+      if (!selectedId || !text) return
+      setLiveReaction({ loading: true, data: null, error: null })
+      try {
+        const data = await reactAgent(selectedId, { text })
+        setLiveReaction({ loading: false, data, error: null })
+        fetchDetail(selectedId)
+      } catch (err) {
+        setLiveReaction({ loading: false, data: null, error: err.message || 'Reaction failed' })
+      }
+    },
+    [selectedId, fetchDetail],
+  )
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const page = Math.floor(offset / PAGE_SIZE)
@@ -185,6 +213,8 @@ export function useAudiencePopulation(active = true) {
     detail,
     openMember,
     closeMember,
+    liveReaction,
+    askAgent,
     activeFilterCount,
   }
 }
