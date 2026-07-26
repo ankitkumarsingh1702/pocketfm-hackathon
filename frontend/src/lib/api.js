@@ -150,6 +150,29 @@ export function audienceSimStream({ story, audience, n, useLibrary }, onEvent, s
   return ndjsonStream('/api/audience-sim/run/stream', body, onEvent, signal)
 }
 
+// --- A2A Word-of-Mouth (agent-to-agent social cascade) ---------------------
+
+/**
+ * POST /api/a2a/cascade/stream -> NDJSON cascade events.
+ *
+ * Seeds a post into a peer network and streams the word-of-mouth cascade: a
+ * spreading agent's actual comment is injected into the prompt of the peers who
+ * follow it, so the post propagates round by round. Events: `run_started`, then
+ * per round `round_started`, one `reaction` per agent and one `message` per A->B
+ * relay, `round_done`, and a terminal `done` carrying the A2ACascadeResult.
+ *
+ * @param {{story:object, seedN?:number, maxRounds?:number, avgDegree?:number}} payload
+ * @param {(event:object)=>void} onEvent
+ * @param {AbortSignal} [signal]
+ */
+export function a2aCascadeStream({ story, seedN, maxRounds, avgDegree }, onEvent, signal) {
+  const body = { story }
+  if (seedN != null) body.seed_n = seedN
+  if (maxRounds != null) body.max_rounds = maxRounds
+  if (avgDegree != null) body.avg_degree = avgDegree
+  return ndjsonStream('/api/a2a/cascade/stream', body, onEvent, signal)
+}
+
 /**
  * POST /api/lenses/cliffhanger -> CliffhangerResult
  * @param {{title:string, episode:string, text:string}} story

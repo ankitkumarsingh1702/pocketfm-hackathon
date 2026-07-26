@@ -662,3 +662,62 @@ class AudienceSimRequest(BaseModel):
     audience: list[Persona] | None = None
     n: int | None = None                         # panel size when sampling/generating
     use_library: bool = True                     # prefer the persisted KG audience when available
+
+
+# ---------------------------------------------------------------------------
+# A2A — Agent-to-Agent Word-of-Mouth (social cascade). A NEW, isolated lens:
+# instead of every agent reacting independently, a spreading agent's ACTUAL
+# comment is injected into the prompt of the peers who "follow" it, so a post
+# propagates round by round through a homophily social graph. Reuses
+# ``SocialReaction`` as the per-agent output; adds only the cascade envelopes.
+# ---------------------------------------------------------------------------
+
+
+class A2ACascadeRequest(BaseModel):
+    story: Story                                 # the post being seeded into the network
+    seed_n: int | None = None                    # how many agents see it first (round 0)
+    max_rounds: int | None = None                # how many hops to propagate
+    avg_degree: int | None = None                # homophily graph out-degree per agent
+    use_library: bool = True                     # prefer the persisted KG population
+
+
+class CascadeReactionView(AudienceReactionView):
+    """One agent's reaction inside the cascade + who influenced it."""
+
+    round: int = 0
+    influenced_by: list[str] = Field(default_factory=list)  # names of peers whose comment reached them
+
+
+class CascadeSpreader(BaseModel):
+    id: str
+    name: str
+    segment: str | None = None
+    reached: int                                 # peers this agent exposed the post to
+
+
+class CascadeNode(BaseModel):
+    id: str
+    name: str
+    segment: str | None = None
+    round: int
+    engagement: str = ""
+
+
+class CascadeEdge(BaseModel):
+    source: str                                  # spreader agent id
+    target: str                                  # agent it reached
+    round: int
+
+
+class A2ACascadeResult(BaseModel):
+    seed_count: int
+    total_reached: int                           # agents who saw + reacted to the post
+    population: int                              # size of the network it could spread through
+    rounds: int                                  # hops it actually took
+    virality_coefficient: float                  # avg new exposures generated per sharer (R)
+    reach_curve: list[int] = Field(default_factory=list)   # new reach per round
+    super_spreaders: list[CascadeSpreader] = Field(default_factory=list)
+    nodes: list[CascadeNode] = Field(default_factory=list)
+    edges: list[CascadeEdge] = Field(default_factory=list)
+    reactions: list[CascadeReactionView] = Field(default_factory=list)
+    dropped: int = 0
