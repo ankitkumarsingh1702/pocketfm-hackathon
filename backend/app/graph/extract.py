@@ -39,14 +39,20 @@ def _story_text(story: Story) -> str:
     return f"TITLE: {story.title}\nEPISODE: {episode}\nSCRIPT:\n{story.text}"
 
 
-async def extract_canon(story: Story, llm: LLMClient) -> CanonExtraction:
-    """Extract the story canon from one episode. Empty on any failure."""
+async def extract_canon(
+    story: Story, llm: LLMClient, model: str | None = None
+) -> CanonExtraction:
+    """Extract the story canon from one episode. Empty on any failure.
+
+    ``model`` overrides the extraction model — the live preview passes the fast
+    audience-tier model for responsiveness; ingest uses the stronger default.
+    """
     try:
         return await llm.structured(
             system=_SYSTEM,
             prompt="Extract the story canon from this episode.\n\n" + _story_text(story),
             schema=CanonExtraction,
-            model=settings.model_for("experts"),
+            model=model or settings.model_for("experts"),
         )
     except Exception as exc:  # noqa: BLE001 - extraction is strictly best-effort
         logger.warning("Canon extraction failed: %s", exc)

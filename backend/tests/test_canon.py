@@ -7,6 +7,8 @@ regression guard (injecting memory MUST change the reaction cache key).
 
 from __future__ import annotations
 
+import pytest
+
 from app.engine.cache import Cache
 from app.engine.runner import build_reaction_prompt
 from app.graph.store import (
@@ -14,9 +16,22 @@ from app.graph.store import (
     _sanitize_rel,
     _slug,
     canon_fingerprint,
+    fetch_contradiction_candidates,
+    fetch_full_graph,
+    ingest_extraction,
     render_canon_memory,
+    reset_canon_batch,
 )
-from app.schemas import CanonEdgeView, CanonGraph, CanonNodeView, Persona, Story
+from app.schemas import (
+    CanonEdgeView,
+    CanonExtraction,
+    CanonGraph,
+    CanonNodeView,
+    ExtractedEntity,
+    ExtractedFact,
+    Persona,
+    Story,
+)
 
 
 def _persona() -> Persona:
@@ -88,3 +103,42 @@ def test_canon_injection_changes_prompt_and_cache_key():
     key_nocanon = cache.make_key(*base, "nocanon", "reaction")
     key_canon = cache.make_key(*base, canon_fingerprint("STORY SO FAR: Naina knows 6B."), "reaction")
     assert key_nocanon != key_canon
+
+
+# --- session-scoped canon (best-effort paths, no Neo4j needed) --------------
+
+
+def test_reset_canon_batch_never_wipes_without_a_batch():
+    # An empty/whitespace batch is a hard no-op: this endpoint must never be able
+    # to delete the whole graph (only what a specific session tagged).
+    import asyncio
+
+    assert asyncio.run(reset_canon_batch("")) == 0
+    assert asyncio.run(reset_canon_batch("   ")) == 0
+
+
+@pytest.mark.asyncio
+async def test_ingest_echoes_batch_and_extraction_when_graph_disabled(monkeypatch):
+    # Force the graph-disabled path (deterministic, never touches a real Neo4j):
+    # the write no-ops, but the result still echoes the session batch + the
+    # extraction so the composer can render "what got added".
+    monkeypatch.setattr("app.graph.store.get_driver", lambda: None)
+    story = Story(title="Meera", episode="1", text="Meera comes home to a quiet house.")
+    extraction = CanonExtraction(
+        entities=[ExtractedEntity(key="meera", type="Character", name="Meera")],
+        facts=[ExtractedFact(subject_key="meera", predicate="mood", object="uneasy")],
+    )
+    res = await ingest_extraction(story, extraction, batch="session-abc123")
+    assert res.batch == "session-abc123"
+    assert res.nodes_added == 0  # graph disabled → nothing persisted
+    assert res.extraction is not None
+    assert res.extraction.entities[0].name == "Meera"
+
+
+@pytest.mark.asyncio
+async def test_scoped_reads_are_empty_when_graph_disabled(monkeypatch):
+    monkeypatch.setattr("app.graph.store.get_driver", lambda: None)
+    graph = await fetch_full_graph(batch="session-abc123")
+    assert graph.nodes == [] and graph.edges == []
+    facts = await fetch_contradiction_candidates(batch="session-abc123")
+    assert facts["facts"] == [] and facts["conflicts"] == [] and facts["fact_count"] == 0

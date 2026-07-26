@@ -229,13 +229,40 @@ class CanonGraph(BaseModel):
 
 class IngestRequest(BaseModel):
     story: Story
+    # Optional per-session tag written onto every node/fact this ingest creates,
+    # so the UI can scope the graph to "your story" (what THIS browser session
+    # added) and reset only that — never the seeded demo canon.
+    batch: str | None = None
 
 
 class IngestResult(BaseModel):
     episode_id: str
     nodes_added: int
     edges_added: int
+    facts_added: int = 0                                   # atomic facts written this ingest
+    batch: str = ""                                        # session tag applied (if any)
     entities: list[str] = Field(default_factory=list)     # names ingested, for the UI
+    # The full structured extraction, so the composer can show exactly what the
+    # agents pulled out of the script and wrote to shared memory.
+    extraction: CanonExtraction | None = None
+
+
+class CanonPreviewResult(BaseModel):
+    """Extract-only result for the live 'as you type' preview (nothing written)."""
+
+    extraction: CanonExtraction = Field(default_factory=CanonExtraction)
+    entity_count: int = 0
+    relation_count: int = 0
+    fact_count: int = 0
+
+
+class CanonResetRequest(BaseModel):
+    batch: str                                             # required — never wipe everything
+
+
+class CanonResetResult(BaseModel):
+    deleted: int = 0
+    batch: str = ""
 
 
 class ActivityEvent(BaseModel):
@@ -300,6 +327,8 @@ class SearchTree(BaseModel):
     best_id: str = ""
     rounds: int = 0
     baseline_score: float = 0.0
+    audience_source: str = "default"                      # "living" (persisted KG audience) | "default"
+    panel_size: int = 0                                   # listeners used as the scoring model
 
 
 class PlotHolesRequest(BaseModel):
@@ -328,6 +357,7 @@ class ShowrunnerResult(BaseModel):
     converged: bool = True
     iterations: int = 0
     final_text: str = ""
+    audience_source: str = "default"                      # "living" (persisted KG audience) | "default"
 
 
 class ShowrunnerRequest(BaseModel):
@@ -345,7 +375,9 @@ class MdpStep(BaseModel):
     chosen_action_id: str
     reward: float
     best_reward: float
-    q_values: list[float] = Field(default_factory=list)
+    q_values: list[float] = Field(default_factory=list)   # one-step Q estimate per candidate action
+    state: str = ""                                        # human-readable state at this step
+    value: float = 0.0                                     # Q(s,a*) = reward + γ·V(s') for the chosen action
 
 
 class MdpResult(BaseModel):
@@ -354,6 +386,9 @@ class MdpResult(BaseModel):
     final_reward: float = 0.0
     best_action_text: str = ""
     policy: str = "greedy"
+    discount: float = 0.0                                  # γ used in the Bellman look-ahead
+    discounted_return: float = 0.0                         # Σ γ^t · reward_t along the chosen trajectory
+    audience_source: str = "default"                      # "living" (persisted KG audience) | "default"
 
 
 class MdpRequest(BaseModel):

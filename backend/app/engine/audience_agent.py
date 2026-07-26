@@ -25,6 +25,7 @@ import random
 from collections.abc import Callable
 
 from app.config import settings
+from app.db.activity import record_activity
 from app.engine.aggregate import reaction_view
 from app.engine.cache import Cache
 from app.engine.runner import _story_hash, persona_fingerprint, persona_preamble, story_images
@@ -144,6 +145,7 @@ async def run_social_reactions(
     canon: str | None = None,
     canon_fp: str | None = None,
     on_event: Callable[[dict], None] | None = None,
+    source: str = "Audience Simulator",
 ) -> tuple[list[tuple[Persona, SocialReaction]], int]:
     """Run every persona's agent loop concurrently; stream + collect reactions.
 
@@ -158,13 +160,20 @@ async def run_social_reactions(
     canon_key = canon_fp or "nocanon"
     images = story_images(story)
     total = len(personas)
+    # Count agents that recalled real prior history, so we can surface the
+    # collective memory read as ONE activity event (per-agent reads would flood
+    # the feed at panel scale). This is the visible proof the agents are stateful.
+    recalled = 0
 
     async def _one(persona: Persona) -> tuple[Persona, SocialReaction]:
+        nonlocal recalled
         # recall — the agent reads its own memory (bounded, best-effort).
         memory: list[dict] = []
         if settings.sim_agentic:
             async with kg_sem:
                 memory = await recall_member_memory(persona.id)
+            if memory:
+                recalled += 1
 
         system, user = build_social_prompt(persona, story, canon, memory)
 
@@ -220,4 +229,14 @@ async def run_social_reactions(
                     "reaction": reaction_view(persona, reaction).model_dump(),
                 }
             )
+    # Surface the collective recall as one read: proof the agents remembered
+    # their own past reactions before responding (statefulness across posts).
+    if settings.sim_agentic and recalled:
+        record_activity(
+            "read",
+            "recall_member_memory",
+            source,
+            f"{recalled} of {total} agents recalled their prior reactions from shared memory",
+            {"agents_recalled": recalled, "panel": total},
+        )
     return pairs, dropped

@@ -103,6 +103,15 @@ class Settings(BaseSettings):
     sim_max_retries: int = 3        # retries on 429/503, with backoff + jitter
     sim_agentic: bool = True        # run the multi-step perceive→recall→react loop
 
+    # --- RL / MDP (policy search over story decisions) -----------------------
+    # The MDP optimizer treats cliffhanger choice as a finite-horizon MDP: state
+    # = story-so-far + canon, action = a candidate beat, reward = simulated hook.
+    # ``mdp_discount`` (γ) weights future value in the Bellman look-ahead;
+    # ``mdp_lookahead`` is the one-step look-ahead branching used to estimate the
+    # value of the next state (0 disables look-ahead → pure greedy improvement).
+    mdp_discount: float = 0.85
+    mdp_lookahead: int = 2
+
     # --- API -----------------------------------------------------------------
     cors_origins: str = "http://localhost:5173,http://localhost:4173"
 

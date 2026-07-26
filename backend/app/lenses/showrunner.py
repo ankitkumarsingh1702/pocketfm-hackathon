@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from app.config import settings
 from app.db.firestore import save_simulation
 from app.engine.aggregate import aggregate_audience
+from app.engine.audience_panel import resolve_reward_panel
 from app.engine.cache import Cache
 from app.engine.runner import run_reactions
 from app.engine.stategraph import StateGraph
@@ -31,7 +32,6 @@ from app.graph.store import (
 )
 from app.lenses.plot_holes import find_plot_holes
 from app.llm.factory import get_llm
-from app.personas.loader import fan_out_audience, load_personas
 from app.schemas import ShowrunnerResult, Story
 
 
@@ -56,7 +56,11 @@ async def run_showrunner(
     """Drive the showrunner state graph and return a ShowrunnerResult dict."""
     llm = get_llm()
     cache = Cache(settings.cache_dir)
-    panel = fan_out_audience(load_personas("audience"), min(10, settings.audience_fanout))
+    # The showrunner reasons about the SAME audience the user sees on the Audience
+    # tab: use the persisted "Living Audience" population when it exists.
+    panel, audience_source = await resolve_reward_panel(
+        min(10, settings.audience_fanout), "Showrunner"
+    )
     audience_model = settings.model_for("audience")
     weak = _weak_excerpt(story, weak_excerpt)
 
@@ -160,7 +164,12 @@ async def run_showrunner(
     graph.add_edge("resimulate", "decide")
     graph.set_entry("ingest")
 
-    emit({"type": "run_started", "nodes": ["ingest", "continuity", "simulate", "decide", "propose_fix", "resimulate", "converge"]})
+    emit({
+        "type": "run_started",
+        "nodes": ["ingest", "continuity", "simulate", "decide", "propose_fix", "resimulate", "converge"],
+        "audience_source": audience_source,
+        "panel_size": len(panel),
+    })
     state: dict = {
         "transcript": [], "iterations": 0, "before_score": 0.0,
         "contradictions_found": 0, "high_contradictions": 0, "weak": weak,
@@ -179,6 +188,7 @@ async def run_showrunner(
         converged=True,
         iterations=state.get("iterations", 0),
         final_text=state.get("fixed_text", story.text),
+        audience_source=audience_source,
     )
     save_simulation("showrunner", story, result.model_dump())
     if state.get("audience"):

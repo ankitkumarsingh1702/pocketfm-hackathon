@@ -6,6 +6,23 @@ import { EmptyState, ErrorState, LoadingState } from '../StateViews'
 /** Build-time fallback if the backend health payload has no browser_url. */
 const NEO4J_BROWSER_FALLBACK = import.meta.env.VITE_NEO4J_BROWSER_URL || ''
 
+/**
+ * Deep-link one canon node into the Neo4j Browser with a prefilled Cypher query
+ * that pulls up the node and its neighbourhood — so a judge can click a dot and
+ * see it live in the actual database.
+ */
+function neo4jNodeUrl(browserUrl, nodeId) {
+  if (!browserUrl || !nodeId) return null
+  const key = String(nodeId).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+  const cypher = `MATCH (n:Canon {key:'${key}'})-[r]-(m) RETURN n, r, m`
+  const arg = encodeURIComponent(cypher)
+  // Hosted Browser already carries ?connectURL=…; a self-hosted origin needs
+  // the /browser/ app path added.
+  return browserUrl.includes('?')
+    ? `${browserUrl}&cmd=edit&arg=${arg}`
+    : `${browserUrl.replace(/\/+$/, '')}/browser/?cmd=edit&arg=${arg}`
+}
+
 /** Section heading in the studio's uppercase-label style. */
 function SectionLabel({ children, style }) {
   return (
@@ -187,6 +204,55 @@ function Neo4jLink({ health }) {
         </svg>
       </a>
     </>
+  )
+}
+
+/**
+ * Segmented control switching the graph/facts view between "your story" (only
+ * what this session ingested) and the full shared canon (incl. the seeded demo).
+ */
+function ScopeToggle({ scope, setScope }) {
+  const opts = [
+    { id: 'session', label: 'Your story' },
+    { id: 'all', label: 'Full canon' },
+  ]
+  return (
+    <div
+      role="tablist"
+      aria-label="Graph scope"
+      style={{
+        display: 'inline-flex',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-pill)',
+        overflow: 'hidden',
+        background: 'var(--surface-raised)',
+      }}
+    >
+      {opts.map((o) => {
+        const on = scope === o.id
+        return (
+          <button
+            key={o.id}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => setScope(o.id)}
+            style={{
+              font: 'inherit',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: '6px 15px',
+              border: 'none',
+              background: on ? 'var(--ink)' : 'transparent',
+              color: on ? '#fff' : 'var(--muted)',
+            }}
+          >
+            {o.label}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -438,11 +504,23 @@ const DETAIL_TITLE = {
  * (and why it was made), every fact and contradiction, and every read/write
  * with the agent that did it.
  */
-export default function DbMemoryTab({ activity, health, graph, facts, refresh, live, setLive }) {
+export default function DbMemoryTab({
+  activity,
+  health,
+  graph,
+  facts,
+  refresh,
+  live,
+  setLive,
+  scope = 'all',
+  setScope,
+}) {
   const [selected, setSelected] = useState(null)
   const a = activity.data
   const g = graph.data
   const firstLoad = !a && activity.loading
+  const browserUrl = (health.data && health.data.browser_url) || NEO4J_BROWSER_FALLBACK
+  const sessionScope = scope === 'session'
 
   const tiles = [
     { key: 'nodes', value: g ? g.nodeCount : '—', label: 'Entities (nodes)', tone: 'ink' },
@@ -480,6 +558,18 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
           </Button>
         </div>
       </div>
+
+      {/* Scope switch: your story vs the full shared canon */}
+      {setScope && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <ScopeToggle scope={scope} setScope={setScope} />
+          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+            {sessionScope
+              ? 'Only the canon you ingested this session — separated from the demo.'
+              : 'The full shared canon, including the seeded demo story.'}
+          </span>
+        </div>
+      )}
 
       {/* Clickable stat strip */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, flexWrap: 'wrap', marginLeft: -14 }}>
@@ -540,15 +630,27 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
             {graph.error && <ErrorState message={graph.error} />}
             {g && g.isEmpty && (
               <EmptyState
-                title="Graph is empty"
-                hint="Ingest an episode in the Story Canon tab to build the shared memory."
+                title={sessionScope ? 'Nothing from this session yet' : 'Graph is empty'}
+                hint={
+                  sessionScope
+                    ? 'Ingest an episode in the Story Canon tab and your story shows up here — or switch to “Full canon” to see the seeded demo.'
+                    : 'Ingest an episode in the Story Canon tab to build the shared memory.'
+                }
               />
             )}
             {g && !g.isEmpty && (
               <>
-                <GraphLegend stats={g.stats} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                  <GraphLegend stats={g.stats} />
+                  {browserUrl && (
+                    <span style={{ fontSize: 12, color: 'var(--dim)' }}>· tap a node to open it in Neo4j</span>
+                  )}
+                </div>
                 <SurfaceCard style={{ padding: 'var(--space-4)', background: 'var(--surface-raised)' }}>
-                  <GraphCanvas data={g} />
+                  <GraphCanvas
+                    data={g}
+                    nodeHref={browserUrl ? (node) => neo4jNodeUrl(browserUrl, node.id) : undefined}
+                  />
                 </SurfaceCard>
               </>
             )}

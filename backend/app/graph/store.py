@@ -73,16 +73,32 @@ def _sanitize_rel(rel_type: str) -> str:
 # --- write path -------------------------------------------------------------
 
 async def ingest_extraction(
-    story: Story, extraction: CanonExtraction, source: str = "Canon Ingest"
+    story: Story,
+    extraction: CanonExtraction,
+    source: str = "Canon Ingest",
+    batch: str | None = None,
 ) -> IngestResult:
-    """Merge an episode's extracted canon into Neo4j (idempotent). Best-effort."""
+    """Merge an episode's extracted canon into Neo4j (idempotent). Best-effort.
+
+    When ``batch`` is provided, every node/fact created by this ingest is tagged
+    with ``batch`` + an ``updated_at`` timestamp, so the UI can scope the graph to
+    just what this session added ("your story") and reset only that — the seeded
+    demo canon (tagged ``seed_batch``) is never touched.
+    """
     epkey = _episode_id(story)
     names = [e.name for e in extraction.entities if e.type != "Episode"]
+    batch = (batch or "").strip() or None
+    # Fragment appended to each write's SET clause to stamp the session tag.
+    def _stamp(var: str) -> str:
+        return f", {var}.batch=$batch, {var}.updated_at=timestamp()" if batch else ""
 
     driver = get_driver()
     if driver is None:
         record_activity("skipped", "ingest_extraction", source, "graph disabled — canon not persisted")
-        return IngestResult(episode_id=epkey, nodes_added=0, edges_added=0, entities=names)
+        return IngestResult(
+            episode_id=epkey, nodes_added=0, edges_added=0, entities=names,
+            batch=batch or "", extraction=extraction,
+        )
 
     # Map the LLM's transient keys → our stable, deterministic node ids so the
     # same character across episodes resolves to one node (entity resolution).
@@ -118,14 +134,15 @@ async def ingest_extraction(
         if f.predicate and f.object
     ]
 
-    nodes_added = edges_added = 0
+    nodes_added = edges_added = facts_added = 0
     try:
         async with driver.session(database=settings.neo4j_database) as session:
             summary = await (
                 await session.run(
                     "MERGE (e:Canon:Episode {key:$k}) "
-                    "SET e.type='Episode', e.name=$n, e.title=$t, e.episode=$ep",
+                    "SET e.type='Episode', e.name=$n, e.title=$t, e.episode=$ep" + _stamp("e"),
                     k=epkey, n=_episode_name(story), t=story.title, ep=story.episode or "",
+                    batch=batch,
                 )
             ).consume()
             nodes_added += summary.counters.nodes_created
@@ -135,12 +152,13 @@ async def ingest_extraction(
                 query = (
                     "UNWIND $rows AS row "
                     "MERGE (n:Canon {key: row.key}) "
-                    f"SET n:{label}, n.type=$etype, n.name=row.name, n.description=row.description "
+                    f"SET n:{label}, n.type=$etype, n.name=row.name, n.description=row.description"
+                    + _stamp("n") + " "
                     "WITH n MATCH (e:Canon:Episode {key:$ep}) "
                     "MERGE (n)-[:MENTIONED_IN]->(e)"
                 )
                 summary = await (
-                    await session.run(query, rows=rows, etype=etype, ep=epkey)
+                    await session.run(query, rows=rows, etype=etype, ep=epkey, batch=batch)
                 ).consume()
                 nodes_added += summary.counters.nodes_created
                 edges_added += summary.counters.relationships_created
@@ -159,30 +177,41 @@ async def ingest_extraction(
                     "UNWIND $rows AS row "
                     "MERGE (f:Canon:Fact {key: row.key}) "
                     "SET f.type='Fact', f.name=row.predicate, f.subject_key=row.subject, "
-                    "f.predicate=row.predicate, f.object=row.object "
+                    "f.predicate=row.predicate, f.object=row.object" + _stamp("f") + " "
                     "WITH f, row MATCH (e:Canon:Episode {key:$ep}) "
                     "MERGE (f)-[:IN_EPISODE]->(e) "
                     "WITH f, row OPTIONAL MATCH (s:Canon {key: row.subject}) "
                     "FOREACH (_ IN CASE WHEN s IS NULL THEN [] ELSE [1] END | "
                     "MERGE (s)-[:ASSERTS]->(f))"
                 )
-                summary = await (await session.run(query, rows=facts, ep=epkey)).consume()
+                summary = await (await session.run(query, rows=facts, ep=epkey, batch=batch)).consume()
+                facts_added += summary.counters.nodes_created
                 nodes_added += summary.counters.nodes_created
                 edges_added += summary.counters.relationships_created
     except Exception as exc:  # noqa: BLE001 - persistence is strictly best-effort
         logger.warning("Canon ingest failed: %s", exc)
         record_activity("skipped", "ingest_extraction", source, f"ingest failed: {exc}")
-        return IngestResult(episode_id=epkey, nodes_added=0, edges_added=0, entities=names)
+        return IngestResult(
+            episode_id=epkey, nodes_added=0, edges_added=0, entities=names,
+            batch=batch or "", extraction=extraction,
+        )
 
     record_activity(
         "write",
         "ingest_extraction",
         source,
-        f"wrote canon +{nodes_added} nodes / +{edges_added} edges from {_episode_name(story)}",
-        {"nodes_added": nodes_added, "edges_added": edges_added},
+        f"wrote canon +{nodes_added} nodes / +{edges_added} edges / +{facts_added} facts "
+        f"from {_episode_name(story)}",
+        {"nodes_added": nodes_added, "edges_added": edges_added, "facts_added": facts_added},
     )
     return IngestResult(
-        episode_id=epkey, nodes_added=nodes_added, edges_added=edges_added, entities=names
+        episode_id=epkey,
+        nodes_added=nodes_added,
+        edges_added=edges_added,
+        facts_added=facts_added,
+        batch=batch or "",
+        entities=names,
+        extraction=extraction,
     )
 
 
@@ -300,7 +329,7 @@ async def _run_graph_query(
 
 
 async def fetch_contradiction_candidates(
-    source: str = "Plot Hole Hunter", record: bool = True
+    source: str = "Plot Hole Hunter", record: bool = True, batch: str | None = None
 ) -> dict:
     """Graph-traversal candidates for continuity checking. Best-effort.
 
@@ -310,7 +339,15 @@ async def fetch_contradiction_candidates(
     ``ep_a``/``ep_b``), and ``dangling_clues`` are clues introduced but never
     advanced/paid off. ``fact_count`` is the true total (the ``facts`` list is a
     capped sample for prompting). These ground the LLM plot-hole verifier.
+
+    When ``batch`` is given, the traversal is scoped to just that session's canon
+    ("your story"), never the seeded demo — so the DB / Memory "your story" view
+    stays consistent with its scoped graph.
     """
+    batch = (batch or "").strip() or None
+    # Reusable WHERE fragments that scope Fact/Clue/Episode to a session batch.
+    wf = "WHERE f.batch=$batch AND f.seed_batch IS NULL " if batch else ""
+    params = {"batch": batch} if batch else {}
     empty = {
         "facts": [], "conflicts": [], "dangling_clues": [],
         "episode_count": 0, "fact_count": 0,
@@ -327,9 +364,10 @@ async def fetch_contradiction_candidates(
     try:
         async with driver.session(database=settings.neo4j_database) as session:
             res = await session.run(
-                "MATCH (f:Fact) OPTIONAL MATCH (subj:Canon {key: f.subject_key}) "
+                "MATCH (f:Fact) " + wf + "OPTIONAL MATCH (subj:Canon {key: f.subject_key}) "
                 "RETURN coalesce(subj.name, f.subject_key) AS subject, "
-                "f.predicate AS predicate, f.object AS object LIMIT 200"
+                "f.predicate AS predicate, f.object AS object LIMIT 200",
+                **params,
             )
             async for r in res:
                 out["facts"].append(
@@ -342,8 +380,8 @@ async def fetch_contradiction_candidates(
             # — this is the cross-episode reasoning a human can't do by hand.
             # Ordered earliest-episode-first so ep_a precedes ep_b.
             res = await session.run(
-                "MATCH (f:Fact)-[:IN_EPISODE]->(e:Episode) "
-                "WITH f.subject_key AS sk, f.predicate AS pred, f.object AS obj, "
+                "MATCH (f:Fact)-[:IN_EPISODE]->(e:Episode) " + wf
+                + "WITH f.subject_key AS sk, f.predicate AS pred, f.object AS obj, "
                 "  min(coalesce(e.epnum, 9999)) AS epnum, "
                 "  head(collect(coalesce(e.episode, e.name, e.title))) AS eplabel "
                 "ORDER BY epnum "
@@ -357,7 +395,8 @@ async def fetch_contradiction_candidates(
                 "    ELSE coalesce(eplabels[0], '?') END AS ep_a, "
                 "  CASE WHEN epnums[1] < 9999 THEN 'Ep ' + toString(epnums[1]) "
                 "    ELSE coalesce(eplabels[1], '?') END AS ep_b "
-                "LIMIT 50"
+                "LIMIT 50",
+                **params,
             )
             async for r in res:
                 out["conflicts"].append(
@@ -371,16 +410,25 @@ async def fetch_contradiction_candidates(
             # MENTIONED_IN link to its episode (i.e. never advanced/paid off).
             res = await session.run(
                 "MATCH (c:Clue) "
-                "OPTIONAL MATCH (c)-[r]->(:Canon) WHERE type(r) <> 'MENTIONED_IN' "
+                + ("WHERE c.batch=$batch AND c.seed_batch IS NULL " if batch else "")
+                + "OPTIONAL MATCH (c)-[r]->(:Canon) WHERE type(r) <> 'MENTIONED_IN' "
                 "WITH c, count(r) AS outdeg WHERE outdeg = 0 "
-                "RETURN c.name AS name LIMIT 50"
+                "RETURN c.name AS name LIMIT 50",
+                **params,
             )
             async for r in res:
                 out["dangling_clues"].append(r["name"])
 
-            rec = await (await session.run("MATCH (e:Episode) RETURN count(e) AS c")).single()
+            ep_q = (
+                "MATCH (e:Episode) WHERE e.batch=$batch AND e.seed_batch IS NULL RETURN count(e) AS c"
+                if batch
+                else "MATCH (e:Episode) RETURN count(e) AS c"
+            )
+            rec = await (await session.run(ep_q, **params)).single()
             out["episode_count"] = rec["c"] if rec else 0
-            rec = await (await session.run("MATCH (f:Fact) RETURN count(f) AS c")).single()
+            rec = await (
+                await session.run("MATCH (f:Fact) " + wf + "RETURN count(f) AS c", **params)
+            ).single()
             out["fact_count"] = rec["c"] if rec else 0
         if record:
             record_activity(
@@ -404,35 +452,106 @@ async def fetch_contradiction_candidates(
         return empty
 
 
-async def fetch_full_graph(record: bool = False) -> CanonGraph:
+async def fetch_full_graph(record: bool = False, batch: str | None = None) -> CanonGraph:
     """The entire canon graph, for the visualization tab.
 
     Defaults to ``record=False`` so that the graph view (which the DB / Memory
     tab polls continuously) never floods the activity feed — the feed is meant to
     show agent memory reads and writes, not the visualization polling itself.
+
+    When ``batch`` is given, the view is scoped to just what that session ingested
+    ("your story"): nodes/edges tagged with the batch and never part of the seeded
+    demo canon (``seed_batch``), so a user sees their own story cleanly separated
+    from the ANDHERA demo.
     """
+    batch = (batch or "").strip() or None
+    if batch:
+        node_q = (
+            "MATCH (n:Canon) WHERE n.batch=$batch AND n.seed_batch IS NULL "
+            "RETURN n.key AS id, coalesce(n.type,'Entity') AS label, "
+            "coalesce(n.name,n.key) AS name, n.description AS description LIMIT 500"
+        )
+        edge_q = (
+            "MATCH (a:Canon)-[r]->(b:Canon) "
+            "WHERE a.batch=$batch AND b.batch=$batch "
+            "AND a.seed_batch IS NULL AND b.seed_batch IS NULL "
+            "RETURN a.key AS source, b.key AS target, type(r) AS type, r.detail AS detail LIMIT 1500"
+        )
+    else:
+        node_q = (
+            "MATCH (n:Canon) RETURN n.key AS id, coalesce(n.type,'Entity') AS label, "
+            "coalesce(n.name,n.key) AS name, n.description AS description LIMIT 500"
+        )
+        edge_q = (
+            "MATCH (a:Canon)-[r]->(b:Canon) "
+            "RETURN a.key AS source, b.key AS target, type(r) AS type, r.detail AS detail LIMIT 1500"
+        )
+
     graph = await _run_graph_query(
-        "MATCH (n:Canon) RETURN n.key AS id, coalesce(n.type,'Entity') AS label, "
-        "coalesce(n.name,n.key) AS name, n.description AS description LIMIT 500",
-        "MATCH (a:Canon)-[r]->(b:Canon) "
-        "RETURN a.key AS source, b.key AS target, type(r) AS type, r.detail AS detail LIMIT 1500",
+        node_q, edge_q,
         source="Graph View",
         fn="fetch_full_graph",
         record=record,
+        **({"batch": batch} if batch else {}),
     )
     # The node query is capped at 500 for the visualization, which undercounts
     # Fact nodes (a large canon has thousands). Overwrite the Fact stat with the
-    # true total so "facts tracked" reflects the whole canon, not the sample.
+    # true total so "facts tracked" reflects the whole canon (or the session).
     driver = get_driver()
     if driver is not None:
         try:
+            fact_q = (
+                "MATCH (f:Fact) WHERE f.batch=$batch AND f.seed_batch IS NULL RETURN count(f) AS c"
+                if batch
+                else "MATCH (f:Fact) RETURN count(f) AS c"
+            )
             async with driver.session(database=settings.neo4j_database) as session:
-                rec = await (await session.run("MATCH (f:Fact) RETURN count(f) AS c")).single()
+                rec = await (
+                    await session.run(fact_q, **({"batch": batch} if batch else {}))
+                ).single()
                 if rec is not None:
                     graph.stats["Fact"] = rec["c"]
         except Exception as exc:  # noqa: BLE001 - best-effort; keep the capped count on failure
             logger.warning("Fact-count query failed: %s", exc)
     return graph
+
+
+async def reset_canon_batch(batch: str, source: str = "Story Canon") -> int:
+    """Delete only the nodes a given session ingested; returns nodes removed.
+
+    Hard-guarded so it can never touch the seeded demo canon: it deletes nodes
+    that carry THIS ``batch`` and have no ``seed_batch``. An empty batch is a
+    no-op (we never wipe the whole graph from here). Best-effort.
+    """
+    batch = (batch or "").strip()
+    if not batch:
+        return 0
+    driver = get_driver()
+    if driver is None:
+        record_activity("skipped", "reset_canon_batch", source, "graph disabled — nothing to reset")
+        return 0
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            summary = await (
+                await session.run(
+                    "MATCH (n:Canon) WHERE n.batch=$batch AND n.seed_batch IS NULL "
+                    "DETACH DELETE n",
+                    batch=batch,
+                )
+            ).consume()
+            deleted = summary.counters.nodes_deleted
+        record_activity(
+            "write",
+            "reset_canon_batch",
+            source,
+            f"cleared this session's canon — removed {deleted} node(s)",
+            {"nodes_deleted": deleted},
+        )
+        return deleted
+    except Exception as exc:  # noqa: BLE001 - best-effort
+        logger.warning("reset_canon_batch failed: %s", exc)
+        record_activity("skipped", "reset_canon_batch", source, f"reset failed: {exc}")
+        return 0
 
 
 async def fetch_canon_subgraph(story: Story, source: str = "") -> CanonGraph:

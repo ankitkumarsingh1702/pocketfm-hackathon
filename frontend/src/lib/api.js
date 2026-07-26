@@ -123,9 +123,12 @@ export function canonHealth() {
   return request('/api/canon/health')
 }
 
-/** GET /api/canon/graph -> CanonGraph { nodes[], edges[], stats } */
-export function getCanonGraph() {
-  return request('/api/canon/graph')
+/**
+ * GET /api/canon/graph -> CanonGraph { nodes[], edges[], stats }
+ * @param {string} [batch] scope to just what this session ingested ("your story")
+ */
+export function getCanonGraph(batch) {
+  return request(batch ? `/api/canon/graph?batch=${encodeURIComponent(batch)}` : '/api/canon/graph')
 }
 
 /** GET /api/canon/activity -> { events: ActivityEvent[] } (recent reads/writes) */
@@ -133,17 +136,39 @@ export function getCanonActivity(limit = 100) {
   return request(`/api/canon/activity?limit=${limit}`)
 }
 
-/** GET /api/canon/facts -> { facts[], conflicts[], dangling_clues[], episode_count } */
-export function getCanonFacts() {
-  return request('/api/canon/facts')
+/**
+ * GET /api/canon/facts -> { facts[], conflicts[], dangling_clues[], episode_count }
+ * @param {string} [batch] scope to just this session's story
+ */
+export function getCanonFacts(batch) {
+  return request(batch ? `/api/canon/facts?batch=${encodeURIComponent(batch)}` : '/api/canon/facts')
+}
+
+/**
+ * POST /api/canon/preview -> CanonPreviewResult (extract-only, nothing written)
+ * The live "as you type" extraction that shows what the agents will remember.
+ * @param {{title:string, episode:string, text:string}} story
+ */
+export function previewCanon(story) {
+  return request('/api/canon/preview', { method: 'POST', body: { story } })
 }
 
 /**
  * POST /api/canon/ingest -> IngestResult
  * @param {{title:string, episode:string, text:string}} story
+ * @param {string} [batch] session tag so this ingest is scopable/resettable as "your story"
  */
-export function ingestCanon(story) {
-  return request('/api/canon/ingest', { method: 'POST', body: { story } })
+export function ingestCanon(story, batch) {
+  return request('/api/canon/ingest', { method: 'POST', body: batch ? { story, batch } : { story } })
+}
+
+/**
+ * POST /api/canon/reset -> { deleted, batch }
+ * Clears only what this session ingested — never the seeded demo canon.
+ * @param {string} batch the session tag to clear
+ */
+export function resetCanonSession(batch) {
+  return request('/api/canon/reset', { method: 'POST', body: { batch } })
 }
 
 /** POST /api/lenses/plot-holes -> PlotHoleResult */
