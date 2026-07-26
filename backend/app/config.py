@@ -68,8 +68,8 @@ class Settings(BaseSettings):
     tts_model: str = "gemini-2.5-flash-preview-tts"
     tts_location: str = "us-central1"  # preview-TTS region may differ; override if 404
     tts_language_code: str = "en-US"
-    tts_voice_flat: str = "Charon"     # calm, even — the passive original read
-    tts_voice_dramatic: str = "Fenrir"  # punchy, excitable — the optimized read
+    tts_voice_flat: str = "Vindemiatrix"  # soft, even girl voice — the passive original read
+    tts_voice_dramatic: str = "Achernar"  # soft girl voice — the dramatic optimized read
     tts_rate_flat: float = 0.98
     tts_rate_dramatic: float = 1.06
     tts_max_chars: int = 1200          # cap synth input (payload + latency guard)
