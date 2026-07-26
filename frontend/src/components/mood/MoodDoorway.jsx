@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import * as api from '../../lib/api'
 import { Button, Icon } from '../primitives'
+import MoodPlayer from './MoodPlayer'
 
 /**
  * The doorway — the song window that BEGINS where the shelf pointed.
@@ -13,97 +14,12 @@ import { Button, Icon } from '../primitives'
  * tracks stay reachable — the control below refetches from 1 — they are simply
  * not where you land.
  *
- * Each track carries a real audio URL, so tapping Play opens an inline player
+ * Each track carries a real audio URL, so tapping Play opens the shared player
  * rather than a dead button: the catalog is playable, and the doorway is where
  * you actually listen.
  */
 function minutes(seconds) {
   return `${Math.max(1, Math.round((seconds || 0) / 60))} min`
-}
-
-/** Pull the YouTube video id out of a watch / share / embed URL. */
-function youtubeId(url) {
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    if (u.searchParams.get('v')) return u.searchParams.get('v')
-    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1) || null
-    const parts = u.pathname.split('/').filter(Boolean)
-    const i = parts.indexOf('embed')
-    if (i >= 0 && parts[i + 1]) return parts[i + 1]
-  } catch {
-    /* not a URL — nothing to embed */
-  }
-  return null
-}
-
-/** The inline player for the tapped track. YouTube when we can embed it. */
-function NowPlaying({ track, onClose }) {
-  const id = youtubeId(track.audio_url)
-  return (
-    <div
-      style={{
-        border: '1px solid var(--accent-line)',
-        background: 'var(--accent-soft)',
-        borderRadius: 'var(--radius-md)',
-        padding: 14,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="label-upper" style={{ fontSize: 10, color: 'var(--accent-text-sm)' }}>
-            Now playing · track {track.number}
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)', marginTop: 2 }}>
-            {track.title}
-          </div>
-          {track.synopsis && (
-            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
-              {track.synopsis}
-            </div>
-          )}
-        </div>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <Icon name="close" size={16} />
-          Close
-        </Button>
-      </div>
-
-      {id ? (
-        <div
-          style={{
-            position: 'relative',
-            width: '100%',
-            aspectRatio: '16 / 9',
-            borderRadius: 'var(--radius-sm)',
-            overflow: 'hidden',
-            background: '#000',
-          }}
-        >
-          <iframe
-            key={id}
-            title={`Player — ${track.title}`}
-            src={`https://www.youtube.com/embed/${id}?autoplay=1&rel=0`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
-          />
-        </div>
-      ) : (
-        <a
-          href={track.audio_url}
-          target="_blank"
-          rel="noreferrer"
-          style={{ fontSize: 13.5, color: 'var(--accent-text-sm)' }}
-        >
-          Open this track in a new tab ↗
-        </a>
-      )}
-    </div>
-  )
 }
 
 export default function MoodDoorway({ playing, onBack }) {
@@ -171,7 +87,7 @@ export default function MoodDoorway({ playing, onBack }) {
       </header>
 
       {nowPlaying && (
-        <NowPlaying track={nowPlaying} onClose={() => setNowPlaying(null)} />
+        <MoodPlayer track={nowPlaying} onClose={() => setNowPlaying(null)} />
       )}
 
       {loading && (

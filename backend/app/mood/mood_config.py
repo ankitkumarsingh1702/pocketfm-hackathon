@@ -93,11 +93,14 @@ SLIDER_AXIS_MAP: dict[str, dict[str, float]] = {
     "stranger": {"tension": 0.20, "arousal": 0.15, "warmth": -0.20, "companionship": -0.15},
 }
 
+# The two ends of each control, as the listener sees them. These render directly
+# beneath a shelf heading, so they follow the same rule: the interface speaks
+# plain English even though it reads Hinglish.
 SLIDER_LABELS: dict[str, tuple[str, str]] = {
-    "heavier": ("Halka", "Bhaari"),
-    "faster": ("Dheere", "Tez"),
-    "warmer": ("Door se", "Paas se"),
-    "stranger": ("Jaana-pehchana", "Bilkul alag"),
+    "heavier": ("Lighter", "Heavier"),
+    "faster": ("Slower", "Faster"),
+    "warmer": ("More distant", "More intimate"),
+    "stranger": ("More familiar", "Stranger"),
 }
 
 
@@ -209,13 +212,42 @@ def resolve_target(query: MoodQuery, destination: Destination) -> MoodAxes:
 SESSION_SLACK = 1.5
 
 
+# Shelf headings and their one-line explanations.
+#
+# The heading names the LISTENER'S INTENT, not the mood of the content. "Sit in
+# it" read as a fragment of someone else's sentence — you had to already know the
+# concept to parse it. "Stay with the feeling" says what the listener is choosing
+# to do, so the three headings become three answers to "what do you want from
+# this?" and the shelves compare against each other on sight.
+#
+# The subtitle then says what the content will actually be like. Written as the
+# product's own voice — plain, complete English sentences. Hinglish belongs in
+# what a LISTENER types, not in the labels the interface writes back at them.
 SHELF_COPY: dict[str, tuple[str, str]] = {
-    "sit_with": ("Sit in it", "Isse theek karne ki koshish nahi karega"),
-    "lift_gently": ("Thoda upar", "Dheere se, chillayega nahi"),
-    "company": ("Koi saath", "Bas ek awaaz, jo akela na chhode"),
-    "escape": ("Kahin aur hi", "Itna absorbing ki yaad hi na rahe"),
-    "make_sense_of": ("Samajhne ke liye", "Jo hua use shakl deta hai"),
-    "sleep": ("Neend ke liye", "Dheema, garam, bina jhatke"),
+    "sit_with": (
+        "Stay with the feeling",
+        "Slow and unhurried. It sits with what you're feeling instead of trying to fix it.",
+    ),
+    "lift_gently": (
+        "Lift it, gently",
+        "Warm and quietly hopeful, without forcing cheerfulness on you.",
+    ),
+    "company": (
+        "Somebody with you",
+        "A close, conversational voice — for when the point is simply not being alone.",
+    ),
+    "escape": (
+        "Somewhere else entirely",
+        "Fast-moving and absorbing enough to hold your full attention.",
+    ),
+    "make_sense_of": (
+        "Make sense of it",
+        "Reflective and clear-eyed. Gives shape to something that is hard to name.",
+    ),
+    "sleep": (
+        "Wind down towards sleep",
+        "Quiet, slow and even. Written to be half-heard on the way under.",
+    ),
 }
 
 
@@ -260,24 +292,33 @@ def heuristic_sparsity(text: str) -> float:
 # The one question. Note every option resolves straight into mood space, so the
 # answer moves the target vector without a second LLM call.
 DEFAULT_CLARIFY = ClarifyingQuestion(
-    question="Theek hai. Abhi kis cheez ka mann hai?",
+    question="What would you like this to do for you?",
     options=[
-        ClarifyOption(id="c_sit", label="Jo hai usi mein rehna", resolves_destination="sit_with"),
-        ClarifyOption(id="c_company", label="Bas koi saath ho", resolves_destination="company"),
-        ClarifyOption(id="c_escape", label="Kahin aur le jaaye", resolves_destination="escape"),
-        ClarifyOption(id="c_sleep", label="Sona hai", resolves_destination="sleep"),
+        ClarifyOption(id="c_sit", label="Stay with how I'm feeling",
+                      resolves_destination="sit_with"),
+        ClarifyOption(id="c_company", label="Keep me company",
+                      resolves_destination="company"),
+        ClarifyOption(id="c_escape", label="Take me somewhere else",
+                      resolves_destination="escape"),
+        ClarifyOption(id="c_sleep", label="Help me fall asleep",
+                      resolves_destination="sleep"),
     ],
+    skip_label="Anything is fine",
 )
 
 # When we already know the destination but a constraint is missing, ask about
 # the constraint instead. These change results far more than intent does.
 SESSION_CLARIFY = ClarifyingQuestion(
-    question="Kitna time hai?",
+    question="How long have you got?",
     options=[
-        ClarifyOption(id="s_short", label="10-15 min", axis_deltas={"pace": 0.15}),
-        ClarifyOption(id="s_medium", label="Ek ghanta", axis_deltas={"weight": 0.05}),
-        ClarifyOption(id="s_long", label="Poori raat", axis_deltas={"weight": 0.15, "pace": -0.10}),
+        ClarifyOption(id="s_short", label="10 to 15 minutes",
+                      axis_deltas={"pace": 0.15}),
+        ClarifyOption(id="s_medium", label="About an hour",
+                      axis_deltas={"weight": 0.05}),
+        ClarifyOption(id="s_long", label="All night",
+                      axis_deltas={"weight": 0.15, "pace": -0.10}),
     ],
+    skip_label="Anything is fine",
 )
 
 

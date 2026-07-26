@@ -43,7 +43,7 @@ const GLANCE = `flowchart TD
   ASK["Almost nothing said · ask ONE thing<br/>the answer moves the target directly"]
 
   subgraph THREE["A feeling, read three ways at once"]
-    T1["Sit in it"]
+    T1["Stay with the feeling"]
     T2["Somebody with you"]
     T3["Somewhere else entirely"]
   end
