@@ -291,6 +291,15 @@ class AffinityScorer:
 # Demo panel
 # --------------------------------------------------------------------------
 
+# Fallback names for the synthetic panel. A picker full of "Listener 1 … 10"
+# reads as debug output; a name reads as a person, which is the entire point of
+# a per-listener demo. Real curated profiles (DEMO_PANEL) carry their own
+# display_name and never reach this list.
+_DEMO_NAMES = [
+    "Ananya", "Rohan", "Meera", "Kabir", "Sara",
+    "Dev", "Isha", "Arjun", "Naina", "Veer", "Zoya", "Aditya",
+]
+
 
 def build_demo_panel(
     panel: Sequence, store: MoodStore, n: int = 10, seed: int = 11
@@ -381,7 +390,7 @@ def build_demo_panel(
         attrs.setdefault("demo_lane", lane)
         profiles.append(ListenerProfile(
             persona_id=str(getattr(p, "id", f"demo{i}")),
-            display_name=attrs.get("display_name") or f"Listener {i + 1}",
+            display_name=attrs.get("display_name") or _DEMO_NAMES[i % len(_DEMO_NAMES)],
             attrs=attrs,
             history=history,
         ))

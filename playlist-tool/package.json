@@ -1,0 +1,10 @@
+{
+  "name": "playlist-tool",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Extract all tracks from a YouTube / YouTube Music playlist to JSON, from just the URL.",
+  "bin": {
+    "playlist-extractor": "playlist_extractor.mjs"
+  }
+}
