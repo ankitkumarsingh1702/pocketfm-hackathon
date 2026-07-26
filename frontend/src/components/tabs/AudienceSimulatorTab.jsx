@@ -104,7 +104,12 @@ function ReactionCard({ r }) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}>
         <span style={{ fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>{who || 'Listener'}</span>
-        <span style={{ ...num, fontSize: 13, color: 'var(--muted)' }}>hook {r.hook_score}</span>
+        <span
+          title="Hook score — how gripping this listener found the post (0–100)"
+          style={{ ...num, fontSize: 12, color: 'var(--muted)', cursor: 'help', whiteSpace: 'nowrap' }}
+        >
+          Hook {r.hook_score}/100
+        </span>
       </div>
       {r.segment && <SectionLabel style={{ fontSize: 10 }}>{r.segment}</SectionLabel>}
       {r.comment && (
@@ -437,9 +442,14 @@ export default function AudienceSimulatorTab() {
       {/* Reaction feed */}
       {feed.length > 0 && (
         <div>
-          <SectionLabel style={{ marginBottom: 16 }}>
+          <SectionLabel style={{ marginBottom: 6 }}>
             {result ? 'Reactions' : 'Live reactions'} · {formatInt(feed.length)} shown
           </SectionLabel>
+          <p style={{ margin: '0 0 16px', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.55 }}>
+            Each card is one agent&rsquo;s take — their comment, how they felt, the one action they&rsquo;d take, and{' '}
+            <strong style={{ color: 'var(--ink)' }}>Hook</strong> (how gripping they found it, 0–100). Open{' '}
+            &ldquo;Why they reacted&rdquo; for their private reasoning.
+          </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
             {feed.map((r, i) => (
               <ReactionCard key={`${r.persona_id}-${i}`} r={r} />
@@ -469,7 +479,6 @@ function ProgressWithCount({ pct, progress, runMeta }) {
       <span className="label-upper" style={{ fontSize: 12 }}>
         {formatInt(progress.done)} of {formatInt(progress.total)} agents reacted
         {progress.dropped > 0 ? ` · ${formatInt(progress.dropped)} dropped` : ''}
-        {runMeta?.model ? ` · ${runMeta.model}` : ''}
         {runMeta?.hasImage ? ' · image-aware' : ''}
       </span>
     </div>
