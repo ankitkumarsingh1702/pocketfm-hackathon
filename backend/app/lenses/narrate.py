@@ -24,15 +24,15 @@ from app.schemas import NarrationClip, NarrationResult
 # Two deliberately opposite deliveries. The contrast is what makes +15 audible.
 _FLAT_STYLE = (
     "Read the following passage aloud in a soft but flat, disengaged, monotone "
-    "voice. Keep even pacing, no dramatic pauses and no emphasis, as if reading a "
-    "memo out loud."
+    "voice, with no dramatic pauses and no emphasis, as if reading a memo out loud. "
+    "Speak quickly, at a brisk pace — about twice the usual narration speed."
 )
 _DRAMATIC_STYLE = (
     "You are a soft-spoken young woman narrating the climax of a gripping audio "
-    "drama. Stay in character with a soft, intimate, breathy delivery: let the "
-    "tension build, slow down and drop almost to a whisper on the final reveal, and "
-    "land the last line as a cliffhanger hook that makes the listener need the next "
-    "episode."
+    "drama. Stay in character with a soft, urgent, breathy delivery: build tension "
+    "and land the last line as a cliffhanger hook that makes the listener need the "
+    "next episode. Speak quickly, at a fast, urgent pace — about twice the usual "
+    "narration speed."
 )
 
 

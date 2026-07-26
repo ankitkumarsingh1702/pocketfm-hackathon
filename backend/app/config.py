@@ -80,8 +80,8 @@ class Settings(BaseSettings):
     tts_language_code: str = "hi-IN"   # Hindi/Hinglish stories; Gemini auto-detects, Chirp uses this
     tts_voice_flat: str = "Vindemiatrix"  # soft, even girl voice — the passive original read
     tts_voice_dramatic: str = "Achernar"  # soft girl voice — the dramatic optimized read
-    tts_rate_flat: float = 0.98
-    tts_rate_dramatic: float = 1.06
+    tts_rate_flat: float = 1.96        # 2x speed (Chirp speaking_rate; clamped to 2.0 max)
+    tts_rate_dramatic: float = 2.12    # 2x speed (Chirp clamps to its 2.0 max)
     tts_max_chars: int = 1200          # cap synth input (payload + latency guard)
 
     # --- Persistence ---------------------------------------------------------
