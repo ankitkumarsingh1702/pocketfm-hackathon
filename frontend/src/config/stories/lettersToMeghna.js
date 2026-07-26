@@ -166,7 +166,7 @@ export default [
     title: `Vikram's Visit`,
     scenes: [
       `Vikram Desai knocks on Aarav's Matunga flat door at 8 p.m. on January 24, carrying two cups of cutting chai from Shetty's stall on Telang Road, and says he knows about the heart condition.`,
-      `He sits on the only chair and tells Aarav that the marriage was partly his mother Kamala's plan to elevate the Desai social standing, but that he has spent eighteen months getting to know Meghna and genuinely cares about her future.`,
+      `He sits on the only chair and mentions that he recently transferred from his role as a senior consultant at Mahindra Finance in Lower Parel to be closer to the Sharma family, and tells Aarav that the marriage was partly his mother Kamala's plan to elevate the Desai social standing, but that he genuinely cares about Meghna's future.`,
       `Before leaving, Vikram stands in the doorway and asks Aarav one question: "What are you willing to give up for her that I haven't already offered?" Aarav has no answer, and the door clicks shut in the silence.`,
     ],
   },
@@ -238,7 +238,7 @@ export default [
     title: 'Airmail',
     scenes: [
       `Aarav lands at Heathrow Terminal 5 at 6:40 a.m. on February 28 after a nine-hour British Airways flight and takes the Piccadilly Line to his studio flat on Holloway Road in North London, a twelve-square-metre room with a radiator and a window facing a brick alley.`,
-      `He unpacks the green notebook, places it on the narrow desk beside the window, and writes Meghna a four-page letter describing the cold, the view, and the precise number of days until he can return: three hundred and sixty-five.`,
+      `He unpacks the blue notebook, places it on the narrow desk beside the window, and writes Meghna a four-page letter describing the cold, the view, and the precise number of days until he can return: three hundred and sixty-five.`,
       `At 5 p.m. London time he walks to the Royal Mail post office on Seven Sisters Road and sends the letter by international airmail to Meghna Sharma, Flat 302, Sai Krupa Building, Andheri West, Mumbai 400058. The clerk stamps it with a March 1 postmark.`,
     ],
   },
@@ -310,7 +310,7 @@ export default [
     title: 'The 8:47',
     scenes: [
       `Aarav stands on platform 3 at Churchgate station at 8:40 a.m. on May 20, wearing the same green shirt from the day they were supposed to meet at the coffee cart, the green notebook open to the last blank page.`,
-      `The 8:47 Churchgate fast pulls in with its familiar screech of brakes on iron track. The doors open and two hundred commuters pour onto the platform in the Monday morning rush.`,
+      `The 8:32 Churchgate fast pulls in with its familiar screech of brakes on iron track. The doors open and two hundred commuters pour onto the platform in the Monday morning rush.`,
       `A woman in a white cotton kurta with a single marigold tucked behind her ear steps through the third door of the second carriage and stops six feet from Aarav, holding a red Banarasi saree folded over one arm and a Post-it note in blue ink in the other hand. The notebook is between them.`,
     ],
   },

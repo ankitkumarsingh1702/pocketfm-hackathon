@@ -31,7 +31,7 @@ export default [
     scenes: [
       `Ira finds Pramod Kale, 58, unloading crates at Sewri Jetty; he walks away when she says "Neelkamal," but stops when she says "Roshni told me you were on the fourth floor."`,
       `Pramod admits he tried to carry three children down from the fourth floor when the water hit; he saved two — a boy named Sameer and a girl named Pooja — but lost hold of a third child near the landing between floors three and four.`,
-      `He describes the third child as a girl in a green kurta who kept saying "Mummy is calling" and pulled free of his grip; Ira shows him a photo of Roshni from Agnes, and Pramod covers his face and says, "That is her — I have seen that face every night for fifteen years."`,
+      `He describes the third child as a girl of about nine years old in a green kurta who kept saying "Mummy is calling" and pulled free of his grip; Ira shows him a photo of Roshni from Agnes, and Pramod covers his face and says, "That is her — I have seen that face every night for fifteen years."`,
     ],
   },
   {
@@ -46,8 +46,8 @@ export default [
     title: 'Inspector Joshi',
     scenes: [
       `Ira locates retired municipal inspector Vinay Joshi, 64, at his Dadar flat; he initially claims he never handled the Neelkamal file, but Ira produces the seizure receipt with his signature and badge number, MCI-4471.`,
-      `Joshi admits Deputy Commissioner Patwardhan ordered him to remove evidence that the fire brigade was alerted four minutes late because the exchange operator — Wagle — hesitated before routing the emergency call to the Deonar fire station.`,
-      `Joshi gives Ira a photocopy of the original page he removed; it shows that Wagle received the 1:09 call, logged it, but did not patch it through to emergency services until 1:13 — the four-minute gap during which the stairwell flooded past the third floor.`,
+      `Joshi admits Deputy Commissioner Patwardhan ordered him to remove evidence that the fire brigade was alerted four minutes late; Joshi recalls that eight people drowned in the collapse that night, and the delayed response was directly responsible because the exchange operator — Wagle — hesitated before routing the emergency call to the Deonar fire station.`,
+      `Joshi gives Ira a photocopy of the original page he removed; it shows that Wagle received the 1:09 call, logged it, but did not patch it through to emergency services until 1:13 — the four-minute gap during which the stairwell flooded past the second floor.`,
     ],
   },
   {
@@ -246,7 +246,7 @@ export default [
     title: 'Identification',
     scenes: [
       `Dr. Varma extracts a DNA sample from the remains on August 9 and sends it to the CFSL Hyderabad lab alongside a reference sample obtained from Devraj Sohal by court order; the results, expedited by Justice Desai's directive, are expected within five days.`,
-      `Meanwhile, a forensic odontologist examines the dental remains and matches them to a partial dental chart from Roshni Sohal's pediatrician, Dr. Sunanda Bhat in Deonar, who kept records from a 2010 cavity filling on Roshni's lower-left first molar.`,
+      `Meanwhile, a forensic odontologist examines the dental remains and matches them to a partial dental chart from Roshni Sohal's pediatrician, Dr. Sunanda Bhat in Deonar, who kept records from a 2010 cavity filling on Roshni's lower-left first molar; Dr. Varma notes that the flood waters reached the fifth floor that night based on silt deposits found throughout the pocket.`,
       `At 1:14 a.m. that night, line 9 at the Deonar exchange rings for the first time in three weeks; Roshni says, "You found me, Didi — but there is one more thing buried with me that they do not want you to see."`,
     ],
   },
@@ -277,7 +277,7 @@ export default [
   {
     title: 'DNA',
     scenes: [
-      `On August 15 — Independence Day — the CFSL Hyderabad lab confirms a 99.97% paternal DNA match between the remains and Devraj Sohal; the tenth victim of the Neelkamal collapse is officially identified as Roshni Sohal, age 7, after fifteen years.`,
+      `On August 15 — Independence Day — the CFSL Hyderabad lab confirms a 99.97% paternal DNA match between the remains and Devraj Sohal; the tenth victim of the Neelkamal collapse is officially identified as Roshni Sohal, age six, after fifteen years.`,
       `Ira calls Devraj; he weeps openly on the phone for the first time she has ever heard and says he will come to Mumbai for the funeral; Ira's mother Suman, listening on speakerphone, is silent — she has just learned she is not Devraj's first family.`,
       `The Municipal Corporation issues a revised death certificate for the Neelkamal collapse listing ten victims, not nine, and the district magistrate orders that Roshni's name be added to the memorial plaque at Deonar Community Park.`,
     ],
@@ -327,7 +327,7 @@ export default [
     scenes: [
       `On September 22, after fourteen hearing days, Judge Sawant delivers the verdict: Patwardhan and Bansal are found guilty of criminal negligence causing death and destruction of evidence, sentenced to seven years each; Mehra receives three years for conspiracy; Rao receives two years for obstruction.`,
       `Wagle, who cooperated fully and testified against the others, receives a suspended sentence of one year; he stands in the courtroom with tears running into his mustache and whispers, "Not enough — but something."`,
-      `Ira steps outside the court into the September heat and calls Devraj; she tells him: "Roshni is on the list now — all ten names, all ten bodies, all counted." Devraj is quiet, then says, "Come home, Ira." She says, "Not yet."`,
+      `Ira steps outside the court into the September heat and calls Devraj; she tells him: "Roshni is on the list now — all thirteen names, all thirteen bodies, all counted." Devraj is quiet, then says, "Come home, Ira." She says, "Not yet."`,
     ],
   },
   {

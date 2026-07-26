@@ -62,7 +62,7 @@ export default [
     title: 'The Cracked Frame',
     scenes: [
       `The crack in the loom's eastern beam has widened to the length of Suvarna's forearm. She packs it with beeswax and binds it with strips of Gandhari's discarded blindfold cloth — the only fabric strong enough.`,
-      `A merchant named Takshaka arrives in Hastinapur selling Gandharan dyes. He offers Suvarna a skein of thread the color of dried blood, claiming it was spun from the wool of sheep grazed on the battlefield of Kurukshetra.`,
+      `A merchant named Takshaka arrives in Hastinapur selling Gandharan dyes. He offers Suvarna a skein of thread the color of burnt copper, claiming it was spun from the wool of sheep grazed on the battlefield of Kurukshetra.`,
       `Suvarna threads the blood-colored skein into her loom. The frame groans and the crack seals itself, but every cloth the loom produces from that night forward carries a faint red border she cannot wash out.`,
     ],
   },
@@ -245,8 +245,8 @@ export default [
   {
     title: 'The Weight of Names',
     scenes: [
-      `Suvarna returns from the battlefield and finds the loom has woven autonomously in her absence: a cloth listing the names of every warrior killed in eighteen days. The list fills six panels and the script is so fine she needs a magnifying lens of polished quartz.`,
-      `Yuyutsu visits the weaving chamber for the first time since the war ended. He is alive, as the empty outline foretold, but he cannot look at the ninety-nine indigo figures lying flat. He asks Suvarna to burn the cloth. She refuses.`,
+      `Suvarna returns from the battlefield and finds the loom has woven autonomously in her absence: a cloth listing the names of every warrior killed in nineteen days. The list fills six panels and the script is so fine she needs a magnifying lens of polished quartz.`,
+      `Yuyutsu visits the weaving chamber for the first time since the war ended. He is alive, as the empty outline foretold, but he cannot look at the hundred indigo figures lying flat. He asks Suvarna to burn the cloth. She refuses.`,
       `Gandhari orders the cloths archived in the vault beneath the palace of Hastinapur, sealed with her personal sigil in red wax. Suvarna carries forty-seven panels down the stone stairs and stacks them on cedar shelves. One panel — the Gita in golden thread — glows faintly in the dark.`,
     ],
   },
