@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { MAX_CHARS, MIN_CHARS } from '../../config/genre'
+import { LONGFORM_MAX_CHARS, MAX_CHARS, MIN_CHARS } from '../../config/genre'
 import { useGenreConverter } from '../../controllers/useGenreConverter'
 import { useStatusToast } from '../../hooks/useStatusToast'
 import FidelityReport from '../genre/FidelityReport'
@@ -160,10 +160,16 @@ export default function GenreConverterTab() {
         />
 
         <div className="font-mono-num" style={{ fontSize: 13, color: counterColor }}>
-          {c.chars.toLocaleString()} / {MAX_CHARS.toLocaleString()} characters
+          {c.chars.toLocaleString()} /{' '}
+          {(c.longform || overLimit ? LONGFORM_MAX_CHARS : MAX_CHARS).toLocaleString()} characters
           {c.chars === 0 && <span style={{ color: 'var(--muted)' }}> · minimum {MIN_CHARS}</span>}
           {c.tooShort && <span> · too short to have a plot (minimum {MIN_CHARS})</span>}
-          {overLimit && <span> · over the limit for this pipeline</span>}
+          {c.longform && (
+            <span style={{ color: 'var(--muted)' }}>
+              {' '}· long-form lane — converts chapter by chapter
+            </span>
+          )}
+          {overLimit && <span> · over the long-form ceiling</span>}
         </div>
 
       </section>
@@ -182,7 +188,7 @@ export default function GenreConverterTab() {
         <Button variant="primary" onClick={c.convert} disabled={!c.canRun}>
           {c.running && c.kind === 'convert' ? 'Converting…' : 'Convert story'}
         </Button>
-        <Button variant="secondary" onClick={c.extract} disabled={!c.canRun}>
+        <Button variant="secondary" onClick={c.extract} disabled={!c.canExtract}>
           {c.running && c.kind === 'extract' ? 'Extracting…' : 'Extract skeleton only'}
         </Button>
         {c.blocker && !c.running && (
@@ -190,7 +196,9 @@ export default function GenreConverterTab() {
         )}
         {!c.blocker && !c.running && (
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-            Conversion takes five to eight minutes. Extraction takes about twenty seconds.
+            {c.longform
+              ? 'A story this long converts chapter by chapter — expect twenty minutes to an hour.'
+              : 'Conversion takes five to eight minutes. Extraction takes about twenty seconds.'}
           </span>
         )}
       </section>
@@ -251,6 +259,7 @@ export default function GenreConverterTab() {
           scenes={c.partial.scenes}
           active={c.activeScene}
           genre={c.job?.genre ?? c.genre}
+          unit={c.job?.lane === 'longform' ? 'chapter' : 'scene'}
         />
       )}
 

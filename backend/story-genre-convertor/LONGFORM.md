@@ -4,7 +4,10 @@ Target: 200–250 pages, ~70,000 words. The current pipeline is built for ~1,000
 words and does not extend by turning the dial up. This document says why, and
 what to build instead.
 
-Nothing here is implemented. It is a plan.
+This design is now implemented — `segment.py`, `bible.py`, `casting.py`, and
+`longform.py` — and wired into the HTTP service: a convert past `MAX_CHARS`
+runs this pipeline as the job's `longform` lane (see `api.py`). The rest of
+this document is the original design rationale.
 
 ---
 

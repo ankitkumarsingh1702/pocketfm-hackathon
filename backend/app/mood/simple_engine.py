@@ -27,7 +27,9 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import uuid
+from collections import Counter
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -283,6 +285,80 @@ def _search(text: str, profile_id) -> dict:
 
 
 # --------------------------------------------------------------------------
+# Lexical baseline — the genre/keyword search we argue against
+# --------------------------------------------------------------------------
+# Pure term overlap over song title + artist. NO mood axes, so it ranks the
+# lexically-strongest match — which is how it surfaces the emotionally-wrong
+# song for a feeling query. is_trap marks a hit whose collection mood is far
+# from what the query PRIMARILY wants: lexically perfect, emotionally wrong.
+
+_STOP = frozenset(
+    "a an the and or of to in on at for with without from by is are was were be been "
+    "i me my you your it its this that these those something anything some any like "
+    "feels feel felt want wanted need needed after before".split()
+)
+
+
+def _tokenize(text: str) -> list[str]:
+    return [t for t in re.findall(r"[a-z0-9]+", (text or "").lower()) if len(t) > 1 and t not in _STOP]
+
+
+# Flat song list (title + artist) — the documents the baseline ranks over.
+_ALL_SONGS: list[dict] = []
+for _series in CATALOG:
+    for _ep in EPS_BY_SERIES.get(_series["series_id"], []):
+        _m = re.search(r"[?&]v=([^&]+)", _ep.get("audio_url") or "")
+        _ALL_SONGS.append({
+            "content_id": _m.group(1) if _m else f"{_series['series_id']}-{_ep['number']}",
+            "title": _ep.get("title") or "",
+            "artist": _ep.get("synopsis") or "",
+            "series_id": _series["series_id"],
+        })
+_SONG_DOCS = [_tokenize(f"{s['title']} {s['artist']}") for s in _ALL_SONGS]
+_DF: Counter = Counter()
+for _doc in _SONG_DOCS:
+    _DF.update(set(_doc))
+_NDOCS = max(1, len(_SONG_DOCS))
+
+
+def _idf(term: str) -> float:
+    return math.log(1 + _NDOCS / (1 + _DF.get(term, 0)))
+
+
+def _baseline_search(text: str, k: int) -> list[dict]:
+    terms = list(dict.fromkeys(_tokenize(text)))
+    if not terms:
+        return []
+    targets = [AXES[it["ref"]] for it in _pick_readings(text) if it["ref"] in AXES]
+    scored: list[tuple[float, int, list[str]]] = []
+    for i, doc in enumerate(_SONG_DOCS):
+        if not doc:
+            continue
+        counts = Counter(doc)
+        score = 0.0
+        matched: list[str] = []
+        for t in terms:
+            if counts[t]:
+                score += (1 + math.log(counts[t])) * _idf(t)
+                matched.append(t)
+        if score > 0:
+            scored.append((score / math.sqrt(len(doc)), i, matched))
+    scored.sort(key=lambda x: -x[0])
+    out: list[dict] = []
+    for _score, i, matched in scored[:k]:
+        song = _ALL_SONGS[i]
+        # Trap = lexically matched but far from what the query PRIMARILY wants.
+        primary_dist = _dist(AXES.get(song["series_id"], {}), targets[0]) if targets else 0.0
+        out.append({
+            "content_id": song["content_id"],
+            "series_title": song["title"],
+            "snippet": f'{song["artist"]} · matched "{", ".join(matched[:3])}" — ranked on the words, not on how it feels.',
+            "is_trap": primary_dist > 1.0,
+        })
+    return out
+
+
+# --------------------------------------------------------------------------
 # Router — same paths and shapes as app.mood.api
 # --------------------------------------------------------------------------
 
@@ -367,19 +443,7 @@ def episodes(series_id: str, start: int = 1, limit: int = 12):
 
 @router.post("/baseline")
 def baseline(body: dict):
-    flat: list[dict] = []
-    for it in _pick_readings(body.get("text") or ""):
-        flat.extend(_shelf_for(it, AXES[it["ref"]], set())["results"])
-    k = int(body.get("k") or 3)
-    return {"results": [
-        {
-            "series_title": r["series_title"],
-            "entry_label": r["entry_label"],
-            "why": "matched on genre/keywords (baseline)",
-            "duration_min": r["duration_min"],
-        }
-        for r in flat[:k]
-    ]}
+    return {"results": _baseline_search(body.get("text") or "", int(body.get("k") or 3))}
 
 
 @router.get("/debug/{query_id}")

@@ -43,3 +43,9 @@ def cached_text(key: str, build: Callable[[], str], use_cache: bool = True) -> s
     text = build()
     path.write_text(text)
     return text
+
+
+def store_text(key: str, text: str) -> None:
+    """Overwrite a cached text — e.g. after a post-verification repair, so a
+    re-run reuses the repaired story instead of re-paying for the repair."""
+    _path(key, ".txt").write_text(text)

@@ -1,4 +1,4 @@
-import { STAGE_LABELS, STAGE_ORDER, STAGE_SHORT } from '../../config/genre'
+import { LONGFORM_STAGE_ORDER, STAGE_LABELS, STAGE_ORDER, STAGE_SHORT } from '../../config/genre'
 import { ProgressLine } from '../primitives'
 import ActivityLog from './ActivityLog'
 
@@ -54,7 +54,9 @@ export default function RunStatus({ job, elapsed, onStop }) {
   const label = stage ? STAGE_LABELS[stage] || stage : 'Queued'
   const percent = typeof job?.percent === 'number' ? job.percent : undefined
 
-  const currentIndex = stage ? STAGE_ORDER.indexOf(stage) : -1
+  const longform = job?.lane === 'longform'
+  const order = longform ? LONGFORM_STAGE_ORDER : STAGE_ORDER
+  const currentIndex = stage ? order.indexOf(stage) : -1
 
   return (
     <section
@@ -102,7 +104,7 @@ export default function RunStatus({ job, elapsed, onStop }) {
       {/* Where this sits in the pipeline overall, not just within one stage. */}
       {!queued && currentIndex >= 0 && (
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-          {STAGE_ORDER.map((name, index) => (
+          {order.map((name, index) => (
             <StageMarker
               key={name}
               name={name}
@@ -118,8 +120,9 @@ export default function RunStatus({ job, elapsed, onStop }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, flex: '1 1 260px' }}>
-          A conversion takes five to eight minutes — one model call per scene, then
-          three alignment votes.
+          {longform
+            ? 'A long story converts chapter by chapter against a shared story bible — expect twenty minutes to an hour.'
+            : 'A conversion takes five to eight minutes — one model call per scene, then three alignment votes.'}
         </p>
         <button
           type="button"

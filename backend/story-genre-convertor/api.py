@@ -33,18 +33,25 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from cache import CACHE_DIR, cached_skeleton, cached_text
+import longform
+from bible import check_continuity
+from cache import CACHE_DIR, cached_skeleton, cached_text, store_text
+from casting import cast, to_bible
 from extract import extract_clean, lint_skeleton
 from genre_pack import available_packs, load_pack
 from models import StorySkeleton
-from transform import plan_scenes, transform
+from store import new_run
+from transform import REPAIR_ROUNDS, plan_scenes, repair_prose, transform
 from verify import ALIGN_VOTES, verify_prose
 
-# A story has to be long enough to have a plot and short enough to finish. The
-# ceiling is not a model limit — it is a reminder that this pipeline is built for
-# short fiction; see LONGFORM.md for what novel length would require.
+# A story has to be long enough to have a plot. Above MAX_CHARS the short
+# pipeline's assumptions break (see LONGFORM.md), so a convert routes to the
+# long-form lane instead: segmented into chapters, cast once, written against a
+# story bible, verified chapter by chapter. LONGFORM_MAX_CHARS is that lane's
+# own ceiling (~70k words). Skeleton-only extraction stays short-lane-only.
 MIN_CHARS = 400
 MAX_CHARS = int(os.environ.get("MAX_CHARS", "60000"))
+LONGFORM_MAX_CHARS = int(os.environ.get("LONGFORM_MAX_CHARS", "400000"))
 
 # Two at a time. Each job is mostly waiting on Vertex, but every extra concurrent
 # job multiplies quota pressure and memory for no wall-clock gain to the user.
@@ -118,7 +125,13 @@ class Job(BaseModel):
     kind: str = Field(description="extract | convert")
     status: str = Field(description="queued | running | done | error")
     genre: Optional[str] = None
-    stage: Optional[str] = Field(None, description="extract | transform | verify")
+    lane: str = Field(
+        "short",
+        description="short (one skeleton, scene by scene) | longform (chapters + story bible)",
+    )
+    stage: Optional[str] = Field(
+        None, description="short: extract | transform | verify · longform: extract | cast | outline | write | verify"
+    )
     progress: Optional[str] = Field(None, description="Human-readable detail, e.g. 'scene 4/7'.")
     step: Optional[int] = Field(None, description="Units finished within the current stage.")
     steps: Optional[int] = Field(None, description="Units the current stage will take, when known.")
@@ -156,7 +169,7 @@ def _key(text: str, suffix: str = "") -> str:
     return f"api_{digest}{suffix}"
 
 
-def _clean_text(raw: str, source: str) -> str:
+def _clean_text(raw: str, source: str, max_chars: int = MAX_CHARS) -> str:
     text = (raw or "").replace("\r\n", "\n").strip()
     if len(text) < MIN_CHARS:
         raise HTTPException(
@@ -164,16 +177,26 @@ def _clean_text(raw: str, source: str) -> str:
             f"{source} is too short to have a plot ({len(text)} characters, "
             f"minimum {MIN_CHARS}). Paste a full short story.",
         )
-    if len(text) > MAX_CHARS:
+    if len(text) > max_chars:
+        hint = (
+            "Novel-length input is supported by Convert, which runs the "
+            "long-form pipeline."
+            if max_chars == MAX_CHARS
+            else "That is past even the long-form lane's ceiling."
+        )
         raise HTTPException(
             413,
-            f"{source} is {len(text)} characters; this service handles up to "
-            f"{MAX_CHARS}. Novel-length input needs a different pipeline.",
+            f"{source} is {len(text)} characters; the limit here is {max_chars}. {hint}",
         )
     return text
 
 
-async def _read_upload(file: UploadFile) -> str:
+def _lane(text: str) -> str:
+    """Which pipeline a conversion runs: chapter-based long-form past MAX_CHARS."""
+    return "longform" if len(text) > MAX_CHARS else "short"
+
+
+async def _read_upload(file: UploadFile, max_chars: int = MAX_CHARS) -> str:
     """Pull plain text out of an uploaded file."""
     name = (file.filename or "").lower()
     if not name.endswith((".txt", ".md", ".text")):
@@ -181,7 +204,7 @@ async def _read_upload(file: UploadFile) -> str:
     raw = await file.read()
     for encoding in ("utf-8", "utf-8-sig", "latin-1"):
         try:
-            return _clean_text(raw.decode(encoding), "The uploaded file")
+            return _clean_text(raw.decode(encoding), "The uploaded file", max_chars)
         except UnicodeDecodeError:
             continue
     raise HTTPException(422, "Could not decode the file as text. Save it as UTF-8 .txt.")
@@ -257,11 +280,25 @@ def _history_summary(record: dict) -> dict:
 # precise one that jumps.
 _CONVERT_SPANS = {"extract": (0.00, 0.10), "transform": (0.10, 0.80), "verify": (0.80, 1.00)}
 _EXTRACT_SPANS = {"extract": (0.00, 1.00)}
+# Long-form wall clock: per-chapter extraction is real work, casting and
+# outlining are a handful of calls, and the chapter-by-chapter write dominates.
+_LONGFORM_SPANS = {
+    "extract": (0.00, 0.28),
+    "cast": (0.28, 0.32),
+    "outline": (0.32, 0.40),
+    "write": (0.40, 0.90),
+    "verify": (0.90, 1.00),
+}
 
 
-def _percent(kind: str, stage: str, step: int, steps: Optional[int]) -> int:
+def _percent(kind: str, stage: str, step: int, steps: Optional[int], lane: str = "short") -> int:
     """Blend stage position and within-stage position into one 0-100 number."""
-    spans = _EXTRACT_SPANS if kind == "extract" else _CONVERT_SPANS
+    if kind == "extract":
+        spans = _EXTRACT_SPANS
+    elif lane == "longform":
+        spans = _LONGFORM_SPANS
+    else:
+        spans = _CONVERT_SPANS
     start, end = spans.get(stage, (0.0, 1.0))
     fraction = (step / steps) if steps else 0.0
     return max(0, min(100, round((start + (end - start) * fraction) * 100)))
@@ -280,6 +317,7 @@ def _submit(kind: str, text: str, genre: Optional[str] = None) -> Job:
         kind=kind,
         status="queued",
         genre=genre,
+        lane=_lane(text) if kind == "convert" else "short",
         created_at=time.time(),
         updated_at=time.time(),
     )
@@ -305,8 +343,311 @@ def _skeleton_payload(skeleton: StorySkeleton) -> dict:
     }
 
 
+def _sum_counts(reports: List[dict], key: str) -> tuple:
+    """Total kept/denominator across per-chapter `"3/4"`-style count strings."""
+    kept = denom = 0
+    for report in reports:
+        raw = str(report.get(f"{key}_counts") or "0/0")
+        try:
+            a, b = raw.split("/")
+            kept, denom = kept + int(a), denom + int(b)
+        except ValueError:
+            continue
+    return kept, denom
+
+
+def _book_detail(agg: dict, reports: List[dict]) -> dict:
+    """The whole-book fidelity report, in the same shape the short lane emits.
+
+    The client renders one report component for both lanes, so the book-level
+    numbers use the short lane's field names; the per-chapter breakdown rides
+    along for anything that wants the diagnosis, not just the score. Beat ids
+    are already globally unique (c03b02), so the flattened lists stay legible.
+    """
+    detail: Dict[str, object] = {
+        "fidelity": agg["fidelity"],
+        "chapters": agg.get("chapters"),
+        "weakest_chapter": agg.get("weakest_chapter"),
+        "weakest_fidelity": agg.get("weakest_fidelity"),
+        "chapters_below_60": agg.get("chapters_below_60", []),
+        "per_chapter": agg.get("per_chapter", []),
+        "missing_load_bearing": [i for r in reports for i in (r.get("missing_load_bearing") or [])],
+        "broken_edges": [e for r in reports for e in (r.get("broken_edges") or [])],
+        "beat_notes": {k: v for r in reports for k, v in (r.get("beat_notes") or {}).items()},
+    }
+    for key in ("load_bearing_recall", "beat_recall", "edge_recall"):
+        kept, denom = _sum_counts(reports, key)
+        detail[key] = round(kept / denom, 4) if denom else None
+        detail[f"{key}_counts"] = f"{kept}/{denom}"
+    return detail
+
+
+def _run_longform(job: Job, text: str, genre: str) -> None:
+    """A convert past MAX_CHARS: the chapter pipeline from longform.py, run
+    against the same job contract the short lane publishes. Chapters land in
+    `partial.scenes` where the short lane's scenes do, so the client renders
+    both lanes with one code path."""
+    started = time.time()
+
+    events: List[dict] = []
+    chapters_out: List[dict] = []
+    partial: Dict[str, object] = {}
+    progress_lock = threading.Lock()
+
+    def advance(
+        stage: str,
+        note: str,
+        step: int = 0,
+        steps: Optional[int] = None,
+        detail: Optional[dict] = None,
+    ) -> None:
+        with progress_lock:
+            events.append(
+                {
+                    "seq": len(events) + 1,
+                    "at": round(time.time() - started, 1),
+                    "stage": stage,
+                    "note": note,
+                    "detail": detail or {},
+                }
+            )
+            del events[:-MAX_EVENTS_RETAINED]
+            _touch(
+                job,
+                status="running",
+                stage=stage,
+                progress=note,
+                step=step,
+                steps=steps,
+                percent=_percent(job.kind, stage, step, steps, job.lane),
+                events=list(events),
+            )
+
+    def publish(**pieces: object) -> None:
+        with progress_lock:
+            partial.update(pieces)
+            _touch(job, partial=dict(partial))
+
+    try:
+        pack = load_pack(genre)
+        store = new_run(f"api-{job.id}", genre, text)
+
+        # ---------------------------------------------------------- extract --
+        advance("extract", "splitting the story into chapters", 0, None)
+        book = longform.extract_book(
+            text,
+            store,
+            verbose=False,
+            on_progress=lambda done, total, note: advance("extract", note, done, total),
+        )
+        beats = book.beats()
+        skeleton = {
+            "logline": book.logline,
+            "roles": [r.model_dump() for r in book.roles],
+            "beats": [b.model_dump() for b in beats],
+            "counts": {
+                "beats": len(beats),
+                "load_bearing": sum(len(c.skeleton.load_bearing_ids) for c in book.chapters),
+                "edges": len(book.edges()),
+                "chapters": len(book.chapters),
+            },
+        }
+        publish(skeleton=skeleton)
+        advance(
+            "extract",
+            f"book skeleton ready — {len(book.chapters)} chapters, {len(beats)} beats",
+            1,
+            1,
+            {"chapters": len(book.chapters), "beats": len(beats)},
+        )
+
+        # ------------------------------------------------------------- cast --
+        advance("cast", "casting the roles for the new genre", 0, 1)
+        spine = StorySkeleton(logline=book.logline, roles=book.roles, beats=beats)
+        casting = cast(spine, pack)
+        story_bible = to_bible(casting, genre)
+        store.put_json("casting.json", casting)
+        advance(
+            "cast",
+            "cast fixed — " + ", ".join(f"{e.slug} is {e.name}" for e in casting.entities[:4]),
+            1,
+            1,
+            {"cast": [{"role": e.slug, "name": e.name} for e in casting.entities]},
+        )
+
+        # ---------------------------------------------------------- outline --
+        acts = len(book.acts)
+        advance("outline", f"outlining {acts} act(s)", 0, acts)
+        plans: Dict[str, object] = {}
+        for act_index in range(acts):
+            outline = longform.outline_act(book, act_index, pack, story_bible)
+            for plan in outline.chapters:
+                plans[plan.chapter_id] = plan
+            advance("outline", f"act {act_index + 1} of {acts} planned", act_index + 1, acts)
+        store.put_json("outline.json", {"chapters": [p.model_dump() for p in plans.values()]})
+
+        plan_rows = [
+            {
+                "scene": n + 1,
+                "chapter": chapter.id,
+                "title": chapter.label,
+                "beat_ids": [b.id for b in chapter.skeleton.beats],
+                "load_bearing": list(chapter.skeleton.load_bearing_ids),
+            }
+            for n, chapter in enumerate(book.chapters)
+        ]
+        publish(scene_plan=plan_rows, scenes=[])
+
+        # ------------------------------------------------------------ write --
+        total = len(book.chapters)
+        chapter_prose: Dict[str, str] = {}
+        seam = ""
+        for n, chapter in enumerate(book.chapters):
+            advance("write", f"writing chapter {n + 1} of {total}", n, total)
+            prose = longform.write_chapter(
+                book,
+                chapter,
+                plans.get(chapter.id),
+                pack,
+                story_bible,
+                store,
+                seam=seam,
+                is_first=(n == 0),
+                is_last=(n == total - 1),
+                verbose=False,
+                on_progress=lambda done, s_total, note, _n=n: advance(
+                    "write", f"chapter {_n + 1} of {total} — {note}", _n, total
+                ),
+            )
+            chapter_prose[chapter.id] = prose
+            store.put_text(f"chapters/{chapter.id}.txt", prose)
+            story_bible.save(store.root / "bible.json")
+            seam = " ".join(prose.split()[-longform.SEAM_WORDS:])
+            chapters_out.append(
+                {"scene": n + 1, "chapter": chapter.id, "prose": prose, "words": len(prose.split())}
+            )
+            publish(scenes=list(chapters_out), words=sum(c["words"] for c in chapters_out))
+            advance(
+                "write",
+                f"chapter {n + 1} of {total} written",
+                n + 1,
+                total,
+                {"chapter": chapter.id, "words": len(prose.split())},
+            )
+
+        # ----------------------------------------------------------- verify --
+        advance("verify", "checking each chapter against its beats", 0, total)
+        reports: List[dict] = []
+        for n, chapter in enumerate(book.chapters):
+            report = longform.verify_chapter(chapter, chapter_prose[chapter.id])
+            reports.append(report)
+            advance(
+                "verify",
+                f"{chapter.id}: fidelity {report['fidelity']:.0%}",
+                n + 1,
+                total,
+                {"chapter": chapter.id, "fidelity": report["fidelity"]},
+            )
+
+        # Per-chapter repair: patch only the chapters that dropped a pivot, then
+        # re-judge just those chapters. Paid only by the chapters that failed.
+        for round_index in range(REPAIR_ROUNDS):
+            broken = [
+                (n, chapter)
+                for n, chapter in enumerate(book.chapters)
+                if reports[n].get("missing_load_bearing")
+            ]
+            if not broken:
+                break
+            for n, chapter in broken:
+                missing = list(reports[n]["missing_load_bearing"])
+                advance(
+                    "verify",
+                    f"repairing {chapter.id} — dropped {', '.join(missing)}",
+                    n,
+                    total,
+                    {"repair_round": round_index + 1, "chapter": chapter.id, "missing": missing},
+                )
+                prose = repair_prose(
+                    chapter_prose[chapter.id],
+                    chapter.skeleton.beats,
+                    missing,
+                    reports[n].get("beat_notes"),
+                    pack,
+                )
+                chapter_prose[chapter.id] = prose
+                store.put_text(f"chapters/{chapter.id}.txt", prose)
+                chapters_out[n] = {
+                    "scene": n + 1,
+                    "chapter": chapter.id,
+                    "prose": prose,
+                    "words": len(prose.split()),
+                }
+                reports[n] = longform.verify_chapter(chapter, prose)
+                advance(
+                    "verify",
+                    f"{chapter.id} repaired: fidelity {reports[n]['fidelity']:.0%}",
+                    n + 1,
+                    total,
+                    {"chapter": chapter.id, "fidelity": reports[n]["fidelity"]},
+                )
+            publish(scenes=list(chapters_out), words=sum(c["words"] for c in chapters_out))
+
+        agg = longform.aggregate(reports)
+        detail = _book_detail(agg, reports)
+        detail["continuity"] = check_continuity(story_bible)
+        rewritten = "\n\n".join(chapter_prose[c.id] for c in book.chapters)
+        store.put_json("report.json", agg)
+        store.put_text("rewritten.txt", rewritten)
+        story_bible.save(store.root / "bible.json")
+        store.touch(status="done", stage="")
+
+        _touch(
+            job,
+            status="done",
+            stage=None,
+            progress=None,
+            step=None,
+            steps=None,
+            percent=100,
+            result={
+                "genre": genre,
+                "lane": "longform",
+                "rewritten": rewritten,
+                "words": len(rewritten.split()),
+                "fidelity": detail["fidelity"],
+                "detail": detail,
+                "source_skeleton": skeleton,
+                "seconds": round(time.time() - started, 1),
+            },
+        )
+
+        _save_history(
+            {
+                "id": _key(text, f"__{genre}"),
+                "created_at": time.time(),
+                "genre": genre,
+                "lane": "longform",
+                "chars": len(text),
+                "source_text": text,
+                "source_skeleton": skeleton,
+                "rewritten": rewritten,
+                "words": len(rewritten.split()),
+                "seconds": round(time.time() - started, 1),
+                "fidelity": detail["fidelity"],
+                "detail": detail,
+            }
+        )
+    except Exception as exc:  # surfaced to the caller rather than swallowed
+        _touch(job, status="error", stage=None, progress=None, step=None, steps=None, error=str(exc))
+
+
 def _run(job: Job, text: str, genre: Optional[str]) -> None:
     """The whole job, on a worker thread. Mirrors pipeline.convert."""
+    if job.lane == "longform":
+        _run_longform(job, text, genre)
+        return
+
     started = time.time()
 
     # Built here and republished as fresh copies rather than mutated in place.
@@ -357,7 +698,7 @@ def _run(job: Job, text: str, genre: Optional[str]) -> None:
                 progress=note,
                 step=step,
                 steps=steps,
-                percent=_percent(job.kind, stage, step, steps),
+                percent=_percent(job.kind, stage, step, steps, job.lane),
                 events=list(events),
             )
 
@@ -484,12 +825,33 @@ def _run(job: Job, text: str, genre: Optional[str]) -> None:
         )
         detail = verify_prose(source, rewritten, on_progress=on_check)
 
+        # A reported score is not the goal — the pivots surviving is. When the
+        # judges find a load-bearing beat missing, patch the story and judge it
+        # again, up to REPAIR_ROUNDS times. Paid only by the runs that failed.
+        rounds = 0
+        while detail["missing_load_bearing"] and rounds < REPAIR_ROUNDS:
+            missing = list(detail["missing_load_bearing"])
+            advance(
+                "verify",
+                f"repairing {len(missing)} dropped pivot(s): {', '.join(missing)}",
+                0,
+                ALIGN_VOTES * 2,
+                {"repair_round": rounds + 1, "missing": missing},
+            )
+            rewritten = repair_prose(
+                rewritten, source.beats, missing, detail.get("beat_notes"), pack
+            )
+            store_text(_key(text, f"__{genre}"), rewritten)
+            publish(prose=rewritten, words=len(rewritten.split()))
+            detail = verify_prose(source, rewritten, on_progress=on_check)
+            rounds += 1
+
         advance(
             "verify",
             f"fidelity {detail['fidelity']:.0%}",
             ALIGN_VOTES * 2,
             ALIGN_VOTES * 2,
-            {"fidelity": detail["fidelity"]},
+            {"fidelity": detail["fidelity"], "repair_rounds": rounds},
         )
 
         _touch(
@@ -516,6 +878,7 @@ def _run(job: Job, text: str, genre: Optional[str]) -> None:
                 "id": _key(text, f"__{genre}"),
                 "created_at": time.time(),
                 "genre": genre,
+                "lane": "short",
                 "chars": len(text),
                 "source_text": text,
                 "source_skeleton": skeleton,
@@ -594,12 +957,16 @@ async def extract_file(file: UploadFile = File(...)) -> Job:
 
 @app.post("/api/convert", response_model=Job)
 def convert_text(body: ConvertIn = Body(...)) -> Job:
-    return _submit("convert", _clean_text(body.text, "The pasted text"), _check_genre(body.genre))
+    return _submit(
+        "convert",
+        _clean_text(body.text, "The pasted text", LONGFORM_MAX_CHARS),
+        _check_genre(body.genre),
+    )
 
 
 @app.post("/api/convert/file", response_model=Job)
 async def convert_file(file: UploadFile = File(...), genre: str = Form(...)) -> Job:
-    return _submit("convert", await _read_upload(file), _check_genre(genre))
+    return _submit("convert", await _read_upload(file, LONGFORM_MAX_CHARS), _check_genre(genre))
 
 
 @app.get("/api/history")

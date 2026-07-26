@@ -22,6 +22,7 @@ from typing import Callable, List, Optional
 
 from pydantic import BaseModel, Field
 
+from delivery import check_delivery_voted, delivered_ids, reconcile, undelivered
 from genre_pack import GenrePack, available_packs, load_pack
 from models import Beat, StorySkeleton
 
@@ -29,6 +30,15 @@ from models import Beat, StorySkeleton
 # SKELETON_TEMPERATURE, which is pinned to 0 so the ceiling check measures the
 # extractor rather than the sampler.
 TRANSFORM_TEMPERATURE = float(os.environ.get("TRANSFORM_TEMPERATURE", "0.9"))
+
+# A retry is a compliance task, not a creative one: the instruction is "put this
+# specific event on the page". High temperature is exactly the wrong tool there.
+RETRY_TEMPERATURE = float(os.environ.get("RETRY_TEMPERATURE", "0.3"))
+
+# Total writes of one scene (first attempt + retries) while a load-bearing beat
+# is still missing. Supporting beats never buy a retry — the final verification
+# reports them either way.
+MAX_SCENE_ATTEMPTS = int(os.environ.get("MAX_SCENE_ATTEMPTS", "3"))
 
 # Three beats is about a scene's worth. More and the model starts summarising
 # the tail of the list to get to the end of the response.
@@ -61,6 +71,64 @@ of earlier scenes is supplied, continue seamlessly from it — same names, same 
 setting, same tense, same voice. Do not restate it.
 
 Roughly 200-350 words per beat you are covering."""
+
+# Rounds of post-verification repair: when the final judges report a dropped
+# load-bearing beat, the story is patched and re-verified this many times at
+# most. 0 disables repair.
+REPAIR_ROUNDS = int(os.environ.get("REPAIR_ROUNDS", "1"))
+
+REPAIR_SYSTEM = """You repair a finished story so that specific plot events \
+actually happen on the page.
+
+You are given the full story and a short list of MISSING EVENTS — moments an \
+independent reader could not find dramatised. For each one the reader's reason \
+is quoted: absent, only recalled, wrong actor, or outcome inverted.
+
+Rewrite the story with every missing event woven in where it belongs in the \
+causal order. Each one must HAPPEN in front of the reader — performed by the \
+named role, with the stated outcome — not be remembered, mentioned, implied, or \
+foreshadowed.
+
+Change as little as possible. Keep the names, the setting, the voice, and every \
+passage that already works. Do not add headings, beat ids, or commentary. \
+Return the complete repaired story."""
+
+
+class RepairedStory(BaseModel):
+    prose: str = Field(
+        description="The complete story, repaired. Continuous narrative prose only."
+    )
+
+
+def repair_prose(
+    prose: str,
+    beats: List[Beat],
+    missing_ids: List[str],
+    notes: Optional[dict],
+    pack: GenrePack,
+) -> str:
+    """One low-temperature call: weave the dropped beats back into the story.
+
+    Runs only when the final verification found a load-bearing beat missing, so
+    its cost is paid exactly by the runs that failed. The caller re-verifies the
+    result — repaired prose is never trusted on the repairer's word.
+    """
+    by_id = {b.id: b for b in beats}
+    notes = notes or {}
+    lines = ["MISSING EVENTS — each must be dramatised in the repaired story:"]
+    for beat_id in missing_ids:
+        beat = by_id.get(beat_id)
+        if beat is None:
+            continue
+        reason = f"  [reader: {notes[beat_id]}]" if notes.get(beat_id) else ""
+        lines.append(f"  - {beat_id}: {beat.actor_role} — {beat.action} [{beat.outcome}]{reason}")
+
+    prompt = "\n".join([pack.as_brief(), "", "\n".join(lines), "", "THE STORY:", prose])
+
+    from llm import structured  # deferred so --selftest needs no credentials
+
+    return structured(REPAIR_SYSTEM, prompt, RepairedStory, temperature=RETRY_TEMPERATURE).prose
+
 
 RETRY_PREFIX = """Your previous version of this scene did not deliver every beat \
 it was responsible for.
@@ -147,8 +215,10 @@ def write_scene(
     scene_index: int = 0,
     scene_total: int = 1,
     missing: Optional[List[Beat]] = None,
+    missing_notes: Optional[dict] = None,
 ) -> Scene:
-    """One LLM call. `missing` re-asks for beats a previous attempt dropped."""
+    """One LLM call. `missing` re-asks for beats a previous attempt dropped,
+    with the checker's reasons quoted back, at compliance temperature."""
     parts = [pack.as_brief(), "", _render_spine(beats, skeleton)]
     if rolling_summary:
         parts += ["", "THE STORY SO FAR (continue from here; do not restate it):", rolling_summary]
@@ -159,12 +229,17 @@ def write_scene(
 
     prompt = "\n".join(parts)
     if missing:
-        complaint = "\n".join(f"  - {b.id}: {b.action}" for b in missing)
+        notes = missing_notes or {}
+        complaint = "\n".join(
+            f"  - {b.id}: {b.action}" + (f"  [checker: {notes[b.id]}]" if notes.get(b.id) else "")
+            for b in missing
+        )
         prompt = RETRY_PREFIX.format(missing=complaint) + "\n\n" + prompt
 
     from llm import structured  # deferred so --selftest needs no credentials
 
-    return structured(TRANSFORM_SYSTEM, prompt, Scene, temperature=TRANSFORM_TEMPERATURE)
+    temperature = RETRY_TEMPERATURE if missing else TRANSFORM_TEMPERATURE
+    return structured(TRANSFORM_SYSTEM, prompt, Scene, temperature=temperature)
 
 
 def transform(
@@ -175,9 +250,12 @@ def transform(
 ) -> str:
     """Drive the scenes and return the rewritten story.
 
-    Retries a scene once when it drops a load-bearing beat, with the beat quoted,
-    then moves on — a supporting beat is worth less than the wall-clock of a
-    second retry, and the verifier will report it either way.
+    Each scene is judged by an independent voted delivery check — never by the
+    writer's own `beats_covered` claim, which the corpus benchmark caught lying
+    twice. While a load-bearing beat is missing the scene is rewritten, at
+    compliance temperature and with the checker's reasons quoted back, up to
+    MAX_SCENE_ATTEMPTS total writes. Supporting beats never buy a retry — the
+    final verification reports them either way.
 
     `on_progress(done, total, note, detail)` fires three times around each scene:
     when the call goes out, when a dropped pivot forces a retry, and when the
@@ -214,10 +292,13 @@ def transform(
 
         scene = write_scene(beats, skeleton, pack, summary, index, len(scenes))
 
-        covered = set(scene.beats_covered)
-        dropped = [b for b in beats if b.id not in covered and b.load_bearing]
-        retried = bool(dropped)
-        if dropped:
+        # Never trust beats_covered. Ask a voted reader that was not told what
+        # the writer hoped, and keep rewriting while a pivot is missing.
+        check = check_delivery_voted(scene.prose, beats)
+        dropped = undelivered(check, beats, load_bearing_only=True)
+        attempts = 1
+        while dropped and attempts < MAX_SCENE_ATTEMPTS:
+            notes = {v.beat_id: v.note for v in check.verdicts if not v.delivered}
             if verbose:
                 print(f" -> missing {','.join(b.id for b in dropped)}, re-asking", end="", file=sys.stderr)
             report(
@@ -228,14 +309,19 @@ def transform(
                     "phase": "retry",
                     "scene": number,
                     "scenes": len(scenes),
+                    "attempt": attempts + 1,
                     "missing": [b.id for b in dropped],
                 },
             )
             scene = write_scene(
-                beats, skeleton, pack, summary, index, len(scenes), missing=dropped
+                beats, skeleton, pack, summary, index, len(scenes),
+                missing=dropped, missing_notes=notes,
             )
-            covered = set(scene.beats_covered)
-            dropped = [b for b in beats if b.id not in covered and b.load_bearing]
+            check = check_delivery_voted(scene.prose, beats)
+            dropped = undelivered(check, beats, load_bearing_only=True)
+            attempts += 1
+        retried = attempts > 1
+        covered = set(delivered_ids(check, beats))
 
         if verbose:
             note = f"  ({len(scene.prose.split())}w)"
@@ -261,6 +347,7 @@ def transform(
                 "beats": spine,
                 "beats_covered": [b.id for b in beats if b.id in covered],
                 "missing": [b.id for b in dropped],
+                "overclaimed": reconcile(scene.beats_covered, check, beats),
                 "retried": retried,
                 "words": len(prose.split()),
                 "prose": prose,
