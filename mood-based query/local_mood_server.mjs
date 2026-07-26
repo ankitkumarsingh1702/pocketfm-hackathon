@@ -210,6 +210,59 @@ function search(text, profileId) {
   return { query_id, mode: "shelves", parsed: { text, destination: readings[0].key, sparsity_score: 0 }, shelves, latency_ms: 3 };
 }
 
+// --- lexical baseline (the genre/keyword search we argue against) -----------
+// Pure term overlap over song title + artist. NO mood axes — so it ranks the
+// lexically-strongest match, which is exactly how it surfaces the wrong song
+// for an emotional query. is_trap marks a hit whose collection mood is far from
+// what the query actually wants: lexically perfect, emotionally wrong.
+const STOP = new Set(
+  "a an the and or of to in on at for with without from by is are was were be been i me my you your it its this that these those something anything some any like feels feel felt want wanted need needed after before".split(/\s+/)
+);
+const tokenize = (t) =>
+  ((t || "").toLowerCase().match(/[a-z0-9]+/g) || []).filter((w) => w.length > 1 && !STOP.has(w));
+
+const ALL_SONGS = [];
+for (const series of CATALOG) {
+  for (const ep of EPS_BY_SERIES[series.series_id] || []) {
+    const vid = ((ep.audio_url || "").match(/[?&]v=([^&]+)/) || [])[1] || `${series.series_id}-${ep.number}`;
+    ALL_SONGS.push({ content_id: vid, title: ep.title || "", artist: ep.synopsis || "", series_id: series.series_id });
+  }
+}
+const SONG_DOCS = ALL_SONGS.map((s) => tokenize(`${s.title} ${s.artist}`));
+const DF = {};
+for (const doc of SONG_DOCS) for (const t of new Set(doc)) DF[t] = (DF[t] || 0) + 1;
+const NDOCS = Math.max(1, SONG_DOCS.length);
+const idf = (t) => Math.log(1 + NDOCS / (1 + (DF[t] || 0)));
+
+function baselineSearch(text, k) {
+  const terms = [...new Set(tokenize(text))];
+  if (!terms.length) return [];
+  const targets = pickReadings(text).map((it) => AXES[it.ref]);
+  const scored = [];
+  for (let i = 0; i < SONG_DOCS.length; i++) {
+    const doc = SONG_DOCS[i];
+    if (!doc.length) continue;
+    const counts = {};
+    for (const w of doc) counts[w] = (counts[w] || 0) + 1;
+    let score = 0;
+    const matched = [];
+    for (const t of terms) if (counts[t]) { score += (1 + Math.log(counts[t])) * idf(t); matched.push(t); }
+    if (score > 0) scored.push({ s: score / Math.sqrt(doc.length), i, matched });
+  }
+  scored.sort((a, b) => b.s - a.s);
+  return scored.slice(0, k).map(({ i, matched }) => {
+    const song = ALL_SONGS[i];
+    // Trap = lexically matched but far from what the query PRIMARILY wants.
+    const primaryDist = targets.length ? dist(AXES[song.series_id], targets[0]) : 0;
+    return {
+      content_id: song.content_id,
+      series_title: song.title,
+      snippet: `${song.artist} · matched "${matched.slice(0, 3).join(", ")}" — ranked on the words, not on how it feels.`,
+      is_trap: primaryDist > 1.0,
+    };
+  });
+}
+
 // --- http -------------------------------------------------------------------
 const json = (res, code, body) => {
   res.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
@@ -267,11 +320,7 @@ const server = createServer(async (req, res) => {
 
     if (path === "/api/mood/baseline" && req.method === "POST") {
       const b = await readBody(req);
-      const finished = new Set();
-      const flat = pickReadings(b.text || "").flatMap((it) => shelfFor(it, AXES[it.ref], finished).results);
-      return json(res, 200, { results: flat.slice(0, Number(b.k || 3)).map((r) => ({
-        series_title: r.series_title, entry_label: r.entry_label, why: "matched on genre/keywords (baseline)", duration_min: r.duration_min,
-      })) });
+      return json(res, 200, { results: baselineSearch(b.text || "", Number(b.k || 3)) });
     }
 
     return json(res, 404, { error: "not found", path });
