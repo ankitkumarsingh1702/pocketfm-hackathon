@@ -49,8 +49,8 @@ const GLANCE = `flowchart TD
   end
 
   SHELF["For each reading, in parallel:<br/>narrow → BLOCK WHAT WOULD HARM → score → diversify → judge"]
-  DONE["Three shelves, each a doorway<br/>'Start at Ep 34 — the monsoon arc'"]
-  PLAY["The episode list opens AT episode 34<br/>not at episode 1"]
+  DONE["Three shelves, each a doorway<br/>'Start at track 34 — the drop'"]
+  PLAY["The song list opens AT track 34, not track 1<br/>tap any song to play it inline"]
   NUDGE["Heavier · slower · warmer<br/>instant, and no model in the path"]
 
   Q --> P --> MODE
@@ -143,7 +143,7 @@ const MAIN = `flowchart TD
     RR["Reranker · 1 LLM call per shelf<br/>score 0-10 + one quoted line + harmful flag"]
     HR["Heuristic judge · deterministic<br/>retrieval score + good_for bonus"]
     CUT["Drop flagged · keep top 3"]
-    ENT["resolve_entry<br/>'Start at Ep 34' or swap to an earlier arc"]
+    ENT["resolve_entry<br/>'Start at track 34' or swap to an earlier arc"]
     RR --> CUT
     HR --> CUT
     CUT --> ENT
@@ -158,7 +158,8 @@ const MAIN = `flowchart TD
   NOSHELF -->|"all three empty · re-ask"| CLARIFY
 
   RESP --> UI["Three readings on screen<br/>the listener's click is the disambiguation"]
-  UI --> DOOR["Card tap · doorway<br/>episode list from the entry point · no model call"]
+  UI --> DOOR["Card tap · doorway<br/>song list from the entry point · no model call"]
+  DOOR --> PLAYER["Play a song inline · YouTube IFrame player<br/>owner-blocked embed → Watch on YouTube"]
   UI --> NUDGE["Nudge chip · refine<br/>one shelf swapped in place"]
   NUDGE --> UI
 
@@ -166,7 +167,7 @@ ${PALETTE}
   class LLMP,RR,EMB llm
   class DISP,HEUR,SANE,DEST,FAN,TGT,M1,M2,M3,SC,DD,MMR,HR,CUT,ENT,ASM det
   class FLOOR,GS,GC,SAFETY,M4,M5 safe
-  class IN,CLARIFY,RESP,UI,DOOR,NUDGE,NOSHELF out`
+  class IN,CLARIFY,RESP,UI,DOOR,PLAYER,NUDGE,NOSHELF out`
 
 /* ------------------------------------------------------------ inside a shelf --- */
 
@@ -191,9 +192,9 @@ const RETRIEVAL = `flowchart TD
   JL["LLM · one batched call<br/>score 0-10, harmful flag, 120-char reason"]
   JH["Heuristic · retrieval score + 0.12 good_for<br/>re-runs the codes and the despair rule itself"]
   K["Drop flagged · sort by judge score · keep 3"]
-  EN{"entry episode past 12?"}
+  EN{"entry track past 12?"}
   SW["Swap the doorway to an earlier sibling arc"]
-  LB["Render 'Start at Ep N — arc label'"]
+  LB["Render 'Start at track N — arc label'"]
   CARD["3 ResultCards + the shelf's target_axes"]
 
   Q --> T --> B --> D
@@ -228,8 +229,8 @@ ${PALETTE}
 /* ------------------------------------------------------ offline index build --- */
 
 const OFFLINE = `flowchart TD
-  A["catalog.json<br/>series · arcs · synopsis · source"]
-  B["episodes.json<br/>playable units + duration_sec"]
+  A["catalog.json<br/>mood collections · arcs · synopsis · source"]
+  B["episodes.json<br/>songs · playable units · duration_sec · audio_url"]
   C["profiles.json<br/>demo listeners"]
   V["validate_sources CLI · run by hand<br/>exit 1 on errors · nothing imports it"]
   L["load_source to SourceSeries<br/>language defaults en · source defaults unknown"]
@@ -245,7 +246,7 @@ const OFFLINE = `flowchart TD
   PA["parse + clamp<br/>missing axis becomes 0.5<br/>unparseable valence drops the whole arc"]
   EM["embed vibe_sentence + sensory_tags<br/>Vertex, else local model, else 256-dim hashing"]
   SV["moodstore/vectors.npz + fingerprints.jsonl<br/>no manifest, no embedder identity recorded"]
-  ES["build_episode_store · second read<br/>authored episodes win · stubs fill 'Episode N' at 1200s"]
+  ES["build_episode_store · second read<br/>authored songs win · numbered stubs otherwise"]
   SE["moodstore.episodes.jsonl · sibling path, not inside the dir"]
   CHK["entry_episode membership check<br/>prints the first 10 problems · exit code unchanged"]
   E1["MOOD_INDEX"]
@@ -353,7 +354,7 @@ export const MOOD_FLOW_VIEWS = [
 export const MOOD_FLOW_NARRATION = [
   {
     beat: 'The ask',
-    say: 'A listener does not know what they want to hear. They know how they feel. So the only input is one sentence in their own words — Hinglish, English, whatever comes out. No genre, no filters, no dropdowns. Everything from here down is machinery for turning that one sentence into three shelves and a first episode to press play on.',
+    say: 'A listener does not know what they want to hear. They know how they feel. So the only input is one sentence in their own words — Hinglish, English, whatever comes out. No genre, no filters, no dropdowns. Everything from here down is machinery for turning that one sentence into three shelves and a first song to press play on.',
     point_at: 'At a glance · the input at the top',
   },
   {
@@ -383,7 +384,7 @@ export const MOOD_FLOW_NARRATION = [
   },
   {
     beat: 'How ranking actually works',
-    say: 'The score is a fusion, and axis distance is deliberately the biggest term at 0.45 — bigger than the embedding at 0.30. That is a choice, not a fit: if embeddings outvoted the mood axes, dragging "heavier" would not get heavier and the controls would be theatre. Listening history is in there too, capped under the axis term, so this stays mood search and does not quietly become collaborative filtering.',
+    say: 'The score is a fusion, and axis distance is deliberately the biggest term at 0.45 — bigger than the embedding at 0.30. That is a choice, not a fit: if embeddings outvoted the mood axes, dragging "heavier" would not get heavier and the controls would be theatre. Listening history is in there too, capped under the axis term, so this stays mood search and does not quietly become collaborative filtering. In the demo you switch between named listeners — each showing their own slot, completion rate and drop-off — so you can watch the same query re-rank per person while the shelves stay recognisably the same.',
     point_at: 'Inside one shelf · F, the fused score',
   },
   {
@@ -393,8 +394,8 @@ export const MOOD_FLOW_NARRATION = [
   },
   {
     beat: 'The doorway, and the nudge',
-    say: 'A mood match on episode 140 of a 200-episode show is useless, so the last deterministic step picks the doorway — "start at Ep 34" — and will swap to an earlier arc of the same series if that saves you a third of the episodes for almost no loss in match quality. Tapping a card makes no model call. And if a shelf is close but not right, a nudge re-enters the same retriever with no model in the path at all, and swaps just that one shelf.',
-    point_at: 'End to end · ENT, then DOOR and NUDGE; then The refine loop · NL',
+    say: 'A mood match on track 140 of a 200-song collection is useless, so the last deterministic step picks the doorway — "start at track 34" — and will swap to an earlier arc of the same collection if that saves you a third of the list for almost no loss in match quality. Tapping a card opens the song list and makes no model call; tapping a song plays it inline through the YouTube IFrame player, and when the owner has disabled embedding the frame is replaced with a "Watch on YouTube" link rather than a dead box. If a shelf is close but not right, a nudge re-enters the same retriever with no model in the path at all, and swaps just that one shelf.',
+    point_at: 'End to end · ENT, then DOOR, PLAYER and NUDGE; then The refine loop · NL',
   },
 ]
 
@@ -403,12 +404,12 @@ export const MOOD_FLOW_QA = [
     question:
       'There is no audio anywhere in this. You call it mood search but never listen to the audio — so "mood comes from the voice, not the tags" is a claim you cannot make.',
     answer:
-      'Correct, and we should say it before you find it. There is no audio, no ASR, no prosody model and no CLAP in this build. Every number in every fingerprint is one text model\'s inference over a synopsis and an arc summary — the ingest module says so in its own docstring. Two honest consequences we have not hidden: audio_verified is hardcoded False by ingest, and axes_variance is hardcoded 0.0. The defensible part of the claim is architectural, not empirical: the fingerprint is a nine-axis felt-quality vector with authored contraindications, and that vector is the durable artifact on disk. Swapping the text fingerprinter for an audio one changes exactly one function and nothing downstream of it. What we have proven is the retrieval, safety and doorway machinery around that vector — not that we derived it from a voice.',
+      'Correct, and we should say it before you find it. There is no audio, no ASR, no prosody model and no CLAP in this build. Every number in every fingerprint is one text model\'s inference over a synopsis and an arc summary — the ingest module says so in its own docstring. Two honest consequences we have not hidden: audio_verified is hardcoded False by ingest, and axes_variance is hardcoded 0.0. The defensible part of the claim is architectural, not empirical: the fingerprint is a nine-axis felt-quality vector with authored contraindications, and that vector is the durable artifact on disk. Swapping the text fingerprinter for an audio one changes exactly one function and nothing downstream of it. What we have proven is the retrieval, safety and doorway machinery around that vector — not that we derived it from a voice. One thing that is genuinely new: the doorway now streams the real track inline via the YouTube player, so a listener actually hears the song — but that is playback, not analysis. The mood vector is still one text model reading a synopsis; nothing here listens to the waveform to score it.',
   },
   {
     question: 'Is the catalog real, or did you generate it?',
     answer:
-      'What a deploy serves right now is a synthetic fixture: 48 invented series with two to four arcs each, plus three deliberate trap arcs, under a fixed seed — 145 arcs across 51 series. No workflow sets MOOD_INDEX, so the service falls back to that fixture, and /api/mood/health is the surface that admits it. The ingest path for real data is fully implemented and runnable, but the three authored source files are not in this repo, so it has never been run on real catalog data here. There is one deliberate defence against self-dealing: any series whose source field names a model is dropped whole from ingest unless you explicitly pass --allow-synthetic. It is a denylist though, not an allowlist, so an omitted source defaults to "unknown" and passes. There is also a LibriVox adapter that ingests real public-domain human prose, which proves the fingerprinter works on writing nobody here produced — but it returns Victorian literature, the wrong register for Pocket FM, so it pads the index and must never reach the eval set.',
+      'This has changed since the fixture days. There is now a hand-curated catalog in the repo — real songs pulled from a public YouTube playlist, grouped into eight mood collections with hand-marked arc boundaries (catalog.json, episodes.json, profiles.json). The tracks, titles, durations and links are real and playable; what is authored is the grouping into collections and the collection synopses, so the honest label on it is "editorial data, kept out of any eval set". Two caveats we keep in the open. First, the mood axes are still text-derived — a model reading each collection\'s synopsis, or in the local demo a hand-set axis vector — never the audio. Second, the real Python service only serves this catalog once it has been ingested and MOOD_INDEX / MOOD_EPISODES are set; with those unset it still falls back to the seeded fixture, and /api/mood/health is the surface that admits which one is live. The old self-dealing defence still stands: any series whose source field names a model is dropped from ingest unless you pass --allow-synthetic — a denylist, so an omitted source defaults to "unknown" and passes.',
   },
   {
     question:
@@ -444,7 +445,7 @@ export const MOOD_FLOW_QA = [
   {
     question: 'You show numbers like 0.45 and 0.72 — how were those tuned, or did you just pick them?',
     answer:
-      'Some were reasoned, some were fixed after a visible failure, and I can tell you which. The 0.45 axis weight against 0.30 semantic is a design constraint, not a fit: axis has to dominate or the mood controls do not move the results. The refine weights shift to 0.78 axis because under the defaults the semantic and tag terms are constants across a nudge, so a full drag moved only about 22% of the score and two controls were literal no-ops — that one was found by using it. The entry-swap epsilon was 0.04 and fired on essentially every result, collapsing every entry point to episode 1 and deleting the whole "start at Ep 34" proposition; it is now 0.015. The despair thresholds are narrow because in our fixture the traps sit at hope 0.05 to 0.15 while the sit-with neighbourhood is floored at 0.30, so there is real margin — widening it would empty the shelf a grieving listener most wants. And the 1.07 normaliser is honestly a display fix: unnormalised, scores clipped at 1.0 and the top of the ranking lost its ordering.',
+      'Some were reasoned, some were fixed after a visible failure, and I can tell you which. The 0.45 axis weight against 0.30 semantic is a design constraint, not a fit: axis has to dominate or the mood controls do not move the results. The refine weights shift to 0.78 axis because under the defaults the semantic and tag terms are constants across a nudge, so a full drag moved only about 22% of the score and two controls were literal no-ops — that one was found by using it. The entry-swap epsilon was 0.04 and fired on essentially every result, collapsing every entry point to track 1 and deleting the whole "start at track 34" proposition; it is now 0.015. The despair thresholds are narrow because in our fixture the traps sit at hope 0.05 to 0.15 while the sit-with neighbourhood is floored at 0.30, so there is real margin — widening it would empty the shelf a grieving listener most wants. And the 1.07 normaliser is honestly a display fix: unnormalised, scores clipped at 1.0 and the top of the ranking lost its ordering.',
   },
   {
     question: 'What breaks first if you put this in front of real traffic tomorrow?',
@@ -512,8 +513,8 @@ export const MOOD_FLOW_CONSTANTS = [
   },
   {
     name: 'Entry-point swap',
-    value: 'deeper than Ep 12 · saves ≥ 35% · costs ≤ 0.015 of match',
-    why: 'The epsilon was 0.04, where the swap fired on everything and collapsed every entry point to episode 1 — deleting the "start at Ep 34" proposition while the tests still passed. entrypoint.py:35,40,44',
+    value: 'deeper than track 12 · saves ≥ 35% · costs ≤ 0.015 of match',
+    why: 'The epsilon was 0.04, where the swap fired on everything and collapsed every entry point to track 1 — deleting the "start at track 34" proposition while the tests still passed. entrypoint.py:35,40,44',
   },
   {
     name: 'SESSION_SLACK',
@@ -532,8 +533,8 @@ export const MOOD_FLOW_CONSTANTS = [
   },
   {
     name: 'Model calls per arc at ingest',
-    value: '1 (~1,800 total vs ~90,000 at episode level)',
-    why: '600 series × 3 arcs against 600 × ~150 episodes. A 20-minute episode has no stable felt quality distinct from its arc, so arc is the right unit and two orders of magnitude cheaper. catalog_ingest.py:242',
+    value: '1 (~1,800 total vs ~90,000 at song level)',
+    why: 'Collections × ~3 arcs against collections × ~150 songs. A single song has no stable felt quality distinct from the arc around it, so the arc is the right unit and two orders of magnitude cheaper. catalog_ingest.py:242',
   },
   {
     name: 'Seed fixture (what a deploy serves today)',
