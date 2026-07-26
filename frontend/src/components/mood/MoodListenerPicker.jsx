@@ -13,8 +13,10 @@
  * shown are taste and habit (what they finish, when they listen), never mood:
  * the query is tonight, the listener is the last six months.
  *
- * A real radio group, so arrow keys move between listeners and the grouping is
- * announced. A row of buttons would lose both.
+ * Layout: a compact native <select> holds every listener (so the control stays
+ * small however many there are and stays keyboard-navigable with type-ahead),
+ * and the chosen person's characteristics sit ALONGSIDE it — pick on the left,
+ * read who they are on the right.
  */
 
 const SLOT_LABEL = {
@@ -70,7 +72,6 @@ function ListenerCard({ profile }) {
         display: "flex",
         flexDirection: "column",
         gap: 12,
-        maxWidth: 640,
       }}
     >
       <div
@@ -140,112 +141,110 @@ export default function MoodListenerPicker({
 }) {
   if (!profiles.length) return null;
 
-  const options = [
-    { id: null, label: "Anyone", sub: "no history" },
-    ...profiles.map((p) => ({
-      id: p.persona_id,
-      label: p.display_name,
-      sub: `${formatSlot(p.slot)} · ${p.history_count} watched`,
-    })),
-  ];
-
   const selected = profiles.find((p) => p.persona_id === value) || null;
 
   return (
     <fieldset
       style={{
         border: "none",
+        padding: 0,
+        margin: 0,
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 12,
       }}
     >
       <legend
         className="label-upper"
-        style={{ fontSize: 11, marginBottom: 10 }}
+        style={{ fontSize: 11, padding: 0, marginBottom: 2 }}
       >
         Listening as
       </legend>
-      {/* <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', maxWidth: '64ch' }}>
-        A demo control. Pick a listener to see who they are — switching re-runs the
-        same query, and history only breaks ties, never re-serving a series they
-        already finished.
-      </p> */}
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {options.map((option) => {
-          const isSelected = value === option.id;
-          return (
-            <label
-              key={option.id ?? "anon"}
+      <div
+        style={{
+          display: "flex",
+          gap: 24,
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+        }}
+      >
+        {/* Left — the dropdown holding every listener. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "0 0 auto" }}>
+          <label htmlFor="mood-listener" style={{ fontSize: 12.5, color: "var(--muted)" }}>
+            Choose a listener
+          </label>
+          <div style={{ position: "relative", width: 260, maxWidth: "100%" }}>
+            <select
+              id="mood-listener"
+              value={value ?? ""}
+              disabled={disabled}
+              onChange={(e) => onChange(e.target.value || null)}
               style={{
-                display: "inline-flex",
-                flexDirection: "column",
-                justifyContent: "center",
+                width: "100%",
                 minHeight: 44,
-                padding: "6px 16px",
-                borderRadius: "var(--radius-pill)",
-                border: `1px solid ${isSelected ? "var(--accent-line)" : "var(--border)"}`,
-                background: isSelected ? "var(--accent-soft)" : "var(--canvas)",
-                color: isSelected ? "var(--accent-text-sm)" : "var(--ink)",
+                appearance: "none",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                background: "var(--canvas)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--ink)",
+                padding: "0 38px 0 14px",
+                fontFamily: "var(--font-sans)",
+                fontSize: 15,
+                lineHeight: 1.2,
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.55 : 1,
-                transition: "background var(--dur-fast) var(--ease-standard)",
               }}
             >
-              <input
-                type="radio"
-                name="mood-listener"
-                checked={isSelected}
-                disabled={disabled}
-                onChange={() => onChange(option.id)}
-                style={{
-                  position: "absolute",
-                  width: 1,
-                  height: 1,
-                  opacity: 0,
-                  pointerEvents: "none",
-                }}
-              />
-              <span
-                style={{ fontSize: 14, fontWeight: isSelected ? 600 : 500 }}
-              >
-                {/* Selection is never carried by colour alone. */}
-                <span
-                  aria-hidden="true"
-                  style={{ marginRight: 7, fontWeight: 700 }}
-                >
-                  {isSelected ? "✓" : "+"}
-                </span>
-                {option.label}
-              </span>
-              {option.sub && (
-                <span style={{ fontSize: 11.5, opacity: 0.8, paddingLeft: 20 }}>
-                  {option.sub}
-                </span>
-              )}
-            </label>
-          );
-        })}
-      </div>
+              <option value="">Anyone — no history</option>
+              {profiles.map((p) => (
+                <option key={p.persona_id} value={p.persona_id}>
+                  {p.display_name} · {formatSlot(p.slot)}
+                </option>
+              ))}
+            </select>
+            {/* Custom caret — the native one clashes with the flat surfaces. */}
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                right: 14,
+                top: "50%",
+                transform: "translateY(-50%)",
+                pointerEvents: "none",
+                color: "var(--muted)",
+                fontSize: 11,
+              }}
+            >
+              ▾
+            </span>
+          </div>
+        </div>
 
-      {/* The selected listener's characteristics, made explicit. */}
-      {selected ? (
-        <ListenerCard profile={selected} />
-      ) : (
-        <p
-          style={{
-            margin: "2px 0 0",
-            fontSize: 12.5,
-            color: "var(--dim)",
-            maxWidth: "64ch",
-          }}
-        >
-          <strong style={{ color: "var(--muted)" }}>Anyone</strong> — no
-          listening history, so results are a pure match on the feeling you
-          typed.
-        </p>
-      )}
+        {/* Right — the selected listener's description, parallel to the picker. */}
+        <div style={{ flex: "1 1 300px", minWidth: 260, maxWidth: 560 }}>
+          {selected ? (
+            <ListenerCard profile={selected} />
+          ) : (
+            <div
+              style={{
+                border: "1px dashed var(--border)",
+                borderRadius: "var(--radius-md)",
+                padding: "14px 16px",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--muted)" }}>
+                <strong style={{ color: "var(--ink)" }}>Anyone</strong> — no
+                listening history, so results are a pure match on the feeling you
+                typed. Pick a named listener to see how their taste re-ranks the
+                same query.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </fieldset>
   );
 }
