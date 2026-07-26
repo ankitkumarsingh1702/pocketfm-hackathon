@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import {
   MOOD_FLOW_CONSTANTS,
@@ -91,7 +92,14 @@ export default function MoodFlowDialog({ onClose }) {
     }
   }
 
-  return (
+  // PORTALLED TO THE BODY, not rendered where it is used. The lens it explains
+  // lives inside a scrolling panel, so a fixed-position overlay nested in that
+  // tree is at the mercy of any ancestor's overflow, transform or z-index — a
+  // single `transform` above it would make `position: fixed` resolve against
+  // that ancestor instead of the viewport and clip the dialog. Portalling keeps
+  // the trigger and the state local to this lens while the overlay itself is a
+  // sibling of the app root, which is where a modal belongs.
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -305,7 +313,8 @@ export default function MoodFlowDialog({ onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
