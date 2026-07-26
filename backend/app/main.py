@@ -9,6 +9,8 @@ Exposes a health check, the persona roster, and the three simulation lenses.
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -56,6 +58,15 @@ from app.schemas import (
 )
 
 app = FastAPI(title="Simulated Studio API")
+_expensive_job_lock = asyncio.Lock()
+
+
+def _reject_if_expensive_job_active() -> None:
+    if _expensive_job_lock.locked():
+        raise HTTPException(
+            status_code=429,
+            detail="Another large agent run is active. Try again after it finishes.",
+        )
 
 app.add_middleware(
     CORSMiddleware,
@@ -213,17 +224,31 @@ async def plot_holes(req: PlotHolesRequest) -> PlotHoleResult:
 @app.post("/api/plan/cliffhanger/stream")
 async def plan_cliffhanger_stream(req: PlanRequest) -> StreamingResponse:
     """Beam-search cliffhanger rewrites, streaming each scored candidate."""
+    _reject_if_expensive_job_active()
+    await _expensive_job_lock.acquire()
     llm = get_llm()
     cache = Cache(settings.cache_dir)
 
     async def run(emit) -> dict:
         tree = await beam_search(
             req.story, req.weak_excerpt, llm, cache,
-            beam_width=req.beam_width or 3, depth=req.depth or 2, on_event=emit,
+            beam_width=req.beam_width or 3,
+            depth=req.depth or 2,
+            panel_size=req.panel_size or settings.planner_panel_default,
+            scout_size=req.scout_size or settings.planner_scout_default,
+            finalist_count=req.finalist_count or settings.planner_finalists_default,
+            on_event=emit,
         )
         return tree.model_dump()
 
-    return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
+    async def guarded_events():
+        try:
+            async for event in ndjson_events(run):
+                yield event
+        finally:
+            _expensive_job_lock.release()
+
+    return StreamingResponse(guarded_events(), media_type="application/x-ndjson")
 
 
 # ---------------------------------------------------------------------------
@@ -278,20 +303,33 @@ async def audience_sim_library() -> AudienceLibrary:
 @app.post("/api/audience-sim/generate", response_model=AudienceLibrary)
 async def audience_sim_generate(req: GeneratePersonasRequest) -> AudienceLibrary:
     """Synthesise a diverse audience of listener-agents and persist it for reuse."""
+    _reject_if_expensive_job_active()
+    await _expensive_job_lock.acquire()
     try:
         return await generate_audience(req)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _expensive_job_lock.release()
 
 
 @app.post("/api/audience-sim/run/stream")
 async def audience_sim_run_stream(req: AudienceSimRequest) -> StreamingResponse:
     """Run the Audience Simulator, streaming each agent's reaction as it lands."""
+    _reject_if_expensive_job_active()
+    await _expensive_job_lock.acquire()
 
     async def run(emit) -> dict:
         return await stream_audience_sim(req, emit)
 
-    return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
+    async def guarded_events():
+        try:
+            async for event in ndjson_events(run):
+                yield event
+        finally:
+            _expensive_job_lock.release()
+
+    return StreamingResponse(guarded_events(), media_type="application/x-ndjson")
 
 
 # ---------------------------------------------------------------------------

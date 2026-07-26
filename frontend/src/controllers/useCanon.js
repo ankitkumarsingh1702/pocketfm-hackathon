@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { DEFAULT_STORY_META, SAMPLE_STORY } from '../config/constants'
 import {
@@ -74,18 +74,48 @@ export function useCanon() {
   // --- Cliffhanger planner (streaming beam search) ---
   const [weakExcerpt, setWeakExcerpt] = useState(lastScene(SAMPLE_STORY))
   const [planner, setPlanner] = useState(emptyPlanner())
+  const plannerAbort = useRef(null)
+  const plannerInputKey = `${title}\u0000${episode}\u0000${text}\u0000${weakExcerpt}`
+  const previousPlannerInputKey = useRef(plannerInputKey)
+
+  useEffect(() => {
+    if (previousPlannerInputKey.current === plannerInputKey) return
+    previousPlannerInputKey.current = plannerInputKey
+    plannerAbort.current?.abort()
+    setPlanner(emptyPlanner())
+  }, [plannerInputKey])
+
   const runPlanner = useCallback(async () => {
     if (isBlank(text) || isBlank(weakExcerpt)) return
+    plannerAbort.current?.abort()
+    const controller = new AbortController()
+    plannerAbort.current = controller
     setPlanner({ ...emptyPlanner(), running: true })
     try {
       await planCliffhangerStream(
         { story: { title, episode, text }, weakExcerpt, beamWidth: 3, depth: 2 },
         (ev) => setPlanner((prev) => reducePlanner(prev, ev)),
+        controller.signal,
       )
     } catch (err) {
+      if (err.name === 'AbortError') {
+        setPlanner((prev) => ({
+          ...prev,
+          running: false,
+          phase: 'cancelled',
+          phaseLabel: 'Search stopped',
+          candidates: [],
+          best: null,
+          baseline: null,
+        }))
+        return
+      }
       setPlanner((prev) => ({ ...prev, running: false, error: err.message || 'Search failed' }))
+    } finally {
+      if (plannerAbort.current === controller) plannerAbort.current = null
     }
   }, [text, title, episode, weakExcerpt])
+  const stopPlanner = useCallback(() => plannerAbort.current?.abort(), [])
 
   // --- Showrunner state-graph agent (streaming) ---
   const [agent, setAgent] = useState(emptyAgent())
@@ -140,6 +170,7 @@ export function useCanon() {
     setWeakExcerpt,
     planner,
     runPlanner,
+    stopPlanner,
     // agent + rl
     agent,
     runAgent,

@@ -41,12 +41,13 @@ def _memory_fp(memory: list[dict]) -> str:
     if not memory:
         return "nomem"
     raw = "::".join(
-        f"{m.get('post')}|{m.get('sentiment')}|{m.get('engagement')}" for m in memory
+        f"{m.get('post')}|{m.get('sentiment')}|{m.get('engagement')}|{m.get('comment')}"
+        for m in memory
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
-def _render_memory(memory: list[dict]) -> str:
+def _render_memory(memory: list[dict], scope: str = "creator") -> str:
     """Render recalled reactions as a short first-person history block."""
     if not memory:
         return ""
@@ -62,10 +63,8 @@ def _render_memory(memory: list[dict]) -> str:
         if comment:
             line += f' and commented "{comment}"'
         lines.append(line)
-    return (
-        "YOUR HISTORY WITH THIS CREATOR (react as someone who remembers):\n"
-        + "\n".join(lines)
-    )
+    label = "SHOW" if scope == "show" else "CREATOR"
+    return f"YOUR HISTORY WITH THIS {label} (react as someone who remembers):\n" + "\n".join(lines)
 
 
 def build_social_prompt(

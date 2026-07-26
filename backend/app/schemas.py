@@ -293,6 +293,24 @@ class PlanCandidate(BaseModel):
     delta: float                                          # hook_score - baseline
     parent_id: str | None = None
     depth: int = 0
+    sample_size: int = 0
+    ci95: float = 0.0
+    stage: Literal["baseline", "scout", "verified"] = "scout"
+
+
+class CliffhangerRating(BaseModel):
+    """One stateful listener-agent's rating for one ending."""
+
+    candidate_id: str
+    hook_score: int = Field(ge=0, le=100)
+    will_continue: bool
+    reason: str
+
+
+class CliffhangerAgentVerdict(BaseModel):
+    """All ending ratings returned by one listener-agent in one inference."""
+
+    ratings: list[CliffhangerRating] = Field(default_factory=list)
 
 
 class SearchTree(BaseModel):
@@ -300,6 +318,21 @@ class SearchTree(BaseModel):
     best_id: str = ""
     rounds: int = 0
     baseline_score: float = 0.0
+    panel_requested: int = 0
+    panel_actual: int = 0
+    panel_completed: int = 0
+    panel_dropped: int = 0
+    scout_size: int = 0
+    finalist_count: int = 0
+    planned_evaluations: int = 0
+    completed_evaluations: int = 0
+    memory_hits: int = 0
+    cached_agents: int = 0
+    verification_cached_agents: int = 0
+    audience_source: str = ""
+    model: str = ""
+    agentic: bool = False
+    experiment_archived: bool = False
 
 
 class PlotHolesRequest(BaseModel):
@@ -311,6 +344,9 @@ class PlanRequest(BaseModel):
     weak_excerpt: str
     beam_width: int | None = None
     depth: int | None = None
+    panel_size: int | None = None
+    scout_size: int | None = None
+    finalist_count: int | None = None
 
 
 # ---------------------------------------------------------------------------

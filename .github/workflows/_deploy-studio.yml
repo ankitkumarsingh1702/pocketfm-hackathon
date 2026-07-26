@@ -75,12 +75,14 @@ jobs:
           else
             echo "No NEO4J_URI secret found — deploying without the knowledge graph."
           fi
+          # The stateful 1,000-agent planner streams progress for several
+          # minutes. Keep the connection alive while still bounding a run.
           gcloud run deploy "${{ vars.CLOUD_RUN_SERVICE }}" \
             --source . \
             --project "${{ vars.GCP_PROJECT_ID }}" \
             --region "${{ vars.GCP_REGION }}" \
             --allow-unauthenticated \
-            --memory 1Gi --cpu 1 --timeout 300 \
+            --memory 1Gi --cpu 1 --timeout 900 --max-instances 1 \
             --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }}" \
             ${SECRET_FLAGS[@]+"${SECRET_FLAGS[@]}"} \
             --quiet

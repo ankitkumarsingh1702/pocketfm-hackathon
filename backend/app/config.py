@@ -43,9 +43,10 @@ class Settings(BaseSettings):
     model_audience: str = "gemini-2.5-flash"
     model_experts: str = "gemini-2.5-pro"
     model_rewrite: str = "gemini-2.5-pro"
-    # Audience Simulator ("Living Audience") reaction agents. These are genuine
-    # multi-step, vision-capable agents, so they run on the strongest Gemini
-    # (multimodal + reasoning) rather than the fast flash tier.
+    # Audience Simulator ("Living Audience") reaction agents. The social-post
+    # lens uses the stronger multimodal model; the 1000-agent cliffhanger panel
+    # uses the audience/Flash tier because statefulness comes from persisted
+    # identity + memory, not from choosing the slowest model.
     model_sim: str = "gemini-2.5-pro"
 
     # --- Generation ----------------------------------------------------------
@@ -98,10 +99,14 @@ class Settings(BaseSettings):
     # and react like real listeners. Budget is not the constraint here — these
     # run wider and deeper than the base audience lens.
     sim_panel_default: int = 200    # distinct persona-agents per run by default
-    sim_panel_max: int = 2000       # hard cap on a single run's fan-out
+    sim_panel_max: int = 1000       # hard cap on a single expensive fan-out
     sim_concurrency: int = 32       # simultaneous reaction agents in flight
+    sim_synthesis_concurrency: int = 6  # bounded persona-generation batches
     sim_max_retries: int = 3        # retries on 429/503, with backoff + jitter
     sim_agentic: bool = True        # run the multi-step perceive→recall→react loop
+    planner_panel_default: int = 1000
+    planner_scout_default: int = 100
+    planner_finalists_default: int = 3
 
     # --- API -----------------------------------------------------------------
     cors_origins: str = "http://localhost:5173,http://localhost:4173"

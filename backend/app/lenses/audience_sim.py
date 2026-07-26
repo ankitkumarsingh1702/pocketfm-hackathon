@@ -49,15 +49,20 @@ async def resolve_audience(req: AudienceSimRequest) -> tuple[list[Persona], str]
 
     # 1. Edited roster from the UI wins (non-empty). Empty falls through.
     if req.audience:
-        return req.audience[: settings.sim_panel_max], "provided"
+        members = req.audience[: settings.sim_panel_max]
+        await save_audience_members(members, source="Provided Audience")
+        return members, "provided"
 
     # 2. Reuse the persisted audience population when available.
     if req.use_library:
-        members = await load_audience_members()
+        members = await load_audience_members(limit=settings.sim_panel_max)
+        if len(members) >= n:
+            return random.sample(members, n) if len(members) > n else members, "graph"
         if members:
-            if len(members) > n:
-                members = random.sample(members, n)
-            return members, "graph"
+            missing = n - len(members)
+            generated = await generate_personas(missing)
+            await save_audience_members(generated, source="Persona Synthesis")
+            return members + generated, "graph+generated"
 
     # 3. Synthesise a fresh, diverse audience and persist it for reuse.
     members = await generate_personas(n)
