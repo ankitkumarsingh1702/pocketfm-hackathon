@@ -24,35 +24,40 @@ class Settings(BaseSettings):
 
     # --- GCP / Vertex AI -----------------------------------------------------
     google_cloud_project: str = "pocketfm-hackathon"
-    # Gemini-on-Vertex works in most regions incl. us-central1 and "global".
-    vertex_location: str = "us-central1"
+    # Vertex location for all Gemini *chat* generation. The gemini-3.x IDs this
+    # project is entitled to (e.g. gemini-3.5-flash) are served ONLY from the
+    # "global" endpoint here — us-central1 exposes just the 2.5 family and 404s
+    # on every 3.x call. So keep this "global". (Text embeddings work in both,
+    # and TTS keeps its own ``tts_location`` below.)
+    vertex_location: str = "global"
 
     # --- LLM provider --------------------------------------------------------
     # "gemini" (default, native to any GCP project) or "claude" (requires the
     # Claude models to be enabled in Vertex AI Model Garden).
     llm_provider: str = "gemini"
-    # NOTE: keep these to model IDs actually enabled for this project in
-    # ``vertex_location``. gemini-3.x IDs (e.g. 3.6-flash / 3.1-pro-preview) are
-    # NOT available here and return 404 NOT_FOUND on every call — which silently
-    # drops every audience agent and breaks canon/rewrite. The 2.5 family is the
-    # verified-working tier; upgrade only to an ID confirmed in Model Garden.
-    gemini_model: str = "gemini-2.5-flash"
+    # Single Gemini model across every chat tier: gemini-3.5-flash, served from
+    # the "global" ``vertex_location`` above (verified reachable for this
+    # project). Fast enough for the high-volume audience fan-out and strong
+    # enough for the quality lenses, so we run one model everywhere for
+    # consistency. If you change this, confirm the ID resolves on "global" first
+    # (a wrong ID 404s on every call and silently drops agents).
+    gemini_model: str = "gemini-3.5-flash"
     # Claude on Vertex: current-gen models use the bare ID; region-gated and
     # must be enabled in Vertex AI Model Garden before use.
     claude_model: str = "claude-sonnet-5"
     claude_location: str = "us-east5"
 
-    # --- Per-lens model tiering (Gemini) -------------------------------------
-    # Fast model for the high-volume audience fan-out; a stronger model for the
-    # low-volume, quality-critical lenses. Only used when llm_provider == 'gemini'.
-    model_audience: str = "gemini-2.5-flash"
-    model_experts: str = "gemini-2.5-pro"
-    model_rewrite: str = "gemini-2.5-pro"
-    # Audience Simulator ("Living Audience") reaction agents. The social-post
-    # lens uses the stronger multimodal model; the 1000-agent cliffhanger panel
-    # uses the audience/Flash tier because statefulness comes from persisted
-    # identity + memory, not from choosing the slowest model.
-    model_sim: str = "gemini-2.5-pro"
+    # --- Per-lens model (Gemini) ---------------------------------------------
+    # One model for every lens — gemini-3.5-flash on "global". Only used when
+    # llm_provider == 'gemini'. Kept as separate fields so a single tier can be
+    # overridden via env without disturbing the rest.
+    model_audience: str = "gemini-3.5-flash"
+    model_experts: str = "gemini-3.5-flash"
+    model_rewrite: str = "gemini-3.5-flash"
+    # Audience Simulator ("Living Audience") reaction agents. Statefulness comes
+    # from persisted identity + memory, not from a heavier model, so the same
+    # fast gemini-3.5-flash powers the 1000-agent panels too.
+    model_sim: str = "gemini-3.5-flash"
 
     # --- Generation ----------------------------------------------------------
     temperature: float = 0.9        # variety across personas
