@@ -530,7 +530,16 @@ async def audience_member_detail(member_id: str) -> dict:
 # best-effort: if it fails, the studio lenses must still come up, so we log the
 # failure and leave /api/mood unmounted rather than crashing the whole service.
 try:
-    from app.mood.api import router as mood_router  # noqa: E402
+    import os
+
+    # MOOD_SIMPLE swaps the LLM-fingerprinted engine for the dependency-light
+    # heuristic engine (app.mood.simple_engine), which serves the curated music
+    # catalog (app/mood/data/*.json) DIRECTLY — real songs in prod with no
+    # Vertex ingest. Unset (the default) leaves the LLM retrieval path unchanged.
+    if os.environ.get("MOOD_SIMPLE", "").strip().lower() in ("1", "true", "yes", "on"):
+        from app.mood.simple_engine import router as mood_router  # noqa: E402
+    else:
+        from app.mood.api import router as mood_router  # noqa: E402
 
     app.include_router(mood_router, prefix="/api/mood", tags=["mood"])
 except Exception as _mood_err:  # noqa: BLE001 - never let mood take the API down
