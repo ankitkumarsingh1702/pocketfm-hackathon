@@ -9,6 +9,7 @@ import {
   planCliffhangerStream,
   previewCanon,
   resetCanonSession,
+  scanStoryPlotHoles,
   showrunnerStream,
 } from '../lib/api'
 import { SESSION_BATCH } from '../utils/session'
@@ -38,6 +39,11 @@ export function useCanon() {
   const [title, setTitle] = useState(DEFAULT_STORY_META.title)
   const [episode, setEpisode] = useState(DEFAULT_STORY_META.episode)
   const [text, setText] = useState(SAMPLE_STORY)
+  // The full ready-made show currently loaded (with every episode's text), or
+  // null when the user is writing their own. Drives the story-scoped plot-hole
+  // scan (the "book" view) instead of the whole-graph scan.
+  const [loadedStory, setLoadedStory] = useState(null)
+  const [storyScan, setStoryScan] = useState({ loading: false, data: null, error: null })
 
   const graph = useAsyncLens(getCanonGraph, toCanonGraphView)
   const { run: loadGraph } = graph
@@ -122,14 +128,34 @@ export function useCanon() {
   const clearText = useCallback(() => {
     setText('')
     setIngestResult(null)
+    // Writing your own → leave "loaded show" mode; plot holes fall back to the
+    // whole-graph scan for the pasted text.
+    setLoadedStory(null)
+    setStoryScan({ loading: false, data: null, error: null })
   }, [])
 
-  // --- Plot Hole Hunter (graph-grounded) ---
+  // --- Plot Hole Hunter (graph-grounded, for custom pasted text) ---
   const plotHoles = useAsyncLens(findPlotHoles, toPlotHolesView)
   const { run: runPlotHolesLens } = plotHoles
   const runPlotHoles = useCallback(() => {
     if (!isBlank(text)) runPlotHolesLens({ title, episode, text })
   }, [text, title, episode, runPlotHolesLens])
+
+  // --- Story-scoped plot holes (book / highlighter view for a loaded show) ---
+  // Sends every episode of the loaded show and gets back cross-episode
+  // contradictions with the exact clashing sentence on each side. Story-scoped,
+  // so the seeded demo canon is never involved.
+  const runStoryScan = useCallback(async () => {
+    const episodes = loadedStory?.episodes
+    if (!episodes || episodes.length < 2) return
+    setStoryScan({ loading: true, data: null, error: null })
+    try {
+      const data = await scanStoryPlotHoles(loadedStory)
+      setStoryScan({ loading: false, data, error: null })
+    } catch (err) {
+      setStoryScan({ loading: false, data: null, error: err.message || 'Scan failed' })
+    }
+  }, [loadedStory])
 
   // --- Cliffhanger planner (streaming beam search) ---
   const [weakExcerpt, setWeakExcerpt] = useState(lastScene(SAMPLE_STORY))
@@ -139,6 +165,10 @@ export function useCanon() {
     setText(story.text || '')
     setWeakExcerpt(lastScene(story.text || ''))
     setIngestResult(null)
+    // Remember the whole show (all episodes) so plot holes can scan it directly;
+    // a fresh scan is required after switching shows/episodes.
+    setLoadedStory(Array.isArray(story.episodes) && story.episodes.length ? story : null)
+    setStoryScan({ loading: false, data: null, error: null })
   }, [])
   const [planner, setPlanner] = useState(emptyPlanner())
   const plannerAbort = useRef(null)
@@ -247,6 +277,9 @@ export function useCanon() {
     // planning
     plotHoles,
     runPlotHoles,
+    loadedStory,
+    storyScan,
+    runStoryScan,
     weakExcerpt,
     setWeakExcerpt,
     planner,

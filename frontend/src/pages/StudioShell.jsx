@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
 import { DEFAULT_LENS_PATH, LENSES } from '../config/constants'
+import { HINDI_STORY_LIBRARY } from '../config/hindiStories'
 import { useStudio } from '../controllers/useStudio'
 import { useStatusToast } from '../hooks/useStatusToast'
 import { useToast } from '../components/toast/useToast'
@@ -10,14 +11,13 @@ import PageHeader from '../components/layout/PageHeader'
 import StoryInput from '../components/StoryInput'
 import StoryPicker from '../components/StoryPicker'
 import { Icon, Wordmark } from '../components/primitives'
-import HealthBadge from '../components/HealthBadge'
 import AgentDirectoryTab from '../components/tabs/AgentDirectoryTab'
 import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
 import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
 import DbMemoryTab from '../components/tabs/DbMemoryTab'
 import GenreConverterTab from '../components/tabs/GenreConverterTab'
 import MoodSearchTab from '../components/tabs/MoodSearchTab'
-import StoryCanonTab from '../components/tabs/StoryCanonTab'
+import StoryCanonTab, { PlannerPanel } from '../components/tabs/StoryCanonTab'
 import WritersRoom from '../WritersRoom'
 
 const LENS_BY_PATH = new Map(LENSES.map((lens) => [lens.path, lens]))
@@ -158,7 +158,6 @@ export default function StudioShell() {
         </button>
         <Wordmark size={16} />
         <span className="topbar__spacer" />
-        <HealthBadge {...studio.health} />
       </header>
 
       {navOpen && (
@@ -170,7 +169,7 @@ export default function StudioShell() {
         />
       )}
 
-      <Sidebar open={navOpen} health={studio.health} onNavigate={() => setNavOpen(false)} />
+      <Sidebar open={navOpen} onNavigate={() => setNavOpen(false)} />
 
       <main id="main" className="content">
         <div className="content__inner">
@@ -185,6 +184,7 @@ export default function StudioShell() {
                 <StoryPicker
                   onSelect={(s) => setStory(s.text)}
                   label="Load a ready-made story to optimize"
+                  stories={HINDI_STORY_LIBRARY}
                 />
               </div>
               <StoryInput
@@ -205,6 +205,15 @@ export default function StudioShell() {
           </section>
           <section className="lens-panel" hidden={activeTab !== 'opt'} aria-label="Cliffhanger Optimizer">
             <CliffhangerOptimizerTab {...studio.cliffhanger} />
+          </section>
+          <section className="lens-panel" hidden={activeTab !== 'planner'} aria-label="Cliffhanger Planner">
+            <PlannerPanel
+              weakExcerpt={studio.canon.weakExcerpt}
+              setWeakExcerpt={studio.canon.setWeakExcerpt}
+              planner={studio.canon.planner}
+              runPlanner={studio.canon.runPlanner}
+              stopPlanner={studio.canon.stopPlanner}
+            />
           </section>
           <section className="lens-panel" hidden={activeTab !== 'room'} aria-label="Writers Room">
             <WritersRoom />

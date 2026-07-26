@@ -214,10 +214,15 @@
 /* Panels stay mounted so long-running work survives navigation; only the
    active one is visible. The fade re-runs each time a panel is revealed —
    and only for users who haven't asked for reduced motion, so the content
-   is simply there (no flash) for everyone else. */
+   is simply there (no flash) for everyone else.
+
+   Fill is `backwards`, NOT `both`: a forwards fill would retain the keyframe's
+   transform forever, and a transformed ancestor becomes the containing block
+   for position:fixed descendants — which pinned the Writers Room profile
+   drawer inside the panel instead of the viewport. */
 @media (prefers-reduced-motion: no-preference) {
   .lens-panel {
-    animation: pfm-fade-in var(--dur-med) var(--ease-standard) both;
+    animation: pfm-fade-in var(--dur-med) var(--ease-standard) backwards;
   }
 }
 

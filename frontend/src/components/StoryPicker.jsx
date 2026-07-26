@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import { STORY_BY_ID, STORY_LIBRARY } from '../config/storyLibrary'
+import { STORY_LIBRARY } from '../config/storyLibrary'
 
 /**
  * StoryPicker — select a ready-made story (and one of its episodes) instead of
@@ -25,10 +25,12 @@ export default function StoryPicker({
   defaultId = '',
   hint = 'Pick one to showcase instantly — no typing needed.',
   showEpisodes = true,
+  stories = STORY_LIBRARY,
 }) {
   const [selectedId, setSelectedId] = useState(defaultId)
   const [epIndex, setEpIndex] = useState(0)
-  const selected = selectedId ? STORY_BY_ID[selectedId] : null
+  const byId = useMemo(() => Object.fromEntries(stories.map((s) => [s.id, s])), [stories])
+  const selected = selectedId ? byId[selectedId] : null
   const episodes = selected?.episodes || []
   const episode = episodes[epIndex] || null
 
@@ -53,7 +55,7 @@ export default function StoryPicker({
     const id = e.target.value
     setSelectedId(id)
     setEpIndex(0)
-    fire(STORY_BY_ID[id], 0)
+    fire(byId[id], 0)
   }
 
   const handleEpisodeChange = (e) => {
@@ -92,7 +94,7 @@ export default function StoryPicker({
             <option value="" disabled>
               Choose a story…
             </option>
-            {STORY_LIBRARY.map((s) => (
+            {stories.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.title} — {s.genre}
               </option>

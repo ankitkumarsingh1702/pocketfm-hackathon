@@ -30,14 +30,23 @@ export const LENSES = [
     blurb:
       "Post an episode teaser and image; thousands of agentic listeners react live before release. Each one sees the image, remembers your past posts, and decides to scroll, like, share, or subscribe — edit a profile and its behaviour changes.",
   },
+  {
+    id: "opt",
+    path: "/cliffhanger",
+    label: "Cliffhanger Optimizer",
+    icon: "zap",
+    title: "Cliffhanger Optimizer",
+    blurb:
+      "Rewrites your ending and A/B tests the hook lift against the listener panel — then lets you hear the difference, the flat original versus the dramatic cut.",
+  },
   // {
-  //   id: "opt",
-  //   path: "/cliffhanger",
-  //   label: "Cliffhanger Optimizer",
-  //   icon: "zap",
-  //   title: "Cliffhanger Optimizer",
+  //   id: "planner",
+  //   path: "/planner",
+  //   label: "Cliffhanger Planner",
+  //   icon: "sparkles",
+  //   title: "Cliffhanger Planner",
   //   blurb:
-  //     "Predicts the probability of binge-listening and rewrites your ending, then A/B tests the hook lift against the listener panel.",
+  //     "Searches a tree of possible endings with a 1,000-agent panel and ranks them by hook lift — the strongest cliffhanger, found by search.",
   // },
   {
     id: "room",
@@ -102,19 +111,20 @@ export const DEFAULT_LENS_PATH = "/audience";
  * runs; `panel` names its inner tab when it lives inside Story Canon.
  */
 export const AGENTS = [
-  {
-    id: "agent",
-    name: "Showrunner Agent",
-    source: "Showrunner",
-    route: "/canon",
-    panel: "agent",
-    role: "Runs the whole episode loop — ingest, continuity, simulate, decide, fix, re-simulate — until it converges.",
-    methods: ["State-graph agent", "Knowledge graph", "LLM"],
-    memory:
-      "Writes new canon on ingest, reads the graph to reason, and writes its decision back.",
-    reads: true,
-    writes: true,
-  },
+  // Temporarily hidden — Showrunner Agent directory card is commented out.
+  // {
+  //   id: "agent",
+  //   name: "Showrunner Agent",
+  //   source: "Showrunner",
+  //   route: "/canon",
+  //   panel: "agent",
+  //   role: "Runs the whole episode loop — ingest, continuity, simulate, decide, fix, re-simulate — until it converges.",
+  //   methods: ["State-graph agent", "Knowledge graph", "LLM"],
+  //   memory:
+  //     "Writes new canon on ingest, reads the graph to reason, and writes its decision back.",
+  //   reads: true,
+  //   writes: true,
+  // },
   {
     id: "holes",
     name: "Plot Hole Hunter",
@@ -141,19 +151,20 @@ export const AGENTS = [
     reads: true,
     writes: false,
   },
-  {
-    id: "mdp",
-    name: "MDP Optimizer",
-    source: "MDP Optimizer",
-    route: "/canon",
-    panel: "mdp",
-    role: "Treats the ending as a decision process and searches a policy for the highest expected reward.",
-    methods: ["MDP policy search", "Knowledge graph", "LLM"],
-    memory:
-      "Reads canon to score each policy state against what the audience already knows.",
-    reads: true,
-    writes: false,
-  },
+  // Temporarily hidden — MDP Optimizer directory card is commented out.
+  // {
+  //   id: "mdp",
+  //   name: "MDP Optimizer",
+  //   source: "MDP Optimizer",
+  //   route: "/canon",
+  //   panel: "mdp",
+  //   role: "Treats the ending as a decision process and searches a policy for the highest expected reward.",
+  //   methods: ["MDP policy search", "Knowledge graph", "LLM"],
+  //   memory:
+  //     "Reads canon to score each policy state against what the audience already knows.",
+  //   reads: true,
+  //   writes: false,
+  // },
   {
     id: "room",
     name: "Writers' Room",
@@ -210,8 +221,8 @@ export const AGENTS = [
 
 /** LLM model each persona tier runs on (Gemini provider — see backend config). */
 export const PERSONA_MODEL = {
-  audience: "gemini-2.5-flash",
-  expert: "gemini-2.5-pro",
+  audience: "gemini-3.5-flash",
+  expert: "gemini-3.5-flash",
 };
 
 /**
@@ -222,8 +233,9 @@ export const CANON_PANELS = [
   { id: "graph", label: "Canon Graph" },
   { id: "holes", label: "Plot Holes" },
   { id: "planner", label: "Cliffhanger Planner" },
-  { id: "agent", label: "Showrunner Agent" },
-  { id: "mdp", label: "MDP Optimizer" },
+  // Temporarily hidden — Showrunner Agent and MDP Optimizer tabs are commented out.
+  // { id: "agent", label: "Showrunner Agent" },
+  // { id: "mdp", label: "MDP Optimizer" },
 ];
 
 /**

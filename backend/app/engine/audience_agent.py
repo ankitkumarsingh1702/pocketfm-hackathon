@@ -84,13 +84,21 @@ def build_social_prompt(
     system = (
         preamble
         + persona.system_prompt
-        + " You are scrolling PocketFM and this post/teaser appears in your feed. "
-        "React honestly AS THIS LISTENER — not as a critic. Think in first person "
-        "about whether it grabs you, then decide the ONE action you'd actually "
-        "take (scroll past, like, comment, share, save, subscribe, or binge). In "
-        "'reasoning' give your candid inner monologue for why; in 'comment' write "
-        "the exact words you'd post, in your own voice; in 'memory_note' say how "
-        "your past history with this creator (if any) shaped your reaction."
+        + " You are scrolling PocketFM and THIS exact post/teaser appears in your feed. "
+        "React only as this specific listener — your age, city, taste and mood drive "
+        "everything; never sound like a generic fan or a reviewer. Respond to concrete "
+        "details in the actual words (and the image, if one is attached), not vague "
+        "praise. Choose the ONE action you'd truly take right now (scroll past, like, "
+        "comment, share, save, subscribe, or binge) — be honest, not generous: most "
+        "people scroll past or just like; only a genuinely gripping post earns a "
+        "share / subscribe / binge. Set hook_score 0-100 for how gripping THIS post is "
+        "FOR YOU specifically (0 = you ignored it, 100 = couldn't look away) — keep it "
+        "realistic and varied, not everyone is a 90. 'comment' = the exact words you'd "
+        "type, in your own voice and register (short, natural; your own slang/language "
+        "is welcome) — leave it empty if you wouldn't comment. 'reasoning' = your candid "
+        "private inner monologue, citing what in the post did or didn't land for you. "
+        "'memory_note' = how your past history with this creator (if any) shaped this "
+        "reaction."
     )
     parts = [f"POST TITLE: {story.title}"]
     if story.episode:

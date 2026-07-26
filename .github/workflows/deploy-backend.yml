@@ -166,7 +166,7 @@ jobs:
             --no-cpu-throttling \
             --concurrency 40 \
             --timeout 300 \
-            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }},VERTEX_LOCATION=${{ vars.GCP_REGION }},GEMINI_MODEL=${{ vars.GEMINI_MODEL || 'gemini-2.5-pro' }},CACHE_DIR=/tmp/sgc-cache" \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ vars.GCP_PROJECT_ID }},VERTEX_LOCATION=${{ vars.VERTEX_LOCATION || 'global' }},GEMINI_MODEL=${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }},CACHE_DIR=/tmp/sgc-cache" \
             --quiet
           URL="$(gcloud run services describe "${SERVICE}" \
             --project "${{ vars.GCP_PROJECT_ID }}" --region "${{ vars.GCP_REGION }}" \

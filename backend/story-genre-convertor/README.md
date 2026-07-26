@@ -68,13 +68,13 @@ persist across shells:
 set -a && . ./.env && set +a
 ```
 
-Model defaults to `gemini-2.5-pro` — extraction and alignment are reasoning tasks
-(decomposing causality, judging structural equivalence) where a flash-tier model
-gets sloppy about causal edges. Override without touching code:
+Model defaults to `gemini-3.5-flash` on the `global` Vertex location — the same
+model the studio backend runs everywhere (this project's gemini-3.x IDs are
+served only from `global`). Override without touching code:
 
 ```bash
-export GEMINI_MODEL=gemini-2.5-flash    # cheaper; re-run calibrate.py after switching
-export VERTEX_LOCATION=us-east5         # if a region runs short on quota
+export GEMINI_MODEL=gemini-3.5-flash    # confirm the ID resolves on VERTEX_LOCATION first
+export VERTEX_LOCATION=global           # 3.x IDs live here for this project
 ```
 
 **Two temperatures, on purpose.** Extraction and alignment run at

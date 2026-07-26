@@ -26,12 +26,15 @@ from pydantic import BaseModel
 # Same knobs as backend/app/config.py, read straight from the environment so
 # this CLI stays a standalone script rather than importing the FastAPI app.
 PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "pocketfm-hackathon")
-LOCATION = os.environ.get("VERTEX_LOCATION", "us-central1")
+# "global" is where this project's gemini-3.x IDs are served (us-central1 only has
+# the 2.5 family and 404s on 3.x). Keep the default aligned with the studio.
+LOCATION = os.environ.get("VERTEX_LOCATION", "global")
 
-# gemini-2.5-pro is the safe default for extraction and judging — both are
-# reasoning tasks where a flash-tier model gets sloppy about causal edges.
-# Point GEMINI_MODEL at something newer or cheaper without touching code.
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+# gemini-3.5-flash on "global" — the same model the studio runs everywhere. Fast
+# and reliable for the extraction/judging reasoning calls here.
+# Point GEMINI_MODEL at something else without touching code (confirm it resolves
+# on LOCATION first — a wrong ID 404s on every call).
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 # Both calls here are analysis, not creative writing: the same story must
 # decompose the same way twice, or calibrate.py's ceiling check ends up

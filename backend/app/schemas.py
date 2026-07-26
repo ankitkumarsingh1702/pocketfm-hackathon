@@ -26,6 +26,12 @@ class Story(BaseModel):
     # None and behave exactly as before.
     image_base64: str | None = None
     image_mime: str | None = None
+    # Optional "story so far" recap (Audience Simulator). A bounded summary of the
+    # episodes PRECEDING the one being posted, so listener-agents react to episode
+    # N grounded in episodes 1..N-1 instead of blind. Assembled on the client from
+    # the loaded story's prior-episode scripts; None for standalone posts, in which
+    # case the shared-graph canon (if any) is used instead.
+    story_so_far: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -134,6 +140,29 @@ class CliffhangerResult(BaseModel):
     rationale: str
 
 
+class NarrationClip(BaseModel):
+    """One narrated ending, ready to play in the browser.
+
+    ``audio_base64`` is a self-contained audio container (MP3 from Chirp, WAV
+    from Gemini) so the UI can build a blob/data URL and feed it to an ``<audio>``
+    element with no client-side decoding.
+    """
+
+    audio_base64: str
+    mime: str = "audio/wav"
+    voice: str = ""
+    engine: str = ""                    # "chirp" | "gemini"
+    style: str = ""                     # "flat" | "dramatic"
+    duration_ms: int = 0
+
+
+class NarrationResult(BaseModel):
+    """Both Cliffhanger endings voiced for an audible before/after."""
+
+    original: NarrationClip
+    optimized: NarrationClip
+
+
 # ---------------------------------------------------------------------------
 # API request bodies
 # ---------------------------------------------------------------------------
@@ -155,6 +184,13 @@ class WritersRoomRequest(BaseModel):
 class CliffhangerRequest(BaseModel):
     story: Story
     weak_excerpt: str                   # the soft ending to rewrite
+
+
+class NarrationRequest(BaseModel):
+    """Text of the two endings to voice (as returned by the cliffhanger lens)."""
+
+    original: str
+    optimized: str
 
 
 # ---------------------------------------------------------------------------
@@ -370,6 +406,45 @@ class SearchTree(BaseModel):
 
 class PlotHolesRequest(BaseModel):
     story: Story
+
+
+# ---------------------------------------------------------------------------
+# Story-scoped plot-hole scan (book / highlighter view)
+# ---------------------------------------------------------------------------
+# Unlike the graph-grounded PlotHole lens (which reads the whole persisted
+# canon), this scans ONE loaded show directly from its episode scripts — so it
+# is scoped to exactly the story the user picked, never the seeded demo, and can
+# return the verbatim sentence to highlight on each side of a contradiction.
+
+
+class EpisodeInput(BaseModel):
+    """One episode's script, as sent by the client (text is not stored in the graph)."""
+
+    episode: str            # display label, e.g. "Episode 4"
+    text: str
+
+
+class StoryScanRequest(BaseModel):
+    title: str
+    episodes: list[EpisodeInput] = Field(default_factory=list)
+
+
+class StoryContradiction(BaseModel):
+    """A cross-episode contradiction with the exact clashing sentence on each side."""
+
+    subject: str            # what disagrees, e.g. "Flat 6B — status"
+    severity: Literal["high", "medium", "low"]
+    detail: str             # plain-language explanation of the clash
+    fix: str
+    episode_a: str          # label of the first episode, e.g. "Episode 4"
+    quote_a: str            # verbatim sentence from episode_a
+    episode_b: str          # label of the second episode, e.g. "Episode 41"
+    quote_b: str            # verbatim sentence from episode_b
+
+
+class StoryScanResult(BaseModel):
+    contradictions: list[StoryContradiction] = Field(default_factory=list)
+    episodes_scanned: int = 0
 
 
 class PlanRequest(BaseModel):

@@ -24,37 +24,67 @@ class Settings(BaseSettings):
 
     # --- GCP / Vertex AI -----------------------------------------------------
     google_cloud_project: str = "pocketfm-hackathon"
-    # Gemini-on-Vertex works in most regions incl. us-central1 and "global".
-    vertex_location: str = "us-central1"
+    # Vertex location for all Gemini *chat* generation. The gemini-3.x IDs this
+    # project is entitled to (e.g. gemini-3.5-flash) are served ONLY from the
+    # "global" endpoint here — us-central1 exposes just the 2.5 family and 404s
+    # on every 3.x call. So keep this "global". (Text embeddings work in both,
+    # and TTS keeps its own ``tts_location`` below.)
+    vertex_location: str = "global"
 
     # --- LLM provider --------------------------------------------------------
     # "gemini" (default, native to any GCP project) or "claude" (requires the
     # Claude models to be enabled in Vertex AI Model Garden).
     llm_provider: str = "gemini"
-    gemini_model: str = "gemini-2.5-flash"
+    # Single Gemini model across every chat tier: gemini-3.5-flash, served from
+    # the "global" ``vertex_location`` above (verified reachable for this
+    # project). Fast enough for the high-volume audience fan-out and strong
+    # enough for the quality lenses, so we run one model everywhere for
+    # consistency. If you change this, confirm the ID resolves on "global" first
+    # (a wrong ID 404s on every call and silently drops agents).
+    gemini_model: str = "gemini-3.5-flash"
     # Claude on Vertex: current-gen models use the bare ID; region-gated and
     # must be enabled in Vertex AI Model Garden before use.
     claude_model: str = "claude-sonnet-5"
     claude_location: str = "us-east5"
 
-    # --- Per-lens model tiering (Gemini) -------------------------------------
-    # Fast model for the high-volume audience fan-out; a stronger model for the
-    # low-volume, quality-critical lenses. Only used when llm_provider == 'gemini'.
-    model_audience: str = "gemini-2.5-flash"
-    model_experts: str = "gemini-2.5-pro"
-    model_rewrite: str = "gemini-2.5-pro"
-    # Audience Simulator ("Living Audience") reaction agents. The social-post
-    # lens uses the stronger multimodal model; the 1000-agent cliffhanger panel
-    # uses the audience/Flash tier because statefulness comes from persisted
-    # identity + memory, not from choosing the slowest model.
-    model_sim: str = "gemini-2.5-pro"
+    # --- Per-lens model (Gemini) ---------------------------------------------
+    # One model for every lens — gemini-3.5-flash on "global". Only used when
+    # llm_provider == 'gemini'. Kept as separate fields so a single tier can be
+    # overridden via env without disturbing the rest.
+    model_audience: str = "gemini-3.5-flash"
+    model_experts: str = "gemini-3.5-flash"
+    model_rewrite: str = "gemini-3.5-flash"
+    # Audience Simulator ("Living Audience") reaction agents. Statefulness comes
+    # from persisted identity + memory, not from a heavier model, so the same
+    # fast gemini-3.5-flash powers the 1000-agent panels too.
+    model_sim: str = "gemini-3.5-flash"
 
     # --- Generation ----------------------------------------------------------
     temperature: float = 0.9        # variety across personas
-    # Gemini 2.5 spends output tokens on "thinking" — keep this generous so the
+    # Gemini spends output tokens on "thinking" — keep this generous so the
     # thinking budget never starves the structured JSON output.
     max_output_tokens: int = 8192
     concurrency: int = 10           # simultaneous LLM calls in the batch runner
+
+    # --- Narration TTS ("hear the difference") -------------------------------
+    # Voices the two Cliffhanger endings so the hook-score lift is *audible*: the
+    # weak original read flat, the optimized cliffhanger read with dramatic,
+    # in-character tension. Chirp 3 HD (Cloud TTS, GA) is the reliable engine;
+    # Gemini 2.5 native TTS (preview) is tried first for richer delivery when
+    # ``tts_engine`` allows and it proves reachable, else we fall back to Chirp.
+    # Voice names are the shared Gemini/Chirp set (bare, e.g. "Charon"); the
+    # Chirp voice id is derived as "<lang>-Chirp3-HD-<voice>".
+    tts_engine: str = "auto"           # "auto" (Gemini→Chirp) | "chirp" | "gemini"
+    tts_model: str = "gemini-2.5-flash-preview-tts"
+    tts_location: str = "us-central1"  # preview-TTS region may differ; override if 404
+    tts_language_code: str = "hi-IN"   # Hindi/Hinglish stories; Gemini auto-detects, Chirp uses this
+    # Same voice + pace for BOTH endings (one narrator) — the flat vs dramatic
+    # contrast comes from the style prompt, not a different voice.
+    tts_voice_flat: str = "Achernar"      # same voice as the optimized read
+    tts_voice_dramatic: str = "Achernar"  # soft girl voice
+    tts_rate_flat: float = 2.12        # same pace as dramatic (Chirp clamps to 2.0 max)
+    tts_rate_dramatic: float = 2.12    # 2x speed (Chirp clamps to its 2.0 max)
+    tts_max_chars: int = 1200          # cap synth input (payload + latency guard)
 
     # --- Persistence ---------------------------------------------------------
     use_firestore: bool = True

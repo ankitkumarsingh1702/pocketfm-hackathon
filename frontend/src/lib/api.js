@@ -73,6 +73,39 @@ export function getAudienceLibrary() {
 }
 
 /**
+ * GET /api/audience-sim/members -> { members[], total, limit, offset }
+ * Server-side search / filter / pagination over the persisted listener-agent
+ * population (1000s). `params` keys: q, segment, city, gender, genres[], ageMin,
+ * ageMax, hasMemory, limit, offset.
+ */
+export function getAudienceMembers(params = {}) {
+  const sp = new URLSearchParams()
+  const { q, segment, city, gender, genres, ageMin, ageMax, hasMemory, limit, offset } = params
+  if (q) sp.set('q', q)
+  if (segment) sp.set('segment', segment)
+  if (city) sp.set('city', city)
+  if (gender) sp.set('gender', gender)
+  ;(genres || []).forEach((g) => g && sp.append('genre', g))
+  if (ageMin != null) sp.set('age_min', String(ageMin))
+  if (ageMax != null) sp.set('age_max', String(ageMax))
+  if (hasMemory != null) sp.set('has_memory', String(hasMemory))
+  if (limit != null) sp.set('limit', String(limit))
+  if (offset != null) sp.set('offset', String(offset))
+  const qs = sp.toString()
+  return request(`/api/audience-sim/members${qs ? `?${qs}` : ''}`)
+}
+
+/** GET /api/audience-sim/members/facets -> { segments[], cities[], genders[], genres[], total } */
+export function getAudienceFacets() {
+  return request('/api/audience-sim/members/facets')
+}
+
+/** GET /api/audience-sim/members/{id} -> { profile, memory[], memory_count } */
+export function getAudienceMember(id) {
+  return request(`/api/audience-sim/members/${encodeURIComponent(id)}`)
+}
+
+/**
  * POST /api/audience-sim/generate -> AudienceLibrary
  * Synthesise a diverse audience of listener-agents (persisted by default).
  */
@@ -113,6 +146,22 @@ export function cliffhanger(story, weakExcerpt) {
   return request('/api/lenses/cliffhanger', {
     method: 'POST',
     body: { story, weak_excerpt: weakExcerpt },
+  })
+}
+
+/**
+ * POST /api/lenses/cliffhanger/narrate -> NarrationResult
+ *
+ * Voices both endings (base64 audio, one call) so the UI can play an audible
+ * A/B: the original read flat, the optimized cliffhanger read with dramatic,
+ * in-character tension.
+ *
+ * @param {{original:string, optimized:string}} endings
+ */
+export function narrateCliffhanger({ original, optimized }) {
+  return request('/api/lenses/cliffhanger/narrate', {
+    method: 'POST',
+    body: { original, optimized },
   })
 }
 
@@ -174,6 +223,21 @@ export function resetCanonSession(batch) {
 /** POST /api/lenses/plot-holes -> PlotHoleResult */
 export function findPlotHoles(story) {
   return request('/api/lenses/plot-holes', { method: 'POST', body: { story } })
+}
+
+/**
+ * POST /api/lenses/story-plot-holes -> StoryScanResult
+ * Scans ONE loaded show's episodes for cross-episode contradictions — story-scoped
+ * (never the seeded canon). Sends every episode's text so the result can cite the
+ * exact clashing sentence on each side, for the book / highlighter view.
+ * @param {{title:string, episodes:{label:string,text:string}[]}} story
+ */
+export function scanStoryPlotHoles(story) {
+  const episodes = (story.episodes || []).map((e) => ({ episode: e.label, text: e.text }))
+  return request('/api/lenses/story-plot-holes', {
+    method: 'POST',
+    body: { title: story.title, episodes },
+  })
 }
 
 /**

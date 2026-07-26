@@ -118,6 +118,11 @@ export function useAudienceSim() {
       title: post.title.trim() || 'Untitled post',
       text: post.text.trim(),
     }
+    // Which episode this is, and the story up to it, so agents react in
+    // continuity (episode N grounded in episodes 1..N-1). Omitted for standalone
+    // posts, where the backend falls back to shared-graph canon.
+    if (post.episode) story.episode = post.episode
+    if (post.storySoFar) story.story_so_far = post.storySoFar
     if (post.image) {
       story.image_base64 = post.image.base64
       story.image_mime = post.image.mime

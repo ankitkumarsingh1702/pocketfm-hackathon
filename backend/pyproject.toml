@@ -10,6 +10,7 @@ dependencies = [
     "pydantic-settings>=2.6",
     "google-genai>=1.0",
     "google-cloud-firestore>=2.19",
+    "google-cloud-texttospeech>=2.16",
     "anthropic[vertex]>=0.40",
     "pyyaml>=6.0.2",
     "neo4j>=5.25",

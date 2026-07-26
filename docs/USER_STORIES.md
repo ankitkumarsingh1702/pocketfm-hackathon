@@ -61,8 +61,8 @@ Simulated Studio moves that learning **before** release.
   quotes) **+ a fused consensus**.
 - **Done when:** the panel returns ≥1 expert per role and an audience verdict,
   and the consensus names the top issue and the audience's following rate.
-- **Engine mapping:** expert personas (Gemini 2.5 Pro) + audience personas
-  (Gemini 2.5 Flash) over the shared runner.
+- **Engine mapping:** expert personas (Gemini 3.1 Pro) + audience personas
+  (Gemini 3.6 Flash) over the shared runner.
 - **API:** `POST /api/lenses/writers-room` → `WritersRoomResult`
 
 ## 2. Audience Simulator 🟡 Built (UI tab pending)
@@ -124,7 +124,7 @@ Simulated Studio moves that learning **before** release.
 
 - **Flow:** build a "canon ledger" (characters, timeline, rules) from the
   episodes, then flag contradictions with locations, severity, and a fix.
-  v1 uses Gemini 2.5 Pro long context; v2 map-reduces thousands of pages.
+  v1 uses Gemini 3.1 Pro long context; v2 map-reduces thousands of pages.
 - **Done when:** returns severity-ranked issues with locations and suggested fixes.
 - **API (planned):** `POST /api/lenses/plot-holes`
 

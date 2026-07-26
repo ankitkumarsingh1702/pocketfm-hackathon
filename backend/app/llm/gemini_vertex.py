@@ -74,7 +74,7 @@ class GeminiVertexClient:
             response_schema=schema,
             max_output_tokens=settings.max_output_tokens,
         )
-        # Gemini 2.5 models consume output tokens on internal "thinking". For the
+        # Gemini models consume output tokens on internal "thinking". For the
         # fast, high-volume flash path we disable thinking so the whole token
         # budget goes to the JSON; pro keeps (bounded) thinking for quality.
         if "flash" in model_id:

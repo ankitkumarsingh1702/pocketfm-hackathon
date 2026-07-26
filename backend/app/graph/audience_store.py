@@ -321,6 +321,7 @@ async def recall_member_memory(member_id: str, limit: int = 4) -> list[dict]:
                 "MATCH (m:AudienceMember {key:$k})-[r:REACTED_TO]->(p:Post) "
                 "RETURN p.name AS post, r.sentiment AS sentiment, "
                 "  r.engagement AS engagement, r.comment AS comment, "
+                "  r.hook_score AS hook_score, r.will_listen AS will_listen, "
                 "  coalesce(r.created,0) AS created "
                 "ORDER BY created DESC LIMIT $limit",
                 k=key,
@@ -333,10 +334,201 @@ async def recall_member_memory(member_id: str, limit: int = 4) -> list[dict]:
                         "sentiment": rec.get("sentiment"),
                         "engagement": rec.get("engagement"),
                         "comment": rec.get("comment"),
+                        "hook_score": rec.get("hook_score"),
+                        "will_listen": rec.get("will_listen"),
+                        "created": rec.get("created"),
                     }
                 )
     except Exception as exc:  # noqa: BLE001 - best-effort
         logger.warning("recall_member_memory failed: %s", exc)
+    return out
+
+
+def _member_filter_clause(
+    q, segment, city, gender, genres, age_min, age_max, has_memory
+) -> tuple[str, dict]:
+    """Build a shared WHERE fragment + params for the Agent Directory queries."""
+    clauses: list[str] = []
+    params: dict = {}
+    if q:
+        clauses.append(
+            "(toLower(m.name) CONTAINS toLower($q) "
+            "OR toLower(coalesce(m.segment,'')) CONTAINS toLower($q) "
+            "OR toLower(coalesce(m.city,'')) CONTAINS toLower($q))"
+        )
+        params["q"] = q
+    if segment:
+        clauses.append("toLower(coalesce(m.segment,'')) = toLower($segment)")
+        params["segment"] = segment
+    if city:
+        clauses.append("toLower(coalesce(m.city,'')) = toLower($city)")
+        params["city"] = city
+    if gender:
+        clauses.append("toLower(coalesce(m.gender,'')) = toLower($gender)")
+        params["gender"] = gender
+    if genres:
+        clauses.append("any(g IN $genres WHERE g IN coalesce(m.genres, []))")
+        params["genres"] = list(genres)
+    if age_min is not None:
+        clauses.append("m.age IS NOT NULL AND m.age >= $age_min")
+        params["age_min"] = age_min
+    if age_max is not None:
+        clauses.append("m.age IS NOT NULL AND m.age <= $age_max")
+        params["age_max"] = age_max
+    if has_memory is not None:
+        clauses.append("(EXISTS { MATCH (m)-[:REACTED_TO]->(:Post) } = $has_memory)")
+        params["has_memory"] = bool(has_memory)
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    return where, params
+
+
+async def load_audience_members_page(
+    *,
+    limit: int = 48,
+    offset: int = 0,
+    q: str | None = None,
+    segment: str | None = None,
+    city: str | None = None,
+    gender: str | None = None,
+    genres: list[str] | None = None,
+    age_min: int | None = None,
+    age_max: int | None = None,
+    has_memory: bool | None = None,
+    source: str = "Agent Directory",
+) -> list[dict]:
+    """One filtered, sorted, paginated page of audience agents (+ memory_count)."""
+    driver = get_driver()
+    if driver is None:
+        return []
+    where, params = _member_filter_clause(
+        q, segment, city, gender, genres, age_min, age_max, has_memory
+    )
+    params.update({"limit": int(limit), "offset": int(offset)})
+    out: list[dict] = []
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            res = await session.run(
+                f"MATCH (m:AudienceMember) {where} "
+                "OPTIONAL MATCH (m)-[rr:REACTED_TO]->(:Post) "
+                "WITH m, count(rr) AS memory_count "
+                "RETURN m.key AS key, m.member_id AS member_id, m.name AS name, "
+                "  m.segment AS segment, m.age AS age, m.gender AS gender, "
+                "  m.city AS city, m.genres AS genres, m.traits AS traits, "
+                "  m.temperature AS temperature, memory_count "
+                "ORDER BY toLower(coalesce(m.name,'')), m.member_id "
+                "SKIP $offset LIMIT $limit",
+                **params,
+            )
+            async for rec in res:
+                mc = int(rec.get("memory_count") or 0)
+                out.append(
+                    {
+                        "id": rec.get("member_id") or rec["key"],
+                        "name": rec.get("name") or "Listener",
+                        "kind": "audience",
+                        "segment": rec.get("segment") or "General",
+                        "age": rec.get("age"),
+                        "gender": rec.get("gender") or "",
+                        "city": rec.get("city") or "",
+                        "genres": list(rec.get("genres") or []),
+                        "traits": list(rec.get("traits") or []),
+                        "temperature": rec.get("temperature"),
+                        "memory_count": mc,
+                        "has_memory": mc > 0,
+                    }
+                )
+        record_activity(
+            "read",
+            "load_audience_members_page",
+            source,
+            f"listed {len(out)} audience agent(s) for the directory",
+            {"members": len(out)},
+        )
+    except Exception as exc:  # noqa: BLE001 - best-effort
+        logger.warning("load_audience_members_page failed: %s", exc)
+    return out
+
+
+async def count_audience_members_filtered(
+    *,
+    q: str | None = None,
+    segment: str | None = None,
+    city: str | None = None,
+    gender: str | None = None,
+    genres: list[str] | None = None,
+    age_min: int | None = None,
+    age_max: int | None = None,
+    has_memory: bool | None = None,
+) -> int:
+    """True total matching the same filters (page-independent)."""
+    driver = get_driver()
+    if driver is None:
+        return 0
+    where, params = _member_filter_clause(
+        q, segment, city, gender, genres, age_min, age_max, has_memory
+    )
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            rec = await (
+                await session.run(
+                    f"MATCH (m:AudienceMember) {where} RETURN count(m) AS c", **params
+                )
+            ).single()
+            return int(rec["c"]) if rec else 0
+    except Exception as exc:  # noqa: BLE001 - best-effort
+        logger.warning("count_audience_members_filtered failed: %s", exc)
+        return 0
+
+
+async def get_audience_member(member_id: str) -> Persona | None:
+    """Load one audience agent's full profile (incl. system prompt)."""
+    driver = get_driver()
+    if driver is None:
+        return None
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            rec = await (
+                await session.run(
+                    "MATCH (m:AudienceMember) WHERE m.member_id=$id OR m.key=$key "
+                    "RETURN m.key AS key, m.member_id AS member_id, m.name AS name, "
+                    "  m.segment AS segment, m.age AS age, m.gender AS gender, "
+                    "  m.city AS city, m.genres AS genres, m.traits AS traits, "
+                    "  m.system_prompt AS system_prompt, m.temperature AS temperature LIMIT 1",
+                    id=member_id,
+                    key=f"AudienceMember:{_slug(member_id)}",
+                )
+            ).single()
+            return _persona_from_record(rec) if rec else None
+    except Exception as exc:  # noqa: BLE001 - best-effort
+        logger.warning("get_audience_member failed: %s", exc)
+        return None
+
+
+async def audience_facets() -> dict:
+    """Distinct filter values (segment / city / gender / genre) with counts."""
+    out: dict = {"segments": [], "cities": [], "genders": [], "genres": [], "total": 0}
+    driver = get_driver()
+    if driver is None:
+        return out
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            total = await (
+                await session.run("MATCH (m:AudienceMember) RETURN count(m) AS c")
+            ).single()
+            out["total"] = int(total["c"]) if total else 0
+            for field, key in (("segment", "segments"), ("city", "cities"), ("gender", "genders")):
+                res = await session.run(
+                    f"MATCH (m:AudienceMember) WITH coalesce(m.{field},'') AS v "
+                    "WHERE v <> '' RETURN v, count(*) AS c ORDER BY c DESC LIMIT 60"
+                )
+                out[key] = [{"value": r["v"], "count": int(r["c"])} async for r in res]
+            gres = await session.run(
+                "MATCH (m:AudienceMember) UNWIND coalesce(m.genres,[]) AS g "
+                "WITH g WHERE g <> '' RETURN g AS v, count(*) AS c ORDER BY c DESC LIMIT 60"
+            )
+            out["genres"] = [{"value": r["v"], "count": int(r["c"])} async for r in gres]
+    except Exception as exc:  # noqa: BLE001 - best-effort
+        logger.warning("audience_facets failed: %s", exc)
     return out
 
 
