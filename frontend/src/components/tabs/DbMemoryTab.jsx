@@ -6,6 +6,23 @@ import { EmptyState, ErrorState, LoadingState } from '../StateViews'
 /** Build-time fallback if the backend health payload has no browser_url. */
 const NEO4J_BROWSER_FALLBACK = import.meta.env.VITE_NEO4J_BROWSER_URL || ''
 
+/**
+ * Deep-link one canon node into the Neo4j Browser with a prefilled Cypher query
+ * that pulls up the node and its neighbourhood — so a judge can click a dot and
+ * see it live in the actual database.
+ */
+function neo4jNodeUrl(browserUrl, nodeId) {
+  if (!browserUrl || !nodeId) return null
+  const key = String(nodeId).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+  const cypher = `MATCH (n:Canon {key:'${key}'})-[r]-(m) RETURN n, r, m`
+  const arg = encodeURIComponent(cypher)
+  // Hosted Browser already carries ?connectURL=…; a self-hosted origin needs
+  // the /browser/ app path added.
+  return browserUrl.includes('?')
+    ? `${browserUrl}&cmd=edit&arg=${arg}`
+    : `${browserUrl.replace(/\/+$/, '')}/browser/?cmd=edit&arg=${arg}`
+}
+
 /** Section heading in the studio's uppercase-label style. */
 function SectionLabel({ children, style }) {
   return (
@@ -443,6 +460,7 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
   const a = activity.data
   const g = graph.data
   const firstLoad = !a && activity.loading
+  const browserUrl = (health.data && health.data.browser_url) || NEO4J_BROWSER_FALLBACK
 
   const tiles = [
     { key: 'nodes', value: g ? g.nodeCount : '—', label: 'Entities (nodes)', tone: 'ink' },
@@ -546,9 +564,17 @@ export default function DbMemoryTab({ activity, health, graph, facts, refresh, l
             )}
             {g && !g.isEmpty && (
               <>
-                <GraphLegend stats={g.stats} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                  <GraphLegend stats={g.stats} />
+                  {browserUrl && (
+                    <span style={{ fontSize: 12, color: 'var(--dim)' }}>· tap a node to open it in Neo4j</span>
+                  )}
+                </div>
                 <SurfaceCard style={{ padding: 'var(--space-4)', background: 'var(--surface-raised)' }}>
-                  <GraphCanvas data={g} />
+                  <GraphCanvas
+                    data={g}
+                    nodeHref={browserUrl ? (node) => neo4jNodeUrl(browserUrl, node.id) : undefined}
+                  />
                 </SurfaceCard>
               </>
             )}
