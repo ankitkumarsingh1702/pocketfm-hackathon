@@ -68,14 +68,21 @@ from app.schemas import (
 )
 
 app = FastAPI(title="Simulated Studio API")
-_expensive_job_lock = asyncio.Lock()
+# Bounded gate on expensive agent runs: allow up to settings.max_concurrent_runs
+# at once (was a single Lock) so concurrent demos / judges don't block one
+# another, while still capping total in-flight load. Semaphore.acquire()/
+# release() keep the existing call sites unchanged; .locked() is True when full.
+_expensive_job_lock = asyncio.Semaphore(settings.max_concurrent_runs)
 
 
 def _reject_if_expensive_job_active() -> None:
     if _expensive_job_lock.locked():
         raise HTTPException(
             status_code=429,
-            detail="Another large agent run is active. Try again after it finishes.",
+            detail=(
+                f"{settings.max_concurrent_runs} large agent runs are already in "
+                "flight. Try again in a moment."
+            ),
         )
 
 app.add_middleware(
