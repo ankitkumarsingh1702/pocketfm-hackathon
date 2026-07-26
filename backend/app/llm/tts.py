@@ -111,6 +111,7 @@ def _synth_chirp_sync(text: str, voice: str, rate: float) -> bytes:
 
     client = _get_chirp_client()
     voice_id = _chirp_voice_id(voice)
+    rate = max(0.25, min(rate, 2.0))  # Chirp speaking_rate valid range
 
     def _call(audio_config) -> bytes:
         resp = client.synthesize_speech(
