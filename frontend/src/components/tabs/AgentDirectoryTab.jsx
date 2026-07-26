@@ -361,7 +361,7 @@ export default function AgentDirectoryTab({
         }}
       >
         <p style={{ margin: 0, maxWidth: 640, fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
-          Eight reasoning agents and a cast of personas, all working over{' '}
+          {AGENTS.length} reasoning agents and a cast of personas, all working over{' '}
           <strong style={{ color: 'var(--ink)' }}>one shared knowledge graph</strong>. Each profile
           shows what the agent does, the method it runs, and its real reads and writes to that memory
           — updating live.
