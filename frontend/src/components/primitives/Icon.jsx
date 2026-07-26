@@ -39,6 +39,14 @@ const PATHS = {
       <line x1="4" y1="4" x2="9" y2="9" />
     </>
   ),
+  grid: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </>
+  ),
   menu: (
     <>
       <line x1="3" y1="6" x2="21" y2="6" />

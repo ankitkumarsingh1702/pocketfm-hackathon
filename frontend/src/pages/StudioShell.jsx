@@ -10,6 +10,7 @@ import PageHeader from '../components/layout/PageHeader'
 import StoryInput from '../components/StoryInput'
 import { Icon, Wordmark } from '../components/primitives'
 import HealthBadge from '../components/HealthBadge'
+import AgentDirectoryTab from '../components/tabs/AgentDirectoryTab'
 import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
 import CliffhangerOptimizerTab from '../components/tabs/CliffhangerOptimizerTab'
 import DbMemoryTab from '../components/tabs/DbMemoryTab'
@@ -188,6 +189,9 @@ export default function StudioShell() {
             </div>
           )}
 
+          <section className="lens-panel" hidden={activeTab !== 'agents'} aria-label="Agent Directory">
+            <AgentDirectoryTab {...studio.agentDirectory} />
+          </section>
           <section className="lens-panel" hidden={activeTab !== 'sim'} aria-label="Audience Simulator">
             <AudienceSimulatorTab {...studio.audience} />
           </section>
