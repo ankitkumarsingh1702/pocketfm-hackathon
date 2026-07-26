@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import json
 import random
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -47,9 +47,19 @@ from app.mood.store import MoodStore, axes_to_row
 
 @dataclass(slots=True)
 class WatchRecord:
+    """One thing a listener has watched.
+
+    `completed` is the only field that changes retrieval: it feeds the taste
+    centroid and hard-masks the series from results. `episodes_listened` and
+    `dropped_at_episode` are carried for display and are genuinely optional --
+    they used to be required positionally, which meant a history entry authored
+    from the documented table raised a TypeError at import time and took the
+    whole /api/mood surface down with it.
+    """
+
     series_id: str
-    episodes_listened: int
-    completed: bool
+    completed: bool = False
+    episodes_listened: int = 0
     liked: Optional[bool] = None       # explicit signal, usually absent
     dropped_at_episode: Optional[int] = None
 
@@ -97,18 +107,42 @@ class ListenerProfile:
 
 
 def load_profiles(path: str | Path) -> list[ListenerProfile]:
+    """Read the demo listener panel.
+
+    Accepts the aliases and wrappers a real panel export actually arrives with,
+    and drops unknown history keys instead of raising. A panel record carries
+    dozens of fields; `attrs` keeps all of them, but `history` rows are a fixed
+    shape, and one extra column used to be a TypeError at import time -- which
+    unmounted the whole feature rather than ignoring a field nobody reads.
+    """
     blob = json.loads(Path(path).read_text())
     if isinstance(blob, dict):
-        blob = blob.get("profiles", list(blob.values()))
-    return [
-        ListenerProfile(
-            persona_id=str(r["persona_id"]),
-            display_name=r.get("display_name") or str(r["persona_id"]),
-            attrs=r.get("attrs") or {},
-            history=[WatchRecord(**h) for h in (r.get("history") or [])],
+        for key in ("profiles", "personas"):
+            if key in blob:
+                blob = blob[key]
+                break
+        else:
+            blob = list(blob.values())
+
+    known = {f.name for f in fields(WatchRecord)}
+
+    def record(h: dict) -> WatchRecord:
+        return WatchRecord(**{k: v for k, v in h.items() if k in known})
+
+    out: list[ListenerProfile] = []
+    for r in blob:
+        pid = r.get("persona_id") or r.get("id")
+        if not pid:
+            continue  # nothing to key a listener on; skip rather than crash
+        out.append(
+            ListenerProfile(
+                persona_id=str(pid),
+                display_name=r.get("display_name") or str(pid),
+                attrs=r.get("attrs") or {},
+                history=[record(h) for h in (r.get("history") or [])],
+            )
         )
-        for r in blob
-    ]
+    return out
 
 
 def save_profiles(profiles: Sequence[ListenerProfile], path: str | Path) -> None:

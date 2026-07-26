@@ -184,7 +184,20 @@ class MoodQuery(BaseModel):
     intensity_tolerance: float = Field(0.5, ge=0.0, le=1.0)
     session_length_min: Optional[int] = None
 
-    language: str = "en"
+    language: Optional[str] = Field(
+        None,
+        description=(
+            "None = no preference, which is the correct DEFAULT. Only set this "
+            "when the listener actually asked for a language.\n\n"
+            "It is matched by exact string equality against MoodFingerprint."
+            "language, inside the un-relaxable base mask — so a value here that "
+            "no arc carries returns zero results for every query, with no error. "
+            "That is not hypothetical: it is what a default of 'en' did to any "
+            "catalog authored per the documented template, which uses 'hi'. "
+            "Hinglish is the expected input register, and a code-mixed sentence "
+            "is not evidence of a language *requirement*."
+        ),
+    )
     avoid_tags: list[str] = Field(default_factory=list)
 
     # --- cold-start additions ------------------------------------------------

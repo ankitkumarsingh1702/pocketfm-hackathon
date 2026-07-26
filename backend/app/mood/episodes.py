@@ -52,8 +52,14 @@ class Episode(BaseModel):
 
     series_id: str
     number: int = Field(ge=1)
-    title: str
-    duration_sec: int = Field(ge=0)
+    # `title` and `duration_sec` are defaulted, not required. They used to be
+    # mandatory, which meant a hand-authored `{"number": 34}` -- the exact shape
+    # the source docs invite -- raised a ValidationError at import time and, via
+    # the guard in app/main.py, took the whole /api/mood surface offline. A
+    # missing title is a cosmetic gap; it must not be a fatal one. The fallback
+    # matches what derive_stub_episodes has always produced.
+    title: str = ""
+    duration_sec: int = Field(0, ge=0)
     synopsis: Optional[str] = None
     audio_url: Optional[str] = Field(
         None,
@@ -167,10 +173,19 @@ class EpisodeStore:
                     f"but arc {fp.content_id} points at ep {fp.entry_episode}"
                 )
                 continue
-            if fp.entry_episode > total:
+            # MEMBERSHIP, not a count. Comparing entry_episode against the number
+            # of records assumes episodes are a contiguous 1..N run, which is
+            # exactly what partial authoring breaks: author eps 1 and 34 for the
+            # series you plan to demo and `total` is 2, so a perfectly valid
+            # "Start at Ep 34" gets reported as broken while the real 404 -- an
+            # entry point that has no record at all -- goes unnoticed.
+            if self.get(fp.series_id, fp.entry_episode) is None:
+                have = sorted(e.number for e in self._by_series[fp.series_id])
+                shown = have[:8] + (["…"] if len(have) > 8 else [])
                 problems.append(
-                    f"{fp.series_id}: arc {fp.content_id} points at ep "
-                    f"{fp.entry_episode} but only {total} episodes exist"
+                    f"{fp.series_id}: arc {fp.content_id} sends listeners to ep "
+                    f"{fp.entry_episode}, which has no episode record. This 404s "
+                    f"in the player. Episodes present: {shown}"
                 )
         return problems
 
@@ -225,44 +240,82 @@ def load_authored_episodes(path: str | Path) -> list[Episode]:
 
     Flat records ({"series_id": ..., "number": ...}) are accepted too, so a
     spreadsheet export works without reshaping.
+
+    Deliberately forgiving about the shapes a human actually produces:
+      * a nested episode row may repeat `series_id` (a spreadsheet export will)
+        without colliding with the block's own,
+      * unknown keys are dropped rather than raising, so an extra spreadsheet
+        column is not a fatal error,
+      * a top-level `{"episodes": [...]}` wrapper is unwrapped, matching the key
+        the validator already accepts.
+
+    All of these used to raise, and because this runs at import time the failure
+    unmounted the entire /api/mood surface for one stray column.
     """
     blob = json.loads(Path(path).read_text())
     if isinstance(blob, dict):
-        blob = blob.get("series", list(blob.values()))
+        for key in ("series", "episodes"):
+            if key in blob:
+                blob = blob[key]
+                break
+        else:
+            blob = list(blob.values())
+
+    known = set(Episode.model_fields)
+
+    def build(row: dict, series_id: str | None = None) -> Episode:
+        data = {k: v for k, v in row.items() if k in known}
+        if series_id is not None:
+            data["series_id"] = series_id
+        if not data.get("title"):
+            data["title"] = f"Episode {data.get('number')}"
+        return Episode(**data)
 
     out: list[Episode] = []
     for rec in blob:
         if "episodes" in rec:
             sid = str(rec["series_id"])
-            for ep in rec["episodes"]:
-                out.append(Episode(series_id=sid, **ep))
+            out.extend(build(ep, sid) for ep in rec["episodes"])
         else:
-            out.append(Episode(**rec))
+            out.append(build(rec))
     return out
 
 
 def build_episode_store(
     catalog: Sequence[SourceSeries], authored_path: Optional[str | Path] = None
 ) -> EpisodeStore:
-    """Authored data wins; stubs fill the rest.
+    """Authored data wins; stubs fill the gaps.
 
     Precedence matters: a series you took the trouble to write real episode
     titles for is almost certainly one you plan to demo, and a stub silently
     overwriting it would be a quiet downgrade of exactly the thing you cared
     about most.
+
+    The merge is PER EPISODE, not per series. Skipping a whole series once any of
+    it was authored punished the recommended workflow -- "author the episodes for
+    the series you demo" usually means the two or three the entry points land on,
+    and that left a 212-episode show with three playable episodes and no way to
+    scroll. Authored numbers win; every other number still gets its stub.
     """
     store = EpisodeStore()
-    authored_series: set[str] = set()
+    authored_by_series: dict[str, dict[int, Episode]] = {}
 
     if authored_path and Path(authored_path).exists():
-        authored = load_authored_episodes(authored_path)
-        authored_series = {e.series_id for e in authored}
-        store.add(authored)
+        for ep in load_authored_episodes(authored_path):
+            authored_by_series.setdefault(ep.series_id, {})[ep.number] = ep
 
     for series in catalog:
-        if series.series_id in authored_series:
-            continue
-        store.add(derive_stub_episodes(series))
+        authored = authored_by_series.pop(series.series_id, {})
+        stubs = [
+            ep for ep in derive_stub_episodes(series) if ep.number not in authored
+        ]
+        store.add(list(authored.values()) + stubs)
+
+    # Authored episodes for a series that is not in the catalog. Keep them rather
+    # than dropping silently -- the validator reports this as an error, and losing
+    # the data here would make that report look like a false positive.
+    for leftover in authored_by_series.values():
+        store.add(list(leftover.values()))
 
     return store
 

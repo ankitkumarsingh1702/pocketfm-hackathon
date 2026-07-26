@@ -67,7 +67,7 @@ Return ONLY a JSON object, no prose, no markdown fences:
   "destination": null|"sit_with"|"lift_gently"|"company"|"escape"|"make_sense_of"|"sleep",
   "intensity_tolerance": 0.0-1.0,
   "session_length_min": null|int,
-  "language": "en",
+  "language": null|str,
   "avoid_tags": [str],
   "sparsity_score": 0.0-1.0,
   "distress": true|false
@@ -85,7 +85,11 @@ common case and it is correct. Only commit when they said it.
 - Set "distress" true only for self-harm intent or wanting to stop existing. \
 Ordinary sadness, grief and heartbreak are NOT distress.
 - Hinglish is expected. Read it; do not translate the felt_state into \
-formal English if the listener's own word is more precise.\
+formal English if the listener's own word is more precise.
+- "language" is a REQUEST, not a detection. Leave it null unless the listener \
+asked for content in a specific language. Writing in Hinglish is not such a \
+request -- it is simply how they talk. This field is an exact-match filter over \
+the catalog, so guessing it returns nothing at all.\
 """
 
 
@@ -179,7 +183,11 @@ def _from_json(text: str, payload: dict) -> MoodQuery:
         destination=dest,
         intensity_tolerance=_clamp(payload.get("intensity_tolerance"), default=0.5),
         session_length_min=payload.get("session_length_min"),
-        language=payload.get("language") or "en",
+        # Deliberately NOT defaulted to "en". This is an exact-match hard filter
+        # over the catalog, so inventing a value here silently empties every
+        # shelf for any catalog that is not tagged with that exact string. Only
+        # a language the listener actually asked for belongs in this field.
+        language=payload.get("language") or None,
         avoid_tags=[str(t) for t in (payload.get("avoid_tags") or [])][:8],
         sparsity_score=_clamp(payload.get("sparsity_score"),
                               default=heuristic_sparsity(text)),

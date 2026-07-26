@@ -197,11 +197,30 @@ def merge(
 
 if __name__ == "__main__":
     import argparse
+    from pathlib import Path as _Path
 
-    ap = argparse.ArgumentParser(description="Build a catalog and fingerprint it")
+    ap = argparse.ArgumentParser(
+        description="Build a catalog, fingerprint it, and write both stores.",
+        epilog=(
+            "Run from backend/: python -m app.mood.sources --local catalog.json "
+            "--episodes episodes.json --out ./moodstore"
+        ),
+    )
     ap.add_argument("--local", help="hand-collected catalog JSON")
     ap.add_argument("--librivox", type=int, default=0, help="how many to pad with")
-    ap.add_argument("--out", default="/tmp/moodstore")
+    ap.add_argument(
+        "--episodes",
+        help="authored episodes JSON. Supplies real per-arc durations AND is "
+             "converted to the JSONL the API reads via MOOD_EPISODES.",
+    )
+    ap.add_argument("--out", default="./moodstore")
+    ap.add_argument(
+        "--allow-synthetic",
+        action="store_true",
+        help="ingest model-written series as long-tail padding. Off by default; "
+             "without it those series are skipped entirely. Never point the eval "
+             "at an index built with this on.",
+    )
     args = ap.parse_args()
 
     curated = fetch_local(args.local) if args.local else []
@@ -214,22 +233,75 @@ if __name__ == "__main__":
         raise SystemExit("nothing to ingest — pass --local and/or --librivox")
 
     from app.mood.catalog_ingest import ingest
-    from app.mood.embeddings import default_embedder
+    from app.mood.embeddings import default_embedder, describe
+    from app.mood.episodes import build_episode_store
     from app.mood.llm_client import default_client
     from app.mood.store import MoodStore
 
     client = default_client()
     if client is None:
         raise SystemExit(
-            "no LLM client — run `python3 llm_client.py` first to check ADC"
+            "no LLM client — run `python -m app.mood.llm_client` first to check ADC"
         )
 
-    fingerprints, failures = ingest(client, catalog)
-    print(f"fingerprinted {len(fingerprints)} arcs, {len(failures)} failures")
-    for cid, why in failures[:5]:
-        print(f"  {cid}: {why}")
+    # Real durations, when the episode file has them. Without this every arc gets
+    # the same placeholder length and the session-length filter cannot bite.
+    episode_seconds: dict[str, dict[int, int]] = {}
+    if args.episodes and _Path(args.episodes).exists():
+        from app.mood.episodes import load_authored_episodes
 
-    store = MoodStore(default_embedder())
+        for ep in load_authored_episodes(args.episodes):
+            if ep.duration_sec:
+                episode_seconds.setdefault(ep.series_id, {})[ep.number] = ep.duration_sec
+        print(f"durations: {sum(len(v) for v in episode_seconds.values())} episodes "
+              f"across {len(episode_seconds)} series")
+
+    fingerprints, failures = ingest(
+        client, catalog,
+        allow_synthetic=args.allow_synthetic,
+        episode_seconds=episode_seconds,
+    )
+    print(f"fingerprinted {len(fingerprints)} arcs, {len(failures)} failures")
+    # Every failure, not the first five: a skipped series is a silently missing
+    # series, and truncating the list is how you ship a catalog a third the size
+    # you think it is.
+    for cid, why in failures:
+        print(f"  X {cid}: {why}")
+
+    if not fingerprints:
+        raise SystemExit(
+            "nothing fingerprinted — every series failed. See the list above; "
+            "a model-written `source` with no --allow-synthetic is the usual cause."
+        )
+
+    embedder = default_embedder()
+    print(f"embedder: {describe(embedder)}")
+
+    store = MoodStore(embedder)
     store.add(fingerprints)
     store.save(args.out)
-    print(f"saved index to {args.out}  ->  MOOD_INDEX={args.out} uvicorn api:app")
+
+    # The episode store the API actually reads. This step did not exist, so the
+    # documented episodes.json reached nothing and every episode fell back to a
+    # numbered stub with Play disabled.
+    # Appended, not `with_suffix`, which would eat an existing dot in the path
+    # (`./mood.store` -> `./mood.episodes.jsonl`).
+    episodes_out = _Path(str(args.out).rstrip("/\\") + ".episodes.jsonl")
+    ep_store = build_episode_store(catalog, args.episodes)
+    ep_store.save(episodes_out)
+
+    problems = ep_store.validate_against(fingerprints)
+    if problems:
+        print(f"\n{len(problems)} entry points have no matching episode "
+              f"(these 404 in the player):")
+        for msg in problems[:10]:
+            print(f"  X {msg}")
+
+    print(
+        f"\nwrote:\n"
+        f"  index    {args.out}  ({len(store)} arcs)\n"
+        f"  episodes {episodes_out}  ({len(ep_store)} episodes)\n\n"
+        f"run with:\n"
+        f"  MOOD_INDEX={args.out} MOOD_EPISODES={episodes_out} \\\n"
+        f"    uvicorn app.main:app --port 8000"
+    )

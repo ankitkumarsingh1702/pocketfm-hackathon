@@ -42,7 +42,20 @@ from typing import Iterable, Optional
 from app.mood.llm_client import LLMClient
 from app.mood.schemas import MoodAxes, MoodFingerprint
 
-SYNTHETIC_SOURCES = frozenset({"synthetic", "llm", "generated", "fixture"})
+# Values of `source` that mean "a model wrote this". Kept in lockstep with
+# validate_sources.SYNTHETIC_SOURCES -- they disagreed once, and the disagreement
+# pointed the wrong way: the validator warned about "gpt"/"claude" while ingest,
+# not recognising them, accepted those series as REAL and let them into the eval
+# set. A denylist that the checker and the loader disagree about is worse than
+# none, because it reports safety it is not providing.
+SYNTHETIC_SOURCES = frozenset({
+    "synthetic", "llm", "generated", "fixture",
+    "gpt", "claude", "gemini", "openai", "model",
+})
+
+# Fallback per-episode runtime when nothing better is known. Only used to size an
+# arc; see `_arc_duration_min`.
+DEFAULT_EPISODE_SEC = 1200
 
 SYSTEM = """\
 You read a description of one arc of an audio-fiction series and describe how \
@@ -185,8 +198,39 @@ def _axes(payload: dict) -> MoodAxes:
     )
 
 
+def _arc_duration_min(
+    arc: SourceArc, episode_seconds: Optional[dict[int, int]] = None
+) -> int:
+    """How long ONE sitting in this arc is, in minutes.
+
+    This used to be the constant 22 for every arc in every catalog, which broke
+    two things quietly. Every result card in the UI read "22 min", and
+    `session_length_min` became a no-op: `store.duration_mask` compares against
+    this value, so a uniform catalog is either entirely inside the bound or
+    entirely outside it, and the entirely-outside case is then discarded by the
+    starvation guard in `Retriever._base_mask`. A filter that cannot discriminate
+    is indistinguishable from one that is not wired up.
+
+    Prefers real authored durations, falls back to a per-episode default. Reports
+    a typical EPISODE length rather than the whole arc's runtime, because that is
+    what "kitna time hai?" is asking and what the card claims.
+    """
+    if episode_seconds:
+        known = [
+            episode_seconds[n]
+            for n in range(arc.start_episode, arc.end_episode + 1)
+            if episode_seconds.get(n)
+        ]
+        if known:
+            return max(1, round(sum(known) / len(known) / 60))
+    return max(1, round(DEFAULT_EPISODE_SEC / 60))
+
+
 def fingerprint_arc(
-    client: LLMClient, series: SourceSeries, arc: SourceArc
+    client: LLMClient,
+    series: SourceSeries,
+    arc: SourceArc,
+    episode_seconds: Optional[dict[int, int]] = None,
 ) -> MoodFingerprint:
     user = "\n".join([
         f"Series: {series.title}",
@@ -210,7 +254,7 @@ def fingerprint_arc(
         or f"An arc of {series.title}.",
         good_for=[str(t) for t in (payload.get("good_for") or [])][:4],
         contraindicated_for=[str(t) for t in (payload.get("contraindicated_for") or [])][:4],
-        duration_min=22,
+        duration_min=_arc_duration_min(arc, episode_seconds),
         language=series.language,
         # Metadata-only: nothing here has been near an audio decoder. Leaving
         # this False everywhere is the honest state, and it is what keeps the
@@ -227,23 +271,39 @@ def ingest(
     source: Iterable[SourceSeries],
     allow_synthetic: bool = False,
     on_error: Optional[callable] = None,
+    episode_seconds: Optional[dict[str, dict[int, int]]] = None,
 ) -> tuple[list[MoodFingerprint], list[tuple[str, str]]]:
     """Fingerprint a whole catalog. Returns (fingerprints, failures).
 
-    Failures are returned rather than raised: one bad record in six hundred
-    must not abort a run that takes real wall-clock time.
+    Failures are returned rather than raised: one bad record in six hundred must
+    not abort a run that takes real wall-clock time. Callers MUST surface the
+    count -- a rejected series is a silently missing series, and the only signal
+    is this list.
+
+    `episode_seconds` maps series_id -> {episode number: duration_sec}, used to
+    give each arc a real duration instead of a constant. Pass the authored
+    episode data if you have it.
     """
     out: list[MoodFingerprint] = []
     failures: list[tuple[str, str]] = []
 
     for series in source:
         if series.is_synthetic and not allow_synthetic:
-            failures.append((series.series_id, "synthetic source rejected"))
+            # Whole series dropped, every arc with it. Named explicitly because
+            # the docs describe model-written padding as "allowed": it is, but
+            # only with allow_synthetic=True, and forgetting that flag looks
+            # exactly like the catalog being smaller than you thought.
+            failures.append((
+                series.series_id,
+                f"source='{series.source}' is model-written and "
+                f"allow_synthetic=False — series skipped entirely",
+            ))
             continue
         arcs = series.arcs or synthesize_arcs(series)
+        per_series = (episode_seconds or {}).get(series.series_id)
         for arc in arcs:
             try:
-                out.append(fingerprint_arc(client, series, arc))
+                out.append(fingerprint_arc(client, series, arc, per_series))
             except Exception as exc:
                 failures.append((arc.arc_id, f"{type(exc).__name__}: {exc}"))
                 if on_error:
