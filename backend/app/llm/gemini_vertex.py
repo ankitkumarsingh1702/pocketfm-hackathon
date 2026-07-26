@@ -7,13 +7,17 @@ model returns JSON that maps straight onto the caller's Pydantic model.
 
 from __future__ import annotations
 
+import base64
 import json
+import logging
 
 from google import genai
 from google.genai import types
 
 from app.config import settings
-from app.llm.base import T
+from app.llm.base import ImageInput, T
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiVertexClient:
@@ -55,6 +59,7 @@ class GeminiVertexClient:
         schema: type[T],
         temperature: float | None = None,
         model: str | None = None,
+        images: list[ImageInput] | None = None,
     ) -> T:
         """Generate JSON matching ``schema`` and return a validated instance."""
         client = self._get_client()
@@ -75,9 +80,25 @@ class GeminiVertexClient:
         if "flash" in model_id:
             config.thinking_config = types.ThinkingConfig(thinking_budget=0)
 
+        # Build the request contents. Text-only requests pass the bare prompt
+        # string (unchanged behaviour); multimodal requests build a parts list
+        # of the text plus each decoded image, so the model actually *sees* the
+        # posted picture. response_schema still applies alongside image parts.
+        contents: object = prompt
+        if images:
+            parts = [types.Part.from_text(text=prompt)]
+            for img in images:
+                try:
+                    raw = base64.b64decode(img.data)
+                except Exception:  # noqa: BLE001 - skip an undecodable image, keep the text
+                    logger.warning("Skipping undecodable image part (mime=%s)", img.mime_type)
+                    continue
+                parts.append(types.Part.from_bytes(data=raw, mime_type=img.mime_type))
+            contents = parts
+
         resp = await client.aio.models.generate_content(
             model=model_id,
-            contents=prompt,
+            contents=contents,
             config=config,
         )
         obj = resp.parsed

@@ -25,8 +25,10 @@ from app.graph.store import (
     fetch_contradiction_candidates,
     fetch_full_graph,
     ingest_extraction,
+    reset_canon_batch,
 )
 from app.lenses.audience import run_audience
+from app.lenses.audience_sim import generate_audience, list_audience, stream_audience_sim
 from app.lenses.cliffhanger import run_cliffhanger
 from app.lenses.plot_holes import find_plot_holes
 from app.lenses.showrunner import run_showrunner
@@ -35,10 +37,16 @@ from app.llm.factory import get_llm
 from app.personas.loader import load_personas
 from app.schemas import (
     ActivityFeed,
+    AudienceLibrary,
     AudienceResult,
+    AudienceSimRequest,
     CanonGraph,
+    CanonPreviewResult,
+    CanonResetRequest,
+    CanonResetResult,
     CliffhangerRequest,
     CliffhangerResult,
+    GeneratePersonasRequest,
     IngestRequest,
     IngestResult,
     MdpRequest,
@@ -150,9 +158,35 @@ async def canon_health() -> dict:
 
 
 @app.get("/api/canon/graph", response_model=CanonGraph)
-async def canon_graph() -> CanonGraph:
-    """Return the full story-canon graph (nodes + edges) for visualization."""
-    return await fetch_full_graph()
+async def canon_graph(batch: str | None = None) -> CanonGraph:
+    """Return the story-canon graph (nodes + edges) for visualization.
+
+    Pass ``batch`` to scope the view to just what that browser session ingested
+    ("your story"); omit it for the full canon (incl. the seeded demo).
+    """
+    return await fetch_full_graph(batch=batch)
+
+
+@app.post("/api/canon/preview", response_model=CanonPreviewResult)
+async def canon_preview(req: IngestRequest) -> CanonPreviewResult:
+    """Extract an episode's canon WITHOUT writing it — the live 'as you type'
+    preview that shows, in real time, the entities/facts the agents will remember.
+
+    Uses the fast audience-tier model so the preview feels responsive; the actual
+    ingest re-extracts with the stronger model for durable quality.
+    """
+    try:
+        extraction = await extract_canon(
+            req.story, get_llm(), model=settings.model_for("audience")
+        )
+        return CanonPreviewResult(
+            extraction=extraction,
+            entity_count=len(extraction.entities),
+            relation_count=len(extraction.relations),
+            fact_count=len(extraction.facts),
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/canon/ingest", response_model=IngestResult)
@@ -160,7 +194,17 @@ async def canon_ingest(req: IngestRequest) -> IngestResult:
     """Extract an episode's canon via the LLM and merge it into the graph."""
     try:
         extraction = await extract_canon(req.story, get_llm())
-        return await ingest_extraction(req.story, extraction)
+        return await ingest_extraction(req.story, extraction, batch=req.batch)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/canon/reset", response_model=CanonResetResult)
+async def canon_reset(req: CanonResetRequest) -> CanonResetResult:
+    """Clear only what THIS session ingested — never the seeded demo canon."""
+    try:
+        deleted = await reset_canon_batch(req.batch)
+        return CanonResetResult(deleted=deleted, batch=req.batch)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -183,13 +227,14 @@ async def canon_activity(limit: int = 50) -> ActivityFeed:
 
 
 @app.get("/api/canon/facts")
-async def canon_facts() -> dict:
+async def canon_facts(batch: str | None = None) -> dict:
     """Atomic canon facts + structural contradictions + dangling clues.
 
     Powers the DB / Memory "Facts tracked" drill-down. ``record=False`` so this
-    read (which the tab polls) never pollutes the activity feed.
+    read (which the tab polls) never pollutes the activity feed. Pass ``batch`` to
+    scope to just this session's story.
     """
-    return await fetch_contradiction_candidates(source="DB / Memory", record=False)
+    return await fetch_contradiction_candidates(source="DB / Memory", record=False, batch=batch)
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +303,66 @@ async def mdp_optimize_stream(req: MdpRequest) -> StreamingResponse:
         return result.model_dump()
 
     return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
+
+
+# ---------------------------------------------------------------------------
+# Audience Simulator ("Living Audience") — stateful, multimodal reaction agents
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/audience-sim/library", response_model=AudienceLibrary)
+async def audience_sim_library() -> AudienceLibrary:
+    """The persisted audience population (knowledge graph), or default archetypes."""
+    return await list_audience()
+
+
+@app.post("/api/audience-sim/generate", response_model=AudienceLibrary)
+async def audience_sim_generate(req: GeneratePersonasRequest) -> AudienceLibrary:
+    """Synthesise a diverse audience of listener-agents and persist it for reuse."""
+    try:
+        return await generate_audience(req)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/audience-sim/run/stream")
+async def audience_sim_run_stream(req: AudienceSimRequest) -> StreamingResponse:
+    """Run the Audience Simulator, streaming each agent's reaction as it lands."""
+
+    async def run(emit) -> dict:
+        return await stream_audience_sim(req, emit)
+
+    return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
+
+
+@app.get("/api/audience-sim/memory")
+async def audience_sim_memory(limit: int = 24) -> dict:
+    """The persisted listener population + each member's recently remembered
+    reactions — the judge-facing proof that the audience agents are *stateful
+    across posts* (not one-shot). Best-effort: empty when the graph is disabled.
+    """
+    from app.graph.audience_store import (
+        count_audience_members,
+        load_audience_members,
+        recall_member_memory,
+    )
+
+    members = await load_audience_members(limit=limit, source="DB / Memory")
+    total = await count_audience_members()
+    out: list[dict] = []
+    for p in members:
+        mem = await recall_member_memory(p.id, limit=3)
+        out.append({
+            "id": p.id,
+            "name": p.name,
+            "segment": p.segment,
+            "age": p.age,
+            "city": p.city,
+            "memory": mem,
+            "memory_count": len(mem),
+        })
+    remembering = sum(1 for m in out if m["memory_count"] > 0)
+    return {"members": out, "total": total, "shown": len(out), "remembering": remembering}
 
 
 # ---------------------------------------------------------------------------

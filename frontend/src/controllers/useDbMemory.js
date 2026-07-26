@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { canonHealth, getCanonActivity, getCanonFacts, getCanonGraph } from '../lib/api'
 import { toActivityView, toCanonGraphView, toFactsView } from '../utils/canon'
+import { SESSION_BATCH } from '../utils/session'
 import { useAsyncLens } from './useAsyncLens'
 
 const POLL_MS = 2500
@@ -22,6 +23,9 @@ const identity = (x) => x
  */
 export function useDbMemory(active = false) {
   const [live, setLive] = useState(true)
+  // 'all' = full canon (incl. the seeded demo); 'session' = only what THIS
+  // browser session ingested via Story Canon ("your story").
+  const [scope, setScope] = useState('all')
 
   const activity = useAsyncLens(getCanonActivity, toActivityView)
   const health = useAsyncLens(canonHealth, identity)
@@ -34,13 +38,14 @@ export function useDbMemory(active = false) {
   const { run: runFacts } = facts
 
   const refresh = useCallback(() => {
+    const batch = scope === 'session' ? SESSION_BATCH : undefined
     runActivity(ACTIVITY_LIMIT)
     runHealth()
-    runGraph()
-    runFacts()
-  }, [runActivity, runHealth, runGraph, runFacts])
+    runGraph(batch)
+    runFacts(batch)
+  }, [runActivity, runHealth, runGraph, runFacts, scope])
 
-  // Load immediately when the tab opens; then poll while live.
+  // Load immediately when the tab opens or the scope changes; then poll while live.
   useEffect(() => {
     if (!active) return undefined
     refresh()
@@ -49,5 +54,5 @@ export function useDbMemory(active = false) {
     return () => clearInterval(id)
   }, [active, live, refresh])
 
-  return { activity, health, graph, facts, refresh, live, setLive }
+  return { activity, health, graph, facts, refresh, live, setLive, scope, setScope }
 }

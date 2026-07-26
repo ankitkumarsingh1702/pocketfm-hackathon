@@ -15,11 +15,11 @@ from collections.abc import Callable
 from pydantic import BaseModel
 
 from app.config import settings
+from app.engine.audience_panel import resolve_reward_panel
 from app.engine.cache import Cache
 from app.engine.runner import run_reactions
 from app.graph.store import canon_fingerprint, fetch_canon_subgraph, render_canon_memory
 from app.llm.base import LLMClient
-from app.personas.loader import fan_out_audience, load_personas
 from app.schemas import PersonaReaction, PlanCandidate, Persona, SearchTree, Story
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,12 @@ async def beam_search(
     """Beam-search cliffhanger rewrites, scoring each on the audience panel."""
     canon = render_canon_memory(await fetch_canon_subgraph(story, source="Cliffhanger Planner"))
     canon_fp = canon_fingerprint(canon)
-    panel = fan_out_audience(load_personas("audience"), min(12, settings.audience_fanout))
+    # Score against the persisted "Living Audience" population when it exists, so
+    # the search tree is grounded in the same stateful listeners the user sees on
+    # the Audience tab (falls back to the built-in roster when none is saved).
+    panel, audience_source = await resolve_reward_panel(
+        min(12, settings.audience_fanout), "Cliffhanger Planner"
+    )
     audience_model = settings.model_for("audience")
 
     async def score(ending: str) -> float:
@@ -86,7 +91,12 @@ async def beam_search(
             on_event(event)
 
     baseline = await score(weak_excerpt)
-    emit({"type": "baseline", "score": baseline})
+    emit({
+        "type": "baseline",
+        "score": baseline,
+        "audience_source": audience_source,
+        "panel_size": len(panel),
+    })
 
     candidates: list[PlanCandidate] = [
         PlanCandidate(id="root", text=weak_excerpt, hook_score=baseline, delta=0.0, parent_id=None, depth=0)
@@ -126,4 +136,11 @@ async def beam_search(
             break
 
     best = max(candidates, key=lambda c: c.hook_score)
-    return SearchTree(candidates=candidates, best_id=best.id, rounds=depth, baseline_score=baseline)
+    return SearchTree(
+        candidates=candidates,
+        best_id=best.id,
+        rounds=depth,
+        baseline_score=baseline,
+        audience_source=audience_source,
+        panel_size=len(panel),
+    )

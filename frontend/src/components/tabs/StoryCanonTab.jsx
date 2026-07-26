@@ -3,6 +3,7 @@ import { AGENT_NODES, AGENT_NODE_LABELS } from '../../utils/canon'
 import HowItWorks from '../HowItWorks'
 import { Button, GraphCanvas, GraphLegend, MetricNumber, SurfaceCard, Tabs } from '../primitives'
 import { EmptyState, ErrorState, LoadingState } from '../StateViews'
+import StoryPicker from '../StoryPicker'
 
 /** Plain-language "input → what the AI does → output" for each canon panel. */
 const HOW_IT_WORKS = {
@@ -77,7 +78,155 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
-/** Composer: title/episode/text + the "Ingest episode" action. */
+/** Type label + display order for extracted entities. */
+const ENTITY_GROUPS = [
+  ['Character', 'Characters'],
+  ['Location', 'Locations'],
+  ['PlotThread', 'Plot threads'],
+  ['Clue', 'Clues'],
+  ['Theme', 'Themes'],
+]
+
+const chip = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12.5,
+  fontWeight: 600,
+  color: 'var(--ink)',
+  background: 'var(--surface-raised)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-pill)',
+  padding: '4px 11px',
+  lineHeight: 1.3,
+}
+
+/** One extracted entity group (e.g. "Characters · 3" + name chips). */
+function EntityGroup({ label, items }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <SectionLabel style={{ fontSize: 10 }}>
+        {label} · {items.length}
+      </SectionLabel>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {items.map((e) => (
+          <span key={e.key || e.name} style={chip} title={e.description || ''}>
+            {e.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Live "as you type" extraction — shows, in real time, the entities, connections,
+ * and atomic facts the agents will remember from THIS script. Nothing is written
+ * until you ingest; this is the proof the canon is built from your own words.
+ */
+function LiveExtractionPanel({ preview }) {
+  const { loading, data, error } = preview
+  if (!loading && !data && !error) return null
+
+  const ex = data?.extraction
+  const entities = ex?.entities || []
+  const relations = ex?.relations || []
+  const facts = ex?.facts || []
+  const nameByKey = {}
+  for (const e of entities) nameByKey[e.key] = e.name
+
+  const byType = {}
+  for (const e of entities) (byType[e.type] || (byType[e.type] = [])).push(e)
+  const groups = [
+    ...ENTITY_GROUPS.filter(([t]) => byType[t]?.length).map(([t, l]) => [l, byType[t]]),
+    ...Object.keys(byType)
+      .filter((t) => !ENTITY_GROUPS.some(([k]) => k === t))
+      .map((t) => [t, byType[t]]),
+  ]
+  const hasContent = entities.length > 0 || facts.length > 0
+  const firstLoad = loading && !data
+
+  return (
+    <SurfaceCard style={{ marginTop: 4, background: 'var(--surface)' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+        <SectionLabel style={{ fontSize: 11 }}>Live extraction · what the agents will remember</SectionLabel>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+          {firstLoad
+            ? 'reading your script…'
+            : data
+              ? `${data.entity_count} entities · ${data.relation_count} connections · ${data.fact_count} facts${loading ? ' · updating…' : ''}`
+              : ''}
+        </span>
+      </div>
+
+      {firstLoad && <LoadingState label="Extracting canon from your script…" />}
+      {error && !data && (
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          Live preview unavailable right now — ingesting still works.
+        </span>
+      )}
+      {data && !hasContent && !loading && (
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          No structured canon found yet — name a character, place, or a concrete detail and it will appear here.
+        </span>
+      )}
+
+      {hasContent && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {groups.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {groups.map(([label, items]) => (
+                <EntityGroup key={label} label={label} items={items} />
+              ))}
+            </div>
+          )}
+
+          {relations.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <SectionLabel style={{ fontSize: 10 }}>Connections · {relations.length}</SectionLabel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {relations.slice(0, 6).map((r, i) => (
+                  <div key={i} style={{ fontSize: 13, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600 }}>{nameByKey[r.source_key] || r.source_key}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent-text-sm)' }}>
+                      {r.type.replace(/_/g, ' ').toLowerCase()}
+                    </span>
+                    <span style={{ color: 'var(--dim)' }}>→</span>
+                    <span style={{ fontWeight: 600 }}>{nameByKey[r.target_key] || r.target_key}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {facts.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <SectionLabel style={{ fontSize: 10 }}>Atomic facts · {facts.length}</SectionLabel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {facts.slice(0, 12).map((f, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: '8px 12px',
+                      border: '1px solid var(--border)',
+                      borderLeft: '3px solid var(--accent)',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--surface-raised)',
+                      fontSize: 13, color: 'var(--ink)', lineHeight: 1.45,
+                    }}
+                  >
+                    <strong>{nameByKey[f.subject_key] || f.subject_key}</strong>{' '}
+                    <span style={{ color: 'var(--muted)' }}>· {f.predicate} =</span> {f.object}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </SurfaceCard>
+  )
+}
+
+/** Composer: title/episode/text + the "Ingest episode" action + live preview. */
 function CanonComposer({
   title,
   setTitle,
@@ -90,10 +239,38 @@ function CanonComposer({
   canIngest,
   ingestResult,
   ingestError,
+  preview,
+  isSample,
+  clearText,
+  loadStory,
+  resetSession,
+  resetting,
 }) {
   return (
     <SurfaceCard>
-      <SectionLabel style={{ marginBottom: 14 }}>Build the canon</SectionLabel>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+        <SectionLabel>Build the canon</SectionLabel>
+        {isSample && (
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            Showing a sample script ·{' '}
+            <button
+              type="button"
+              onClick={clearText}
+              style={{
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                font: 'inherit', color: 'var(--accent-text-sm)', fontWeight: 600,
+              }}
+            >
+              clear and write your own
+            </button>
+          </span>
+        )}
+      </div>
+      {loadStory && (
+        <div style={{ marginBottom: 14 }}>
+          <StoryPicker onSelect={loadStory} label="Load a ready-made story into the canon" />
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <input
           style={{ ...inputStyle, flex: '2 1 220px' }}
@@ -114,7 +291,7 @@ function CanonComposer({
         style={{ ...inputStyle, minHeight: 160, resize: 'vertical', lineHeight: 1.6 }}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Paste an episode script — its characters, clues, and plot threads become canon."
+        placeholder="Paste an episode script — its characters, clues, and plot threads become canon as you type."
         aria-label="Episode script"
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
@@ -123,13 +300,31 @@ function CanonComposer({
         </Button>
         {ingestResult && (
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-            Added <strong style={{ color: 'var(--ink)' }}>{ingestResult.nodes_added}</strong> nodes,{' '}
-            <strong style={{ color: 'var(--ink)' }}>{ingestResult.edges_added}</strong> edges
+            Wrote <strong style={{ color: 'var(--ink)' }}>{ingestResult.nodes_added}</strong> nodes,{' '}
+            <strong style={{ color: 'var(--ink)' }}>{ingestResult.edges_added}</strong> edges,{' '}
+            <strong style={{ color: 'var(--ink)' }}>{ingestResult.facts_added ?? 0}</strong> facts to shared memory
             {ingestResult.entities?.length ? ` · ${ingestResult.entities.slice(0, 6).join(', ')}` : ''}
           </span>
         )}
+        {ingestResult && (
+          <button
+            type="button"
+            onClick={resetSession}
+            disabled={resetting}
+            style={{
+              background: 'none', border: 'none', padding: 0,
+              cursor: resetting ? 'default' : 'pointer',
+              font: 'inherit', fontSize: 13, color: 'var(--muted)', textDecoration: 'underline',
+            }}
+            title="Removes only what you added this session — the demo canon is untouched"
+          >
+            {resetting ? 'Clearing…' : "Clear this session's canon"}
+          </button>
+        )}
         {ingestError && <span style={{ fontSize: 13, color: 'var(--danger)' }}>{ingestError}</span>}
       </div>
+
+      <LiveExtractionPanel preview={preview} />
     </SurfaceCard>
   )
 }
@@ -288,6 +483,48 @@ function PlotHolesPanel({ plotHoles, runPlotHoles }) {
   )
 }
 
+/**
+ * Shows whether a planning lens scored against the persisted "Living Audience"
+ * population (the same stateful listeners on the Audience tab) or the built-in
+ * default archetypes — i.e. the persona↔machinery wiring, made visible.
+ */
+function AudienceSourceBadge({ source, panelSize }) {
+  if (!source) return null
+  const living = source === 'living'
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 11.5,
+        fontWeight: 600,
+        color: living ? 'var(--red-ink)' : 'var(--muted)',
+        background: living ? 'var(--danger-bg)' : 'var(--surface-raised)',
+        border: `1px solid ${living ? 'var(--danger)' : 'var(--border)'}`,
+        borderRadius: 'var(--radius-pill)',
+        padding: '3px 11px',
+      }}
+      title={
+        living
+          ? 'Scored against the persisted Living Audience — the same stateful listeners from the Audience tab.'
+          : 'No saved audience yet — scored against built-in listeners. Generate an audience to ground this in your real population.'
+      }
+    >
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          background: living ? 'var(--danger)' : 'var(--dim)',
+        }}
+      />
+      {living ? 'Reward model: Living Audience' : 'Reward model: default archetypes'}
+      {panelSize ? ` · ${panelSize} listeners` : ''}
+    </span>
+  )
+}
+
 /** Cliffhanger Planner panel — streamed audience-scored beam search. */
 function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner }) {
   const ranked = [...planner.candidates].sort((a, b) => b.hookScore - a.hookScore)
@@ -301,10 +538,11 @@ function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner }) {
         onChange={(e) => setWeakExcerpt(e.target.value)}
         aria-label="Weak ending"
       />
-      <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <Button onClick={runPlanner} disabled={planner.running}>
           {planner.running ? 'Searching…' : 'Search cliffhangers'}
         </Button>
+        <AudienceSourceBadge source={planner.audienceSource} panelSize={planner.panelSize} />
       </div>
 
       {planner.error && <ErrorState message={planner.error} />}
@@ -370,6 +608,7 @@ function ShowrunnerPanel({ agent, runAgent }) {
         <Button onClick={runAgent} disabled={agent.running}>
           {agent.running ? 'Agent running…' : 'Run showrunner agent'}
         </Button>
+        <AudienceSourceBadge source={agent.audienceSource} panelSize={agent.panelSize} />
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>
           One agent: ingest → check continuity → simulate → decide → fix → re-simulate → converge
         </span>
@@ -460,7 +699,104 @@ function RewardCurve({ baseline, steps }) {
   )
 }
 
-/** MDP Optimizer panel — policy search with the audience as the reward model. */
+/** Candidate Q-values for one MDP step; the chosen (argmax) action is highlighted. */
+function QChips({ values, chosenReward }) {
+  if (!values || values.length === 0) return null
+  const max = Math.max(...values)
+  const target = chosenReward ?? max
+  let marked = false
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      {values.map((q, i) => {
+        // Highlight the single chosen action (first value equal to the target).
+        const chosen = !marked && q === target
+        if (chosen) marked = true
+        return (
+          <span
+            key={i}
+            title={chosen ? 'Chosen action (argmax reward)' : 'Candidate action Q-value'}
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              fontWeight: 600,
+              color: chosen ? 'var(--red-ink)' : 'var(--muted)',
+              background: chosen ? 'var(--danger-bg)' : 'var(--surface-raised)',
+              border: `1px solid ${chosen ? 'var(--danger)' : 'var(--border)'}`,
+              borderRadius: 'var(--radius-sm)',
+              padding: '2px 8px',
+            }}
+          >
+            {q}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Per-iteration MDP trace: the state, the candidate Q-values scored on the
+ *  audience, and the discounted one-step look-ahead value of the chosen action. */
+function MdpSteps({ steps, discount }) {
+  if (!steps || steps.length === 0) return null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <SectionLabel style={{ fontSize: 10 }}>Policy trace · state → actions → value</SectionLabel>
+      {steps.map((s) => (
+        <div
+          key={s.iteration}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            padding: '10px 14px',
+            border: '1px solid var(--border)',
+            borderLeft: '3px solid var(--accent)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-raised)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span className="label-upper" style={{ fontSize: 10 }}>
+              Step {s.iteration}
+            </span>
+            {s.state && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)' }}>
+                {s.state}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Q(s,a):</span>
+            <QChips values={s.qValues} chosenReward={s.reward} />
+          </div>
+          {s.qChosen != null && (
+            <div style={{ fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.5 }}>
+              <span style={{ color: 'var(--muted)' }}>Q(s,a*) = reward + γ·V(s′) = </span>
+              <strong style={{ fontFamily: 'var(--font-mono)' }}>{s.reward}</strong>
+              {s.valueNext != null && discount != null && (
+                <>
+                  {' '}
+                  + {discount}·<strong style={{ fontFamily: 'var(--font-mono)' }}>{s.valueNext}</strong>
+                </>
+              )}
+              {' = '}
+              <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-text-sm)' }}>
+                {s.qChosen}
+              </strong>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * MDP Optimizer panel — a finite-horizon MDP: the state transitions each step,
+ * the audience simulator is the reward model, and the chosen action's value uses
+ * a discounted (γ) one-step Bellman look-ahead. Q-values, state, and the
+ * discounted return are all surfaced so the "MDP" is provable, not just a label.
+ */
 function MdpPanel({ mdp, runMdp }) {
   const lift = mdp.final != null && mdp.baseline != null ? Math.round((mdp.final - mdp.baseline) * 10) / 10 : null
   return (
@@ -469,10 +805,11 @@ function MdpPanel({ mdp, runMdp }) {
         <Button onClick={runMdp} disabled={mdp.running}>
           {mdp.running ? 'Optimizing…' : 'Run policy search'}
         </Button>
-        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-          State = canon + audience · Action = candidate beat · Reward = simulated hook score
-        </span>
+        <AudienceSourceBadge source={mdp.audienceSource} panelSize={mdp.panelSize} />
       </div>
+      <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+        State = story-so-far + canon · Action = candidate beat · Reward = simulated hook · γ look-ahead
+      </span>
 
       {mdp.error && <ErrorState message={mdp.error} />}
 
@@ -493,10 +830,23 @@ function MdpPanel({ mdp, runMdp }) {
                 </SectionLabel>
               </div>
             )}
+            {mdp.discountedReturn != null && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <MetricNumber value={mdp.discountedReturn} size="md" tone="ink" />
+                <SectionLabel style={{ fontSize: 10 }}>Discounted return</SectionLabel>
+              </div>
+            )}
           </div>
+          {(mdp.policy || mdp.discount != null) && (
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {mdp.policy ? `policy: ${mdp.policy}` : ''}
+              {mdp.discount != null ? `${mdp.policy ? ' · ' : ''}discount γ = ${mdp.discount}` : ''}
+            </span>
+          )}
           <SurfaceCard style={{ padding: 'var(--space-4)' }}>
             <RewardCurve baseline={mdp.baseline} steps={mdp.steps} />
           </SurfaceCard>
+          <MdpSteps steps={mdp.steps} discount={mdp.discount} />
         </>
       )}
 

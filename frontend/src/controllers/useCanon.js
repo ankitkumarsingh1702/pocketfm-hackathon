@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { DEFAULT_STORY_META, SAMPLE_STORY } from '../config/constants'
 import {
@@ -7,8 +7,11 @@ import {
   ingestCanon,
   mdpOptimizeStream,
   planCliffhangerStream,
+  previewCanon,
+  resetCanonSession,
   showrunnerStream,
 } from '../lib/api'
+import { SESSION_BATCH } from '../utils/session'
 import {
   emptyAgent,
   emptyMdp,
@@ -48,13 +51,44 @@ export function useCanon() {
     loadGraph()
   }, [loadGraph])
 
+  // --- Live "as you type" extraction preview -------------------------------
+  // Debounced, extract-only call so the composer shows, in real time, the
+  // entities/facts the agents will remember from the script — proof this is the
+  // user's own text becoming canon, not a canned demo. Nothing is written.
+  const [preview, setPreview] = useState({ loading: false, data: null, error: null })
+  const previewToken = useRef(0)
+  const lastPreviewed = useRef('')
+  useEffect(() => {
+    const trimmed = text.trim()
+    if (trimmed.length < 24) {
+      setPreview({ loading: false, data: null, error: null })
+      lastPreviewed.current = ''
+      return undefined
+    }
+    if (trimmed === lastPreviewed.current) return undefined
+    const handle = setTimeout(async () => {
+      const id = ++previewToken.current
+      setPreview((p) => ({ ...p, loading: true, error: null }))
+      try {
+        const res = await previewCanon({ title, episode, text })
+        if (id !== previewToken.current) return
+        lastPreviewed.current = trimmed
+        setPreview({ loading: false, data: res, error: null })
+      } catch (err) {
+        if (id !== previewToken.current) return
+        setPreview({ loading: false, data: null, error: err.message || 'Preview failed' })
+      }
+    }, 900)
+    return () => clearTimeout(handle)
+  }, [text, title, episode])
+
   const ingest = useCallback(async () => {
     if (isBlank(text)) return
     setIngesting(true)
     setIngestError(null)
     setIngestResult(null)
     try {
-      const res = await ingestCanon({ title, episode, text })
+      const res = await ingestCanon({ title, episode, text }, SESSION_BATCH)
       setIngestResult(res)
       await loadGraph()
     } catch (err) {
@@ -63,6 +97,27 @@ export function useCanon() {
       setIngesting(false)
     }
   }, [text, title, episode, loadGraph])
+
+  // Clear only what this session ingested — never the seeded demo canon.
+  const [resetting, setResetting] = useState(false)
+  const resetSession = useCallback(async () => {
+    setResetting(true)
+    try {
+      await resetCanonSession(SESSION_BATCH)
+      setIngestResult(null)
+      await loadGraph()
+    } catch {
+      /* best-effort; the graph reload will reflect whatever actually happened */
+    } finally {
+      setResetting(false)
+    }
+  }, [loadGraph])
+
+  // Replace the built-in sample with a blank slate for the user's own story.
+  const clearText = useCallback(() => {
+    setText('')
+    setIngestResult(null)
+  }, [])
 
   // --- Plot Hole Hunter (graph-grounded) ---
   const plotHoles = useAsyncLens(findPlotHoles, toPlotHolesView)
@@ -73,6 +128,16 @@ export function useCanon() {
 
   // --- Cliffhanger planner (streaming beam search) ---
   const [weakExcerpt, setWeakExcerpt] = useState(lastScene(SAMPLE_STORY))
+
+  // Load a ready-made story from the static library into every field at once
+  // (declared after weakExcerpt so it can seed the planner's soft ending too).
+  const loadStory = useCallback((story) => {
+    setTitle(story.title || DEFAULT_STORY_META.title)
+    setEpisode(story.episode || DEFAULT_STORY_META.episode)
+    setText(story.text || '')
+    setWeakExcerpt(lastScene(story.text || ''))
+    setIngestResult(null)
+  }, [])
   const [planner, setPlanner] = useState(emptyPlanner())
   const runPlanner = useCallback(async () => {
     if (isBlank(text) || isBlank(weakExcerpt)) return
@@ -133,6 +198,14 @@ export function useCanon() {
     ingestResult,
     ingestError,
     canIngest: !isBlank(text) && !ingesting,
+    // live preview + session controls
+    preview,
+    resetSession,
+    resetting,
+    clearText,
+    loadStory,
+    isSample: text === SAMPLE_STORY,
+    sessionBatch: SESSION_BATCH,
     // planning
     plotHoles,
     runPlotHoles,

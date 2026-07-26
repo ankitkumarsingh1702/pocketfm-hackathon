@@ -13,14 +13,25 @@ import hashlib
 
 from app.config import settings
 from app.engine.cache import Cache
-from app.llm.base import LLMClient
+from app.llm.base import ImageInput, LLMClient
 from app.schemas import Persona, PersonaReaction, Story
 
 
 def _story_hash(story: Story) -> str:
-    """Stable hash of a story's identity for cache keying."""
-    raw = story.title + (story.episode or "") + story.text
+    """Stable hash of a story's identity for cache keying.
+
+    Includes any attached image so an image-bearing run never replays a
+    reaction cached for the text-only version of the same story.
+    """
+    raw = story.title + (story.episode or "") + story.text + (story.image_base64 or "")
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def story_images(story: Story) -> list[ImageInput] | None:
+    """Return the story's attached image as an LLM vision part, or ``None``."""
+    if story.image_base64:
+        return [ImageInput(data=story.image_base64, mime_type=story.image_mime or "image/png")]
+    return None
 
 
 # Natural-language wording for the persona's gender in the reaction preamble.
@@ -62,20 +73,14 @@ def persona_fingerprint(persona: Persona) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def build_reaction_prompt(
-    persona: Persona, story: Story, canon: str | None = None
-) -> tuple[str, str]:
-    """Return the ``(system, user)`` prompt pair for one persona + story.
+def persona_preamble(persona: Persona) -> str:
+    """A natural-language identity preamble built from a persona's own fields.
 
-    A natural demographic preamble built from the persona's own fields is
-    prepended to its system prompt so that edits to age/gender/city/genres
-    visibly change how the listener reacts. Each fragment is guarded on its
-    field, so a sparse persona still yields a clean sentence.
-
-    When ``canon`` is provided (the story-bible memory from the knowledge
-    graph), it is appended to the user turn so the listener reacts as someone
-    who remembers earlier episodes. Passing ``None`` reproduces the original,
-    memory-free prompt byte-for-byte.
+    Produces e.g. ``"You are Aarav, a 27-year-old man from Mumbai. You mostly
+    enjoy thriller, crime. "``. Each fragment is guarded on its field so a sparse
+    persona still yields a clean sentence. Shared by the audience lens and the
+    Audience Simulator's agent loop so demographic edits change behaviour
+    identically in both.
     """
     # Identity sentence: "You are <name>, a <age>-year-old <gender> from <city>."
     identity = f"You are {persona.name}"
@@ -94,6 +99,24 @@ def build_reaction_prompt(
     genres = [g.strip() for g in persona.genres if g and g.strip()]
     if genres:
         preamble += "You mostly enjoy " + ", ".join(genres) + ". "
+    return preamble
+
+
+def build_reaction_prompt(
+    persona: Persona, story: Story, canon: str | None = None
+) -> tuple[str, str]:
+    """Return the ``(system, user)`` prompt pair for one persona + story.
+
+    A natural demographic preamble built from the persona's own fields is
+    prepended to its system prompt so that edits to age/gender/city/genres
+    visibly change how the listener reacts.
+
+    When ``canon`` is provided (the story-bible memory from the knowledge
+    graph), it is appended to the user turn so the listener reacts as someone
+    who remembers earlier episodes. Passing ``None`` reproduces the original,
+    memory-free prompt byte-for-byte.
+    """
+    preamble = persona_preamble(persona)
 
     system = (
         preamble
@@ -102,6 +125,11 @@ def build_reaction_prompt(
     )
     episode = story.episode or ""
     user = "TITLE: " + story.title + " EPISODE: " + episode + " SCRIPT:\n" + story.text
+    if story.image_base64:
+        user += (
+            "\n\n(An image is attached to this post — look at it and react to what "
+            "you SEE, not just the text.)"
+        )
     if canon:
         user += "\n\nWHAT YOU REMEMBER SO FAR:\n" + canon
     user += "\n\nReact now."
@@ -158,7 +186,12 @@ async def run_reactions(
 
         async with sem:
             reaction = await llm.structured(
-                system, user, PersonaReaction, temperature=persona.temperature, model=model
+                system,
+                user,
+                PersonaReaction,
+                temperature=persona.temperature,
+                model=model,
+                images=story_images(story),
             )
 
         if cache is not None and key is not None:

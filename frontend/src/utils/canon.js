@@ -258,14 +258,28 @@ export function toPlotHolesView(result) {
 
 /** Fresh planner state for the streaming reducer. */
 export function emptyPlanner() {
-  return { running: false, error: null, baseline: null, candidates: [], best: null, rounds: 0 }
+  return {
+    running: false,
+    error: null,
+    baseline: null,
+    candidates: [],
+    best: null,
+    rounds: 0,
+    audienceSource: null, // "living" (persisted KG audience) | "default"
+    panelSize: 0,
+  }
 }
 
 /** Fold one streamed beam-search event into planner state (pure). */
 export function reducePlanner(state, ev) {
   switch (ev.type) {
     case 'baseline':
-      return { ...state, baseline: ev.score }
+      return {
+        ...state,
+        baseline: ev.score,
+        audienceSource: ev.audience_source ?? state.audienceSource,
+        panelSize: ev.panel_size ?? state.panelSize,
+      }
     case 'candidate_scored':
       return {
         ...state,
@@ -292,6 +306,8 @@ export function reducePlanner(state, ev) {
         running: false,
         baseline: tree.baseline_score ?? state.baseline,
         rounds: tree.rounds ?? state.rounds,
+        audienceSource: tree.audience_source ?? state.audienceSource,
+        panelSize: tree.panel_size ?? state.panelSize,
         best: best
           ? { id: best.id, text: best.text, hookScore: best.hook_score, delta: best.delta }
           : null,
@@ -329,7 +345,16 @@ export const AGENT_NODE_LABELS = {
 export function emptyAgent() {
   const nodes = {}
   for (const n of AGENT_NODES) nodes[n] = { status: 'pending', detail: '' }
-  return { running: false, error: null, nodes, log: [], decision: null, result: null }
+  return {
+    running: false,
+    error: null,
+    nodes,
+    log: [],
+    decision: null,
+    result: null,
+    audienceSource: null, // "living" (persisted KG audience) | "default"
+    panelSize: 0,
+  }
 }
 
 /** Fold one streamed showrunner event into agent state (pure). */
@@ -337,7 +362,11 @@ export function reduceAgent(state, ev) {
   const nodes = { ...state.nodes }
   switch (ev.type) {
     case 'run_started':
-      return state
+      return {
+        ...state,
+        audienceSource: ev.audience_source ?? state.audienceSource,
+        panelSize: ev.panel_size ?? state.panelSize,
+      }
     case 'node_started':
       nodes[ev.node] = { ...(nodes[ev.node] || {}), status: 'running' }
       return { ...state, nodes }
@@ -398,17 +427,37 @@ export function toActivityView(result) {
 // --- MDP policy search -----------------------------------------------------
 
 export function emptyMdp() {
-  return { running: false, error: null, baseline: null, steps: [], final: null, best: null }
+  return {
+    running: false,
+    error: null,
+    baseline: null,
+    steps: [],
+    final: null,
+    best: null,
+    audienceSource: null, // "living" (persisted KG audience) | "default"
+    panelSize: 0,
+    discount: null, // γ used in the Bellman look-ahead
+    discountedReturn: null, // Σ γ^t · reward_t along the chosen trajectory
+    policy: null,
+  }
 }
 
 /** Fold one streamed MDP event into policy-search state (pure). */
 export function reduceMdp(state, ev) {
   switch (ev.type) {
     case 'baseline':
-      return { ...state, baseline: ev.reward }
+      return {
+        ...state,
+        baseline: ev.reward,
+        audienceSource: ev.audience_source ?? state.audienceSource,
+        panelSize: ev.panel_size ?? state.panelSize,
+        discount: ev.discount ?? state.discount,
+      }
     case 'iteration_done':
       return {
         ...state,
+        discount: ev.discount ?? state.discount,
+        discountedReturn: ev.discounted_return ?? state.discountedReturn,
         steps: [
           ...state.steps,
           {
@@ -416,6 +465,9 @@ export function reduceMdp(state, ev) {
             reward: ev.reward,
             bestReward: ev.best_reward,
             qValues: ev.q_values || [],
+            qChosen: ev.q_chosen ?? null, // Q(s,a*) = reward + γ·V(s')
+            valueNext: ev.value_next ?? null, // V(s') from the one-step look-ahead
+            state: ev.state || '',
             preview: ev.preview,
           },
         ],
@@ -428,6 +480,10 @@ export function reduceMdp(state, ev) {
         baseline: r.baseline_reward ?? state.baseline,
         final: r.final_reward ?? state.final,
         best: r.best_action_text ?? state.best,
+        policy: r.policy ?? state.policy,
+        discount: r.discount ?? state.discount,
+        discountedReturn: r.discounted_return ?? state.discountedReturn,
+        audienceSource: r.audience_source ?? state.audienceSource,
       }
     }
     case 'error':
