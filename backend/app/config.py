@@ -107,6 +107,11 @@ class Settings(BaseSettings):
     planner_panel_default: int = 1000
     planner_scout_default: int = 100
     planner_finalists_default: int = 3
+    # Pace the high-volume paired-comparison calls below the shared Vertex
+    # request quota. Concurrency still hides individual response latency, while
+    # start-rate pacing prevents a fast 1,000-agent burst from dropping agents.
+    planner_requests_per_second: float = 5.0
+    planner_max_retries: int = 6
 
     # --- RL / MDP (policy search over story decisions) -----------------------
     mdp_discount: float = 0.85

@@ -7,6 +7,7 @@ from app.engine.cliffhanger_swarm import (
     build_cliffhanger_prompt,
     ci95,
     mean_score,
+    retry_delay_seconds,
     stratified_sample,
 )
 from app.engine.search import beam_search
@@ -55,6 +56,17 @@ def test_score_math_and_stratified_sample():
     ]
     sample = stratified_sample(members, 2)
     assert {member.segment for member in sample} == {"Metro", "Town"}
+
+
+def test_retry_delay_uses_longer_quota_backoff(monkeypatch):
+    monkeypatch.setattr(
+        "app.engine.cliffhanger_swarm.random.random",
+        lambda: 0.5,
+    )
+
+    assert retry_delay_seconds(Exception("429 RESOURCE_EXHAUSTED"), 0) == 7.5
+    assert retry_delay_seconds(Exception("temporary 503"), 0) == 0.75
+    assert retry_delay_seconds(Exception("429 RESOURCE_EXHAUSTED"), 8) == 45.0
 
 
 def test_prompt_explains_paired_context_and_memory():

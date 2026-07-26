@@ -40,6 +40,35 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 
 
+class RequestPacer:
+    """Space provider request starts while preserving concurrent in-flight work."""
+
+    def __init__(self, requests_per_second: float) -> None:
+        self._interval = 1.0 / max(0.1, requests_per_second)
+        self._next_start = 0.0
+        self._lock = asyncio.Lock()
+
+    async def wait(self) -> None:
+        loop = asyncio.get_running_loop()
+        async with self._lock:
+            now = loop.time()
+            start_at = max(now, self._next_start)
+            self._next_start = start_at + self._interval
+            delay = start_at - now
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+
+def retry_delay_seconds(error: Exception, attempt: int) -> float:
+    """Return quota-aware exponential backoff with full positive jitter."""
+    message = str(error).upper()
+    rate_limited = "429" in message or "RESOURCE_EXHAUSTED" in message
+    base = min(30.0, 5.0 * (2**attempt)) if rate_limited else min(
+        8.0, 0.5 * (2**attempt)
+    )
+    return base + random.random() * base
+
+
 def mean_score(ratings: list[CliffhangerRating]) -> float:
     return (
         round(sum(r.hook_score for r in ratings) / len(ratings), 1) if ratings else 0.0
@@ -156,6 +185,7 @@ async def _one_verdict(
     cache: Cache,
     model: str,
     semaphore: asyncio.Semaphore,
+    pacer: RequestPacer,
 ) -> tuple[CliffhangerAgentVerdict, bool]:
     expected_real = {candidate_id for candidate_id, _ in alternatives}
     seed_raw = f"{member.id}|{_alternatives_fingerprint(alternatives)}"
@@ -198,9 +228,10 @@ async def _one_verdict(
         member, story, weak_excerpt, blinded_alternatives, canon, memory
     )
     last_error: Exception | None = None
-    for attempt in range(settings.sim_max_retries + 1):
+    for attempt in range(settings.planner_max_retries + 1):
         try:
             async with semaphore:
+                await pacer.wait()
                 verdict = await llm.structured(
                     system=system,
                     prompt=prompt,
@@ -225,10 +256,9 @@ async def _one_verdict(
             return verdict, False
         except Exception as exc:  # noqa: BLE001 - retry provider/shape failures
             last_error = exc
-            if attempt >= settings.sim_max_retries:
+            if attempt >= settings.planner_max_retries:
                 break
-            delay = 0.5 * (2**attempt)
-            await asyncio.sleep(delay + random.random() * delay)
+            await asyncio.sleep(retry_delay_seconds(exc, attempt))
     assert last_error is not None
     raise last_error
 
@@ -249,6 +279,7 @@ async def run_cliffhanger_panel(
 ) -> tuple[dict[str, list[tuple[Persona, CliffhangerRating]]], int, int]:
     """Rate every alternative with every member and stream honest progress."""
     semaphore = asyncio.Semaphore(settings.sim_concurrency)
+    pacer = RequestPacer(settings.planner_requests_per_second)
     total = len(members)
     ratings: dict[str, list[tuple[Persona, CliffhangerRating]]] = {
         candidate_id: [] for candidate_id, _ in alternatives
@@ -268,6 +299,7 @@ async def run_cliffhanger_panel(
             cache=cache,
             model=model,
             semaphore=semaphore,
+            pacer=pacer,
         )
         return member, verdict, cached
 
