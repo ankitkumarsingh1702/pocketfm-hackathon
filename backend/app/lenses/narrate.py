@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import re
 
 from app.config import settings
 from app.engine.cache import Cache
@@ -45,7 +46,11 @@ async def _clip(
     cache: Cache,
 ) -> NarrationClip:
     """Synthesize (or replay from cache) one narrated ending."""
-    text = (text or "").strip()[: settings.tts_max_chars]
+    text = (text or "").strip()
+    # Drop a leading scene label ("Scene 8:" / "दृश्य 8:") so the narration reads
+    # the line itself, not the marker.
+    text = re.sub(r"^\s*(scene|दृश्य)\s*\d+\s*[:：.\-–—]\s*", "", text, flags=re.IGNORECASE)
+    text = text[: settings.tts_max_chars]
     if not text:
         # Nothing to voice — return a silent placeholder rather than erroring the
         # pair, so the other clip still plays.

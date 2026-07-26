@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     tts_engine: str = "auto"           # "auto" (Gemini→Chirp) | "chirp" | "gemini"
     tts_model: str = "gemini-2.5-flash-preview-tts"
     tts_location: str = "us-central1"  # preview-TTS region may differ; override if 404
-    tts_language_code: str = "en-US"
+    tts_language_code: str = "hi-IN"   # Hindi/Hinglish stories; Gemini auto-detects, Chirp uses this
     tts_voice_flat: str = "Vindemiatrix"  # soft, even girl voice — the passive original read
     tts_voice_dramatic: str = "Achernar"  # soft girl voice — the dramatic optimized read
     tts_rate_flat: float = 0.98

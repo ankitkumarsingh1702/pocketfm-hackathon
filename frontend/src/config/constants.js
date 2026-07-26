@@ -39,15 +39,15 @@ export const LENSES = [
     blurb:
       "Rewrites your ending and A/B tests the hook lift against the listener panel — then lets you hear the difference, the flat original versus the dramatic cut.",
   },
-  {
-    id: "planner",
-    path: "/planner",
-    label: "Cliffhanger Planner",
-    icon: "sparkles",
-    title: "Cliffhanger Planner",
-    blurb:
-      "Searches a tree of possible endings with a 1,000-agent panel and ranks them by hook lift — the strongest cliffhanger, found by search.",
-  },
+  // {
+  //   id: "planner",
+  //   path: "/planner",
+  //   label: "Cliffhanger Planner",
+  //   icon: "sparkles",
+  //   title: "Cliffhanger Planner",
+  //   blurb:
+  //     "Searches a tree of possible endings with a 1,000-agent panel and ranks them by hook lift — the strongest cliffhanger, found by search.",
+  // },
   {
     id: "room",
     path: "/writers-room",
