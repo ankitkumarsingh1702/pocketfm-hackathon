@@ -168,7 +168,7 @@ async def run_writers_room(
     cache = Cache(settings.cache_dir)
 
     # Ground both panels in the story canon (knowledge-graph memory) when present.
-    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon = render_canon_memory(await fetch_canon_subgraph(story, source="Writers' Room"))
     canon_fp = canon_fingerprint(canon)
     expert_prompt = "Critique this audio-drama episode for craft.\n" + _story_text(story)
     if canon:
@@ -219,6 +219,7 @@ async def run_writers_room(
                 "following_pct": verdict.following_pct,
                 "avg_hook": verdict.avg_engagement,
             }],
+            source="Writers' Room",
         )
     return result
 
@@ -249,7 +250,7 @@ async def stream_writers_room(
     audience_model = settings.model_for("audience")
 
     # Ground both panels in the story canon (knowledge-graph memory) when present.
-    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon = render_canon_memory(await fetch_canon_subgraph(story, source="Writers' Room"))
     canon_key = canon_fingerprint(canon)
     expert_prompt = "Critique this audio-drama episode for craft.\n" + _story_text(story)
     if canon:
@@ -398,6 +399,7 @@ async def stream_writers_room(
             "following_pct": verdict.following_pct,
             "avg_hook": verdict.avg_engagement,
         }],
+        source="Writers' Room",
     )
     yield {
         "type": "done",

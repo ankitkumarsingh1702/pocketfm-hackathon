@@ -1,7 +1,60 @@
 import { CANON_PANELS } from '../../config/constants'
 import { AGENT_NODES, AGENT_NODE_LABELS } from '../../utils/canon'
-import { Button, GraphCanvas, MetricNumber, SurfaceCard, Tabs } from '../primitives'
+import HowItWorks from '../HowItWorks'
+import { Button, GraphCanvas, GraphLegend, MetricNumber, SurfaceCard, Tabs } from '../primitives'
 import { EmptyState, ErrorState, LoadingState } from '../StateViews'
+
+/** Plain-language "input → what the AI does → output" for each canon panel. */
+const HOW_IT_WORKS = {
+  graph: [
+    { title: 'Paste an episode script', body: 'Drop in an episode — its story becomes structured memory.' },
+    {
+      title: 'The AI extracts the canon',
+      body: 'An LLM pulls out characters, clues, and facts and merges them into the graph as nodes and edges.',
+    },
+    { title: 'Every agent reads it', body: 'This shared memory is what each agent reads before it reacts.' },
+  ],
+  holes: [
+    { title: 'Paste an episode', body: 'Drop in the new episode script you want to publish.' },
+    {
+      title: 'Cross-check the whole canon',
+      body:
+        'We read every fact from all past episodes in the graph and catch contradictions between ' +
+        'far-apart episodes — the continuity a human can’t hold across thousands of pages.',
+    },
+    { title: 'Get ranked fixes', body: 'Each issue cites the exact clashing episodes and a concrete fix.' },
+  ],
+  planner: [
+    { title: 'Give a soft ending', body: 'Paste the episode and the weak ending to improve.' },
+    {
+      title: 'Search & score endings',
+      body:
+        'The AI writes several alternative endings and scores each on a simulated listener panel, ' +
+        'keeping the best and improving them — a search tree.',
+    },
+    { title: 'Take the winner', body: 'The highest-scoring cliffhanger, with its hook-score lift.' },
+  ],
+  agent: [
+    { title: 'Give an episode', body: 'Paste the episode (and optionally a weak beat to fix).' },
+    {
+      title: 'The agent runs the loop',
+      body:
+        'One agent reads canon → checks continuity → simulates the audience → decides if listeners ' +
+        'will drop off → rewrites → re-tests — until it converges.',
+    },
+    { title: 'Get a fixed cut', body: 'A higher-retention rewrite, with the lift and contradictions fixed.' },
+  ],
+  mdp: [
+    { title: 'Give a beat to improve', body: 'Paste the episode and the ending/beat to optimize.' },
+    {
+      title: 'The AI learns by trying',
+      body:
+        'It treats “which next beat?” as a decision: it tries candidate beats, scores each by ' +
+        'simulated audience reaction (the reward), and keeps picking better ones over a few rounds.',
+    },
+    { title: 'Take the best beat', body: 'The beat with the highest reward, plus how the reward climbed.' },
+  ],
+}
 
 /** Section heading in the studio's uppercase-label style. */
 function SectionLabel({ children, style }) {
@@ -22,41 +75,6 @@ const inputStyle = {
   padding: '10px 12px',
   width: '100%',
   boxSizing: 'border-box',
-}
-
-/** Dot colour per node type, matching GraphCanvas. */
-const LEGEND_DOT = {
-  Episode: 'var(--accent)',
-  Character: 'var(--ink)',
-  AudienceSegment: 'var(--accent)',
-  Fact: 'var(--dim)',
-}
-
-function Legend({ stats }) {
-  const types = Object.keys(stats).filter((k) => k !== 'edges')
-  if (!types.length) return null
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-      {types.map((t) => (
-        <span
-          key={t}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--muted)' }}
-        >
-          <span
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: LEGEND_DOT[t] || 'var(--surface-raised)',
-              border: `1.5px solid ${LEGEND_DOT[t] || 'var(--ink)'}`,
-              flexShrink: 0,
-            }}
-          />
-          {t} · {stats[t]}
-        </span>
-      ))}
-    </div>
-  )
 }
 
 /** Composer: title/episode/text + the "Ingest episode" action. */
@@ -160,8 +178,8 @@ function CanonGraphPanel({ graph, refresh }) {
         amnesiac.
       </p>
 
-      <Legend stats={stats} />
-      <SurfaceCard style={{ padding: 'var(--space-4)' }}>
+      <GraphLegend stats={stats} />
+      <SurfaceCard style={{ padding: 'var(--space-4)', background: 'var(--surface-raised)' }}>
         <GraphCanvas data={graph.data} />
       </SurfaceCard>
     </div>
@@ -172,6 +190,18 @@ const SEVERITY = {
   high: { color: 'var(--danger)', label: 'High' },
   medium: { color: 'var(--warning)', label: 'Medium' },
   low: { color: 'var(--muted)', label: 'Low' },
+}
+
+/** Pale-red pill that makes the cross-episode citation (e.g. "Ep 4 ↔ Ep 41") pop. */
+const CITE_PILL = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'var(--red-ink)',
+  background: 'var(--danger-bg)',
+  border: '1px solid var(--danger)',
+  borderRadius: 'var(--radius-pill)',
+  padding: '2px 10px',
+  letterSpacing: '0.02em',
 }
 
 function SeverityTag({ severity }) {
@@ -206,8 +236,8 @@ function PlotHolesPanel({ plotHoles, runPlotHoles }) {
         </Button>
         {data && (
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-            {data.canonUsed ? 'Grounded in the canon graph' : 'Canon empty — text-only scan'} ·{' '}
-            {data.episodesScanned} episode(s) in canon
+            {data.canonUsed ? 'Grounded in the canon graph' : 'Canon empty — text-only scan'} · cross-checked{' '}
+            {data.episodesScanned} episodes · {data.factsScanned} facts · ≈{data.pagesEstimate} pages
           </span>
         )}
       </div>
@@ -222,13 +252,19 @@ function PlotHolesPanel({ plotHoles, runPlotHoles }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {data.holes.map((h, i) => (
             <SurfaceCard key={i}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
                 <SeverityTag severity={h.severity} />
                 <span className="label-upper" style={{ fontSize: 10 }}>
                   {h.kind}
                 </span>
-                {h.location && (
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>· {h.location}</span>
+                {h.episodes?.length >= 2 ? (
+                  <span style={CITE_PILL} title="Contradiction found across these episodes">
+                    {h.episodes.join(' ↔ ')}
+                  </span>
+                ) : (
+                  h.location && (
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>· {h.location}</span>
+                  )
                 )}
               </div>
               <p style={{ margin: '0 0 8px', fontSize: 14, color: 'var(--ink)', lineHeight: 1.55 }}>
@@ -483,12 +519,14 @@ export default function StoryCanonTab(props) {
   const { activePanel, setActivePanel, graph, refresh } = props
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingTop: 32 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingTop: 4 }}>
       <CanonComposer {...props} />
 
       {CANON_PANELS.length > 1 && (
         <Tabs tabs={CANON_PANELS} active={activePanel} onChange={setActivePanel} />
       )}
+
+      {HOW_IT_WORKS[activePanel] && <HowItWorks steps={HOW_IT_WORKS[activePanel]} />}
 
       {activePanel === 'graph' && <CanonGraphPanel graph={graph} refresh={refresh} />}
       {activePanel === 'holes' && (

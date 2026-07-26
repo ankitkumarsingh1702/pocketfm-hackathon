@@ -12,18 +12,18 @@
   color-scheme: light;
 
   --ui-bg: var(--canvas, #ffffff);
-  --ui-ink: var(--ink, #0e0e0e);
+  --ui-ink: var(--ink, #111111);
   --ui-ink-muted: var(--muted, #626262);
   --ui-ink-subtle: var(--dim, #8a8a8a);
-  --ui-surface: var(--surface, #f6f6f6);
-  --ui-line: var(--border, #e6e6e6);
+  --ui-surface: var(--surface, #f8f8f6);
+  --ui-line: var(--border, #e8e8e5);
 
-  /* Accent inherits the shell's brand red; pale tints are literals for surfaces. */
-  --ui-red: var(--accent, #e50914);
+  /* Accent inherits the shell's soft red; pale tints are literals for surfaces. */
+  --ui-red: var(--accent, #e96b6b);
   --ui-red-soft: #fdecec;
   --ui-red-line: #f4b8b8;
-  --ui-red-ink: var(--accent-text-sm, #b00610);
-  --ui-black-hover: #292929;
+  --ui-red-ink: var(--accent-text-sm, #a93636);
+  --ui-black-hover: var(--cta-hover, #292929);
 
   --ui-font: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
   --ui-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);

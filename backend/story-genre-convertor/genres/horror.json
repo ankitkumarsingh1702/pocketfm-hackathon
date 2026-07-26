@@ -1,0 +1,24 @@
+{
+  "name": "horror",
+  "premise": "The world is not safe and was never safe; the protagonist has only just noticed.",
+  "obligatory_beats": [
+    "an early wrongness the protagonist explains away with a reasonable theory",
+    "a moment where retreat was still possible and is declined",
+    "the thing is understood too late to act on the understanding"
+  ],
+  "pacing_curve": "Long, quiet opening. Withhold. Compress hard in the last third — sentences shorten as control is lost.",
+  "sensory_palette": [
+    "sound in rooms that should be empty",
+    "textures that are almost right",
+    "the specific quality of light in a place at the wrong hour",
+    "cold that arrives before its cause"
+  ],
+  "pov_distance": "Close third, slightly unreliable. The reader should notice what the narrator is refusing to notice.",
+  "dialogue_register": "Clipped and evasive. People talk around the thing rather than naming it. Silences carry weight.",
+  "taboo_moves": [
+    "explaining the mechanism — how it works is never as frightening as that it works",
+    "a comic beat that releases accumulated tension",
+    "reassurance from a character who turns out to be right",
+    "gore standing in for dread"
+  ]
+}

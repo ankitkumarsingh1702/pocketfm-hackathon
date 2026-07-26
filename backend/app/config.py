@@ -68,8 +68,21 @@ class Settings(BaseSettings):
     neo4j_username: str = "neo4j"
     neo4j_password: str = ""
     neo4j_database: str = "neo4j"
+    # Optional explicit "open the graph in a browser" URL for the DB / Memory
+    # tab's demo link. When unset it is derived from ``neo4j_uri`` (see
+    # ``graph_browser_url``). Point it at your Aura console / instance if you
+    # want the arrow to deep-link somewhere specific.
+    neo4j_browser_url: str = ""
     # Upper bound on the canon-memory text injected into a persona/expert prompt.
     canon_max_chars: int = 2000
+
+    # --- DB activity feed (judge-facing proof of shared memory) --------------
+    # Every graph read/write is recorded into a small in-process ring buffer so
+    # the "DB / Memory" tab can show, live, that agents read shared memory and
+    # write their verdicts back. Purely observational and best-effort — never
+    # affects engine behaviour.
+    use_activity_log: bool = True
+    activity_log_max: int = 200
 
     # --- Simulation ----------------------------------------------------------
     # Number of audience listeners to fan out to for a "representative 1000".
@@ -93,6 +106,42 @@ class Settings(BaseSettings):
     def graph_configured(self) -> bool:
         """True when Neo4j connection details are present (URI + password)."""
         return bool(self.neo4j_uri and self.neo4j_password)
+
+    @property
+    def graph_browser_url(self) -> str:
+        """A best-effort URL to open the Neo4j graph in a browser, for demos.
+
+        An explicit ``neo4j_browser_url`` wins. Otherwise derive it from the
+        connection URI so the "Open in Neo4j" link just works:
+
+        * local instance            -> the bundled Browser on :7474
+        * self-hosted plain ``bolt://HOST`` -> that server's own Browser at
+          ``http://HOST:7474`` (a TLS-hosted Browser can't talk to an
+          unencrypted bolt endpoint, so this is the reliable target)
+        * Aura / TLS (``+s`` schemes or ``*.databases.neo4j.io``) -> the hosted
+          Neo4j Browser pre-targeted at this instance
+
+        The user still authenticates in Neo4j itself — no credentials are ever
+        put in the link. Empty when the graph isn't configured.
+        """
+        if self.neo4j_browser_url:
+            return self.neo4j_browser_url
+        uri = self.neo4j_uri.strip()
+        if not uri:
+            return ""
+        from urllib.parse import quote
+
+        scheme = uri.split("://", 1)[0].lower() if "://" in uri else ""
+        host = uri.split("://", 1)[-1]          # drop scheme
+        host = host.split("/", 1)[0]            # drop any path
+        host = host.rsplit("@", 1)[-1]          # drop any embedded credentials
+        hostname = host.split(":", 1)[0]        # drop any port
+        if hostname in ("localhost", "127.0.0.1", "0.0.0.0", ""):
+            return "http://localhost:7474"
+        secure = scheme.endswith(("+s", "+ssc")) or hostname.endswith(".databases.neo4j.io")
+        if secure:
+            return f"https://browser.neo4j.io/?connectURL={quote(uri, safe='')}"
+        return f"http://{hostname}:7474"
 
     def model_for(self, tier: str) -> str:
         """Resolve the model id for a lens ``tier`` ('audience'|'experts'|'rewrite').

@@ -89,6 +89,16 @@ export function getCanonGraph() {
   return request('/api/canon/graph')
 }
 
+/** GET /api/canon/activity -> { events: ActivityEvent[] } (recent reads/writes) */
+export function getCanonActivity(limit = 100) {
+  return request(`/api/canon/activity?limit=${limit}`)
+}
+
+/** GET /api/canon/facts -> { facts[], conflicts[], dangling_clues[], episode_count } */
+export function getCanonFacts() {
+  return request('/api/canon/facts')
+}
+
 /**
  * POST /api/canon/ingest -> IngestResult
  * @param {{title:string, episode:string, text:string}} story

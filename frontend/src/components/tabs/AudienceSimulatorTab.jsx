@@ -63,7 +63,7 @@ export default function AudienceSimulatorTab({ loading, error, data }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 48, paddingTop: 40 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 48, paddingTop: 8 }}>
       <div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 28, flexWrap: 'wrap' }}>
           <MetricNumber value={continueRate} suffix="%" size="hero" tone="accent" />
@@ -73,12 +73,8 @@ export default function AudienceSimulatorTab({ loading, error, data }) {
           </div>
         </div>
         <SectionLabel style={{ marginTop: 8, fontSize: 13 }}>
-          Overall Continue-Rate · Across {formatInt(data.total)} Simulated Listeners
+          Overall continue-rate · across {formatInt(data.total)} simulated listeners
         </SectionLabel>
-        <p style={{ margin: '10px 0 0', fontSize: 14, color: 'var(--muted)', maxWidth: 560 }}>
-          Audience Simulator: thousands of AI listeners react to this story before it ever
-          reaches a real one.
-        </p>
       </div>
 
       {data.dropOff.length > 0 && (

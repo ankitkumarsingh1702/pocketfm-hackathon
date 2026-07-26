@@ -23,30 +23,30 @@ export default function Wordmark({
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
         <span
+          className="pfm-rise"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontWeight: 800,
+            fontWeight: 650,
             fontSize: size * 0.85,
-            letterSpacing: '-0.01em',
+            letterSpacing: 'var(--tracking-tight)',
+            lineHeight: 1.15,
             color: 'var(--ink)',
-            textTransform: 'uppercase',
             display: 'inline-block',
-            animation: 'pfm-wordmark-in 600ms ease both',
+            whiteSpace: 'nowrap',
           }}
         >
           {title}
         </span>
         {subtitle && (
           <span
+            className="pfm-rise pfm-rise--late"
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 600,
-              fontSize: Math.max(12, size * 0.42),
-              letterSpacing: '0.06em',
-              color: 'var(--ink)',
-              opacity: 0.55,
+              fontFamily: 'var(--font-sans)',
+              fontWeight: 500,
+              fontSize: Math.max(11, size * 0.55),
+              color: 'var(--muted)',
               display: 'inline-block',
-              animation: 'pfm-wordmark-in 600ms ease 120ms both',
+              whiteSpace: 'nowrap',
             }}
           >
             {subtitle}

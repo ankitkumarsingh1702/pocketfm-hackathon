@@ -1,0 +1,24 @@
+{
+  "name": "anime",
+  "premise": "Interior conviction is external and loud; what a person decides about themselves changes what they can do.",
+  "obligatory_beats": [
+    "a stated principle the protagonist will be forced to test",
+    "a moment of resolve articulated aloud or in direct interior address",
+    "an opponent whose position is comprehensible and nearly sympathetic"
+  ],
+  "pacing_curve": "Held stillness, then sudden expansion. Slow the frame right before a decision; let the decision itself take a full paragraph.",
+  "sensory_palette": [
+    "weather as emotional weather — rain at the turn, wind before a choice",
+    "food shared as a way of saying something else",
+    "the physical detail of a familiar place seen for the last time",
+    "hands, shoulders, the set of a jaw"
+  ],
+  "pov_distance": "Close third with declared interiority. Thought is permitted to be direct and unironic.",
+  "dialogue_register": "Earnest and declarative. Characters name their values out loud. Formality marks relationships; a dropped honorific is an event.",
+  "taboo_moves": [
+    "irony undercutting a sincere moment",
+    "power described in numbers rather than in cost",
+    "an antagonist with no position of their own",
+    "a resolve speech that the following scene does not make expensive"
+  ]
+}

@@ -3,6 +3,13 @@
 # ---- Stage 1: build the React (Vite) frontend ----
 FROM node:20-slim AS frontend
 WORKDIR /fe
+# Pin the exact npm that generated package-lock.json (via
+# `npx -y npm@11.18.0 install --package-lock-only`). npm versions disagree on
+# optional platform-dependency subtrees (@emnapi/* under the wasm bindings), and
+# macOS npm skips validating other platforms' subtrees — so a lockfile that
+# passes `npm ci` locally can still fail here. Regenerate the lockfile with this
+# same pinned version, and verify with `npx -y npm@11.18.0 ci --dry-run`.
+RUN npm install -g npm@11.18.0
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./

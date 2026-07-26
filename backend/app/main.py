@@ -14,13 +14,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
+from app.db.activity import get_recent_activity_durable
 from app.engine.cache import Cache
 from app.engine.mdp import policy_search
 from app.engine.search import beam_search
 from app.engine.streaming import ndjson_events
 from app.graph.driver import graph_enabled, graph_probe
 from app.graph.extract import extract_canon
-from app.graph.store import fetch_full_graph, ingest_extraction
+from app.graph.store import (
+    fetch_contradiction_candidates,
+    fetch_full_graph,
+    ingest_extraction,
+)
 from app.lenses.audience import run_audience
 from app.lenses.cliffhanger import run_cliffhanger
 from app.lenses.plot_holes import find_plot_holes
@@ -29,6 +34,7 @@ from app.lenses.writers_room import run_writers_room, stream_writers_room
 from app.llm.factory import get_llm
 from app.personas.loader import load_personas
 from app.schemas import (
+    ActivityFeed,
     AudienceResult,
     CanonGraph,
     CliffhangerRequest,
@@ -136,7 +142,11 @@ async def writers_room_stream(req: WritersRoomRequest) -> StreamingResponse:
 @app.get("/api/canon/health")
 async def canon_health() -> dict:
     """Report whether the knowledge graph is configured and live-reachable."""
-    return {"configured": settings.graph_configured, "online": await graph_probe()}
+    return {
+        "configured": settings.graph_configured,
+        "online": await graph_probe(),
+        "browser_url": settings.graph_browser_url,
+    }
 
 
 @app.get("/api/canon/graph", response_model=CanonGraph)
@@ -153,6 +163,33 @@ async def canon_ingest(req: IngestRequest) -> IngestResult:
         return await ingest_extraction(req.story, extraction)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/canon/activity", response_model=ActivityFeed)
+async def canon_activity(limit: int = 50) -> ActivityFeed:
+    """Recent knowledge-graph reads/writes — live proof agents share memory.
+
+    Each event names the agent (``source``), whether it read or wrote, and a
+    human-readable detail. Reads from the durable Neo4j log so the counts survive
+    a cold start / redeploy. Feeds the DB / Memory tab; observational only.
+    """
+    events, totals = await get_recent_activity_durable(limit)
+    return ActivityFeed(
+        events=events,
+        reads=totals["reads"],
+        writes=totals["writes"],
+        total=totals["total"],
+    )
+
+
+@app.get("/api/canon/facts")
+async def canon_facts() -> dict:
+    """Atomic canon facts + structural contradictions + dangling clues.
+
+    Powers the DB / Memory "Facts tracked" drill-down. ``record=False`` so this
+    read (which the tab polls) never pollutes the activity feed.
+    """
+    return await fetch_contradiction_candidates(source="DB / Memory", record=False)
 
 
 # ---------------------------------------------------------------------------
@@ -253,9 +290,32 @@ except Exception as _mood_err:  # noqa: BLE001 - never let mood take the API dow
 # declared above. When no build is present (local dev), this is a no-op.
 import os  # noqa: E402,F401
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from app.config import BACKEND_DIR  # noqa: E402
 
 static_dir = BACKEND_DIR / "static"
+
+
+class SpaStaticFiles(StaticFiles):
+    """Static files with an SPA fallback: unknown paths serve index.html.
+
+    The frontend routes its lenses client-side (/audience, /genre, ...), so a
+    reload or deep link on any of those paths must land on the app shell
+    rather than a 404.
+    """
+
+    async def get_response(self, path: str, scope):
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            return await super().get_response("index.html", scope)
+        if response.status_code == 404:
+            return await super().get_response("index.html", scope)
+        return response
+
+
 if static_dir.is_dir():
-    app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="spa")
+    app.mount("/", SpaStaticFiles(directory=str(static_dir), html=True), name="spa")

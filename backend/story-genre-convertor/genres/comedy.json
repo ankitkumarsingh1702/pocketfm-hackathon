@@ -1,0 +1,24 @@
+{
+  "name": "comedy",
+  "premise": "Everyone is behaving reasonably given what they believe, and what they believe is wrong.",
+  "obligatory_beats": [
+    "a small dignified lie told to avoid a minor embarrassment",
+    "an escalation where the sensible fix is somehow unavailable",
+    "the moment the whole structure is visible to everyone at once"
+  ],
+  "pacing_curve": "Brisk. Set the rule, break the rule, break it again worse. Land the last beat one line earlier than expected.",
+  "sensory_palette": [
+    "objects behaving badly at the worst time",
+    "institutional furniture, forms, queues",
+    "food and drink at inconvenient moments",
+    "clothing that will not cooperate"
+  ],
+  "pov_distance": "Slightly wider third — enough distance to see the character's dignity and the gap between it and the facts.",
+  "dialogue_register": "Over-formal under pressure. People get more polite as things get worse. Specific nouns; specificity is the joke.",
+  "taboo_moves": [
+    "characters who know they are funny",
+    "explaining a joke in the sentence after it",
+    "cruelty without consequence — the target must keep their dignity",
+    "whimsy standing in for a constructed situation"
+  ]
+}

@@ -63,7 +63,7 @@ async def run_cliffhanger(story: Story, weak_excerpt: str) -> CliffhangerResult:
     audience_model = settings.model_for("audience")
     # Same canon for both A/B runs (memory is the show's, not the excerpt's), so
     # only the rewritten ending differs between before/after.
-    canon = render_canon_memory(await fetch_canon_subgraph(story))
+    canon = render_canon_memory(await fetch_canon_subgraph(story, source="Cliffhanger"))
     canon_fp = canon_fingerprint(canon)
     before_pairs = await run_reactions(
         panel, before_story, llm, cache, model=audience_model, canon=canon, canon_fp=canon_fp

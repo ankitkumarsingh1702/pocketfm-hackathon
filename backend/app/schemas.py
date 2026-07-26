@@ -212,6 +212,7 @@ class CanonEdgeView(BaseModel):
     source: str                          # source node id
     target: str                          # target node id
     type: str                            # relation type, e.g. 'APPEARS_IN'
+    detail: str = ""                     # how/why the connection was made (edge prop)
 
 
 class CanonGraph(BaseModel):
@@ -231,6 +232,27 @@ class IngestResult(BaseModel):
     entities: list[str] = Field(default_factory=list)     # names ingested, for the UI
 
 
+class ActivityEvent(BaseModel):
+    """One recorded read/write against the canon graph (for the DB / Memory tab)."""
+
+    seq: int                             # monotonic sequence number
+    ts: float                            # unix timestamp
+    op: Literal["read", "write", "skipped"]
+    fn: str                              # store function that ran
+    source: str                          # agent/lens that triggered it
+    detail: str                          # human-readable sentence
+    counts: dict[str, float] = Field(default_factory=dict)  # nodes/edges/segments…
+
+
+class ActivityFeed(BaseModel):
+    events: list[ActivityEvent] = Field(default_factory=list)
+    # True totals across ALL persisted events (not just the returned page), so
+    # the DB / Memory tiles reflect the full durable history.
+    reads: int = 0
+    writes: int = 0
+    total: int = 0
+
+
 # ---------------------------------------------------------------------------
 # Planning — Tree & Graph Search (plot-hole detection + cliffhanger beam search)
 # ---------------------------------------------------------------------------
@@ -245,12 +267,15 @@ class PlotHole(BaseModel):
     description: str
     evidence: list[str] = Field(default_factory=list)     # supporting canon facts / quotes
     fix: str = Field(description="A concrete suggested fix.")
+    episodes: list[str] = Field(default_factory=list)     # episodes this issue spans, e.g. ["Ep 4","Ep 41"]
 
 
 class PlotHoleResult(BaseModel):
     holes: list[PlotHole] = Field(default_factory=list)
     canon_used: bool = False                              # were graph facts available?
     episodes_scanned: int = 0                             # episodes present in the canon
+    facts_scanned: int = 0                                # total canon facts cross-checked
+    pages_estimate: int = 0                               # ≈ script pages the canon represents
 
 
 class PlanCandidate(BaseModel):
