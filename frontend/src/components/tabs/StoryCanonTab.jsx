@@ -3,6 +3,7 @@ import { AGENT_NODES, AGENT_NODE_LABELS } from '../../utils/canon'
 import HowItWorks from '../HowItWorks'
 import { Button, GraphCanvas, GraphLegend, MetricNumber, SurfaceCard, Tabs } from '../primitives'
 import { EmptyState, ErrorState, LoadingState } from '../StateViews'
+import StoryPicker from '../StoryPicker'
 
 /** Plain-language "input → what the AI does → output" for each canon panel. */
 const HOW_IT_WORKS = {
@@ -241,6 +242,7 @@ function CanonComposer({
   preview,
   isSample,
   clearText,
+  loadStory,
   resetSession,
   resetting,
 }) {
@@ -264,6 +266,11 @@ function CanonComposer({
           </span>
         )}
       </div>
+      {loadStory && (
+        <div style={{ marginBottom: 14 }}>
+          <StoryPicker onSelect={loadStory} label="Load a ready-made story into the canon" />
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <input
           style={{ ...inputStyle, flex: '2 1 220px' }}

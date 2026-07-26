@@ -128,6 +128,16 @@ export function useCanon() {
 
   // --- Cliffhanger planner (streaming beam search) ---
   const [weakExcerpt, setWeakExcerpt] = useState(lastScene(SAMPLE_STORY))
+
+  // Load a ready-made story from the static library into every field at once
+  // (declared after weakExcerpt so it can seed the planner's soft ending too).
+  const loadStory = useCallback((story) => {
+    setTitle(story.title || DEFAULT_STORY_META.title)
+    setEpisode(story.episode || DEFAULT_STORY_META.episode)
+    setText(story.text || '')
+    setWeakExcerpt(lastScene(story.text || ''))
+    setIngestResult(null)
+  }, [])
   const [planner, setPlanner] = useState(emptyPlanner())
   const runPlanner = useCallback(async () => {
     if (isBlank(text) || isBlank(weakExcerpt)) return
@@ -193,6 +203,7 @@ export function useCanon() {
     resetSession,
     resetting,
     clearText,
+    loadStory,
     isSample: text === SAMPLE_STORY,
     sessionBatch: SESSION_BATCH,
     // planning

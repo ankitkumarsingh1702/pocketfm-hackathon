@@ -16,6 +16,7 @@ import {
   SurfaceCard,
 } from '../primitives'
 import { ErrorState } from '../StateViews'
+import StoryPicker from '../StoryPicker'
 // The agent-profile drawer + its form controls are styled by the Writers Room
 // stylesheet (and its --ui-* token bridge). Import them so the drawer renders
 // correctly when this lens is the first one opened.
@@ -289,6 +290,13 @@ export default function AudienceSimulatorTab() {
       {/* Composer */}
       <SurfaceCard>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <StoryPicker
+            onSelect={(s) => {
+              setPostField('title', s.title)
+              setPostField('text', s.text)
+            }}
+            label="Load a ready-made story to test"
+          />
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <SectionLabel>Post title</SectionLabel>
             <input

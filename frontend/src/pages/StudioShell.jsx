@@ -8,6 +8,7 @@ import { useToast } from '../components/toast/useToast'
 import Sidebar from '../components/layout/Sidebar'
 import PageHeader from '../components/layout/PageHeader'
 import StoryInput from '../components/StoryInput'
+import StoryPicker from '../components/StoryPicker'
 import { Icon, Wordmark } from '../components/primitives'
 import HealthBadge from '../components/HealthBadge'
 import AudienceSimulatorTab from '../components/tabs/AudienceSimulatorTab'
@@ -178,6 +179,12 @@ export default function StudioShell() {
               input only shows for the Cliffhanger Optimizer, which runs from it. */}
           {showStoryInput && (
             <div style={{ marginBottom: 44 }}>
+              <div style={{ marginBottom: 14 }}>
+                <StoryPicker
+                  onSelect={(s) => setStory(s.text)}
+                  label="Load a ready-made story to optimize"
+                />
+              </div>
               <StoryInput
                 value={story}
                 onChange={setStory}
