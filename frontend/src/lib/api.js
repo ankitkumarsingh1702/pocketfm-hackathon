@@ -180,8 +180,12 @@ export function findPlotHoles(story) {
  * POST /api/plan/cliffhanger/stream -> NDJSON tree-search events.
  * @param {{story:object, weakExcerpt:string, beamWidth?:number, depth?:number}} payload
  */
-export function planCliffhangerStream({ story, weakExcerpt, beamWidth, depth }, onEvent, signal) {
-  const body = { story, weak_excerpt: weakExcerpt }
+export function planCliffhangerStream(
+  { story, weakExcerpt, batch, beamWidth, depth },
+  onEvent,
+  signal,
+) {
+  const body = { story, weak_excerpt: weakExcerpt, batch }
   if (beamWidth) body.beam_width = beamWidth
   if (depth) body.depth = depth
   return ndjsonStream('/api/plan/cliffhanger/stream', body, onEvent, signal)

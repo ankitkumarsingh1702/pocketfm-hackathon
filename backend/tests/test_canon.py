@@ -46,6 +46,9 @@ def test_slug_and_ids_are_stable_and_clean():
     assert _node_id("Character", "Naina") == "Character:naina"
     # Same name → same id across episodes (entity resolution).
     assert _node_id("Character", "Naina") == _node_id("Character", "naina")
+    assert _node_id("Character", "Naina", "session-a") != _node_id(
+        "Character", "Naina", "session-b"
+    )
 
 
 def test_sanitize_rel_whitelists_to_cypher_safe_types():
@@ -113,8 +116,8 @@ def test_reset_canon_batch_never_wipes_without_a_batch():
     # to delete the whole graph (only what a specific session tagged).
     import asyncio
 
-    assert asyncio.run(reset_canon_batch("")) == 0
-    assert asyncio.run(reset_canon_batch("   ")) == 0
+    assert asyncio.run(reset_canon_batch("")).memberships_deleted == 0
+    assert asyncio.run(reset_canon_batch("   ")).memberships_deleted == 0
 
 
 @pytest.mark.asyncio

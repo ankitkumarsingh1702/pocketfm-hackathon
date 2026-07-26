@@ -23,9 +23,7 @@ const identity = (x) => x
  */
 export function useDbMemory(active = false) {
   const [live, setLive] = useState(true)
-  // 'all' = full canon (incl. the seeded demo); 'session' = only what THIS
-  // browser session ingested via Story Canon ("your story").
-  const [scope, setScope] = useState('all')
+  const [scope, setScope] = useState('session')
 
   const activity = useAsyncLens(getCanonActivity, toActivityView)
   const health = useAsyncLens(canonHealth, identity)
@@ -45,7 +43,7 @@ export function useDbMemory(active = false) {
     runFacts(batch)
   }, [runActivity, runHealth, runGraph, runFacts, scope])
 
-  // Load immediately when the tab opens or the scope changes; then poll while live.
+  // Load immediately when the tab opens; then poll while live.
   useEffect(() => {
     if (!active) return undefined
     refresh()

@@ -229,27 +229,25 @@ class CanonGraph(BaseModel):
 
 class IngestRequest(BaseModel):
     story: Story
-    # Optional per-session tag written onto every node/fact this ingest creates,
-    # so the UI can scope the graph to "your story" (what THIS browser session
-    # added) and reset only that — never the seeded demo canon.
-    batch: str | None = None
+    batch: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
 
 
 class IngestResult(BaseModel):
     episode_id: str
     nodes_added: int
     edges_added: int
-    facts_added: int = 0                                   # atomic facts written this ingest
-    batch: str = ""                                        # session tag applied (if any)
+    facts_added: int = 0
+    batch: str = ""
     entities: list[str] = Field(default_factory=list)     # names ingested, for the UI
-    # The full structured extraction, so the composer can show exactly what the
-    # agents pulled out of the script and wrote to shared memory.
     extraction: CanonExtraction | None = None
 
 
 class CanonPreviewResult(BaseModel):
-    """Extract-only result for the live 'as you type' preview (nothing written)."""
-
     extraction: CanonExtraction = Field(default_factory=CanonExtraction)
     entity_count: int = 0
     relation_count: int = 0
@@ -257,12 +255,18 @@ class CanonPreviewResult(BaseModel):
 
 
 class CanonResetRequest(BaseModel):
-    batch: str                                             # required — never wipe everything
+    batch: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
 
 
 class CanonResetResult(BaseModel):
-    deleted: int = 0
-    batch: str = ""
+    batch: str
+    nodes_deleted: int = 0
+    relationships_deleted: int = 0
+    memberships_deleted: int = 0
 
 
 class ActivityEvent(BaseModel):
@@ -320,6 +324,24 @@ class PlanCandidate(BaseModel):
     delta: float                                          # hook_score - baseline
     parent_id: str | None = None
     depth: int = 0
+    sample_size: int = 0
+    ci95: float = 0.0
+    stage: Literal["baseline", "scout", "verified"] = "scout"
+
+
+class CliffhangerRating(BaseModel):
+    """One stateful listener-agent's rating for one ending."""
+
+    candidate_id: str
+    hook_score: int = Field(ge=0, le=100)
+    will_continue: bool
+    reason: str
+
+
+class CliffhangerAgentVerdict(BaseModel):
+    """All ending ratings returned by one listener-agent in one inference."""
+
+    ratings: list[CliffhangerRating] = Field(default_factory=list)
 
 
 class SearchTree(BaseModel):
@@ -327,8 +349,23 @@ class SearchTree(BaseModel):
     best_id: str = ""
     rounds: int = 0
     baseline_score: float = 0.0
-    audience_source: str = "default"                      # "living" (persisted KG audience) | "default"
-    panel_size: int = 0                                   # listeners used as the scoring model
+    panel_requested: int = 0
+    panel_actual: int = 0
+    panel_completed: int = 0
+    panel_dropped: int = 0
+    scout_size: int = 0
+    finalist_count: int = 0
+    planned_evaluations: int = 0
+    completed_evaluations: int = 0
+    memory_hits: int = 0
+    cached_agents: int = 0
+    verification_cached_agents: int = 0
+    audience_source: str = ""
+    model: str = ""
+    agentic: bool = False
+    experiment_archived: bool = False
+    canon_scope: Literal["session"] = "session"
+    canon_nodes_loaded: int = 0
 
 
 class PlotHolesRequest(BaseModel):
@@ -338,8 +375,16 @@ class PlotHolesRequest(BaseModel):
 class PlanRequest(BaseModel):
     story: Story
     weak_excerpt: str
+    batch: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )
     beam_width: int | None = None
     depth: int | None = None
+    panel_size: int | None = None
+    scout_size: int | None = None
+    finalist_count: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -357,7 +402,7 @@ class ShowrunnerResult(BaseModel):
     converged: bool = True
     iterations: int = 0
     final_text: str = ""
-    audience_source: str = "default"                      # "living" (persisted KG audience) | "default"
+    audience_source: str = "default"
 
 
 class ShowrunnerRequest(BaseModel):
@@ -375,9 +420,9 @@ class MdpStep(BaseModel):
     chosen_action_id: str
     reward: float
     best_reward: float
-    q_values: list[float] = Field(default_factory=list)   # one-step Q estimate per candidate action
-    state: str = ""                                        # human-readable state at this step
-    value: float = 0.0                                     # Q(s,a*) = reward + γ·V(s') for the chosen action
+    q_values: list[float] = Field(default_factory=list)
+    state: str = ""
+    value: float = 0.0
 
 
 class MdpResult(BaseModel):
@@ -386,9 +431,9 @@ class MdpResult(BaseModel):
     final_reward: float = 0.0
     best_action_text: str = ""
     policy: str = "greedy"
-    discount: float = 0.0                                  # γ used in the Bellman look-ahead
-    discounted_return: float = 0.0                         # Σ γ^t · reward_t along the chosen trajectory
-    audience_source: str = "default"                      # "living" (persisted KG audience) | "default"
+    discount: float = 0.0
+    discounted_return: float = 0.0
+    audience_source: str = "default"
 
 
 class MdpRequest(BaseModel):

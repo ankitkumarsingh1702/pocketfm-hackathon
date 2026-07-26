@@ -27,12 +27,13 @@ from __future__ import annotations
 
 import logging
 import time
+from uuid import uuid4
 
 from app.config import settings
 from app.db.activity import record_activity
 from app.graph.driver import get_driver
 from app.graph.store import _slug
-from app.schemas import Persona, SocialReaction, Story
+from app.schemas import CliffhangerRating, Persona, SocialReaction, Story
 
 logger = logging.getLogger(__name__)
 
@@ -124,11 +125,12 @@ async def upsert_post(story: Story, source: str = "Audience Simulator") -> str:
         async with driver.session(database=settings.neo4j_database) as session:
             await session.run(
                 "MERGE (p:Canon:Post {key:$k}) "
-                "SET p.type='Post', p.name=$name, p.text=$text, "
+                "SET p.type='Post', p.name=$name, p.text=$text, p.show=$show, "
                 "  p.has_image=$has_image, p.created=coalesce(p.created,$now)",
                 k=key,
                 name=story.title or "Untitled post",
                 text=(story.text or "")[:2000],
+                show=story.title or "Untitled",
                 has_image=bool(story.image_base64),
                 now=time.time(),
             )
@@ -141,7 +143,7 @@ async def write_member_reactions(
     story: Story,
     pairs: list[tuple[Persona, SocialReaction]],
     source: str = "Audience Simulator",
-) -> None:
+) -> bool:
     """Persist each agent's reaction as a REACTED_TO edge (its memory).
 
     Writes per-member edges (for later recall) and per-segment aggregate edges
@@ -150,9 +152,9 @@ async def write_member_reactions(
     driver = get_driver()
     if driver is None:
         record_activity("skipped", "write_member_reactions", source, "graph disabled — reactions not persisted")
-        return
+        return False
     if not pairs:
-        return
+        return False
     pkey = post_key(story)
     now = time.time()
     rows = [
@@ -222,9 +224,11 @@ async def write_member_reactions(
             f"wrote {len(rows)} agent reaction(s) across {len(seg_rows)} segment(s) to memory",
             {"reactions": len(rows), "segments": len(seg_rows)},
         )
+        return True
     except Exception as exc:  # noqa: BLE001 - best-effort
         logger.warning("write_member_reactions failed: %s", exc)
         record_activity("skipped", "write_member_reactions", source, f"write failed: {exc}")
+        return False
 
 
 # --- read path --------------------------------------------------------------
@@ -334,3 +338,155 @@ async def recall_member_memory(member_id: str, limit: int = 4) -> list[dict]:
     except Exception as exc:  # noqa: BLE001 - best-effort
         logger.warning("recall_member_memory failed: %s", exc)
     return out
+
+
+async def recall_members_memories(
+    member_ids: list[str],
+    limit: int = 4,
+    show: str = "",
+    source: str = "Cliffhanger Planner",
+) -> dict[str, list[dict]]:
+    """Batch-load a frozen memory snapshot for a listener cohort.
+
+    The planner compares multiple endings. Reading every member once prevents
+    N+1 graph queries and, more importantly, guarantees that the original and
+    every candidate see the exact same prior history. New reactions are written
+    only after scoring has completed.
+    """
+    driver = get_driver()
+    if driver is None or not member_ids:
+        return {}
+    out: dict[str, list[dict]] = {member_id: [] for member_id in member_ids}
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            res = await session.run(
+                "UNWIND $ids AS member_id "
+                "OPTIONAL MATCH (m:AudienceMember {member_id:member_id}) "
+                "CALL (m) { "
+                "  OPTIONAL MATCH (m)-[r:REACTED_TO]->(p:Post) "
+                "  WHERE $show = '' OR p.show = $show OR p.name = $show "
+                "  WITH p, r ORDER BY coalesce(r.created,0) DESC LIMIT $limit "
+                "  RETURN collect({post:p.name, sentiment:r.sentiment, "
+                "    engagement:r.engagement, comment:r.comment}) AS items "
+                "} "
+                "RETURN member_id, items",
+                ids=member_ids,
+                limit=limit,
+                show=show,
+            )
+            async for rec in res:
+                items = [
+                    dict(item)
+                    for item in (rec.get("items") or [])
+                    if item and item.get("post")
+                ]
+                out[str(rec["member_id"])] = items
+        hits = sum(1 for items in out.values() if items)
+        record_activity(
+            "read",
+            "recall_members_memories",
+            source,
+            f"recalled personal history for {hits} of {len(member_ids)} audience members",
+            {"members": len(member_ids), "memory_hits": hits},
+        )
+    except Exception as exc:  # noqa: BLE001 - graph memory is best-effort
+        logger.warning("recall_members_memories failed: %s", exc)
+        record_activity(
+            "skipped",
+            "recall_members_memories",
+            source,
+            f"batch recall failed: {exc}",
+        )
+    return out
+
+
+async def write_cliffhanger_evaluations(
+    story: Story,
+    original_text: str,
+    winner_text: str,
+    original_pairs: list[tuple[Persona, CliffhangerRating]],
+    winner_pairs: list[tuple[Persona, CliffhangerRating]],
+    source: str = "Cliffhanger Planner",
+) -> int:
+    """Persist an unpublished experiment without polluting listener history.
+
+    ``EVALUATED_IN`` edges are proof that persistent identities participated,
+    but ``recall_member_memory`` intentionally reads only ``REACTED_TO`` edges.
+    This prevents a future agent from remembering a candidate that no listener
+    actually heard in production. Returns the exact number of matched edges.
+    """
+    driver = get_driver()
+    if driver is None or not winner_pairs:
+        record_activity(
+            "skipped",
+            "write_cliffhanger_evaluations",
+            source,
+            "graph disabled — experiment was not persisted",
+        )
+        return 0
+    experiment_key = (
+        f"CliffhangerExperiment:{_slug(story.title or 'untitled')}-{uuid4().hex}"
+    )
+    original_by_member = {
+        member.id: rating for member, rating in original_pairs
+    }
+    rows = [
+        {
+            "member_key": _member_key(member),
+            "original_hook_score": original_by_member[member.id].hook_score,
+            "original_will_continue": original_by_member[member.id].will_continue,
+            "original_reason": original_by_member[member.id].reason[:500],
+            "winner_hook_score": winner_rating.hook_score,
+            "winner_will_continue": winner_rating.will_continue,
+            "winner_reason": winner_rating.reason[:500],
+            "lift": winner_rating.hook_score - original_by_member[member.id].hook_score,
+        }
+        for member, winner_rating in winner_pairs
+        if member.id in original_by_member
+    ]
+    try:
+        async with driver.session(database=settings.neo4j_database) as session:
+            result = await session.run(
+                "MERGE (x:CliffhangerExperiment {key:$key}) "
+                "SET x.show=$show, x.episode=$episode, x.original_text=$original, "
+                "  x.winner_text=$winner, x.created=$created "
+                "WITH x "
+                "UNWIND $rows AS row "
+                "MATCH (m:AudienceMember {key:row.member_key}) "
+                "MERGE (m)-[r:EVALUATED_IN {experiment_key:$key}]->(x) "
+                "SET r.original_hook_score=row.original_hook_score, "
+                "  r.original_will_continue=row.original_will_continue, "
+                "  r.original_reason=row.original_reason, "
+                "  r.winner_hook_score=row.winner_hook_score, "
+                "  r.winner_will_continue=row.winner_will_continue, "
+                "  r.winner_reason=row.winner_reason, r.lift=row.lift, "
+                "  r.created=$created "
+                "RETURN count(r) AS written",
+                key=experiment_key,
+                show=story.title,
+                episode=story.episode or "",
+                original=original_text[:2000],
+                winner=winner_text[:2000],
+                created=time.time(),
+                rows=rows,
+            )
+            record = await result.single()
+            written = int(record["written"]) if record else 0
+        op = "write" if written == len(rows) else "skipped"
+        record_activity(
+            op,
+            "write_cliffhanger_evaluations",
+            source,
+            f"persisted {written} of {len(rows)} winner evaluation(s) to experiment memory",
+            {"evaluations": written, "expected": len(rows)},
+        )
+        return written
+    except Exception as exc:  # noqa: BLE001 - graph memory is best-effort
+        logger.warning("write_cliffhanger_evaluations failed: %s", exc)
+        record_activity(
+            "skipped",
+            "write_cliffhanger_evaluations",
+            source,
+            f"experiment write failed: {exc}",
+        )
+        return 0

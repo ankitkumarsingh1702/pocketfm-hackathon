@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from uuid import uuid4
 
 from app.config import settings
 from app.llm.factory import get_llm
@@ -65,16 +66,18 @@ async def generate_personas(
     model = settings.model_for("sim")
     num_batches = (n + _BATCH - 1) // _BATCH
     sizes = [min(_BATCH, n - i * _BATCH) for i in range(num_batches)]
+    sem = asyncio.Semaphore(settings.sim_synthesis_concurrency)
 
     async def _one_batch(bi: int, take: int) -> list:
         try:
-            batch = await llm.structured(
-                system=_SYS,
-                prompt=_ask(take, brief, seed_segments, bi),
-                schema=SynthBatch,
-                temperature=1.0,
-                model=model,
-            )
+            async with sem:
+                batch = await llm.structured(
+                    system=_SYS,
+                    prompt=_ask(take, brief, seed_segments, bi),
+                    schema=SynthBatch,
+                    temperature=1.0,
+                    model=model,
+                )
             return list(batch.personas)
         except Exception as exc:  # noqa: BLE001 - one flaky batch shouldn't sink the run
             logger.warning("Persona synthesis batch %s failed: %s", bi, exc)
@@ -83,11 +86,16 @@ async def generate_personas(
     results = await asyncio.gather(*(_one_batch(i, s) for i, s in enumerate(sizes)))
 
     out: list[Persona] = []
+    seen: set[tuple[str, str, str]] = set()
     for sp in (p for batch in results for p in batch):
+        signature = (sp.name.strip().lower(), sp.city.strip().lower(), sp.system_prompt.strip().lower())
+        if signature in seen:
+            continue
+        seen.add(signature)
         idx = len(out)
         out.append(
             Persona(
-                id=f"aud-gen-{idx}",
+                id=f"aud-gen-{uuid4().hex}",
                 name=sp.name,
                 kind="audience",
                 segment=sp.segment,
@@ -104,7 +112,15 @@ async def generate_personas(
         if len(out) >= n:
             break
 
-    if not out:
-        logger.warning("Persona synthesis produced nothing — falling back to archetype fan-out")
-        out = fan_out_audience(load_personas("audience"), n)
+    if len(out) < n:
+        missing = n - len(out)
+        logger.warning(
+            "Persona synthesis returned %s/%s unique members — filling %s from archetypes",
+            len(out),
+            n,
+            missing,
+        )
+        fallback = fan_out_audience(load_personas("audience"), missing)
+        for p in fallback:
+            out.append(p.model_copy(update={"id": f"aud-fallback-{uuid4().hex}"}))
     return out[:n]

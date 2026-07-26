@@ -28,7 +28,12 @@ from app.config import settings
 from app.db.activity import record_activity
 from app.engine.aggregate import reaction_view
 from app.engine.cache import Cache
-from app.engine.runner import _story_hash, persona_fingerprint, persona_preamble, story_images
+from app.engine.runner import (
+    _story_hash,
+    persona_fingerprint,
+    persona_preamble,
+    story_images,
+)
 from app.graph.audience_store import recall_member_memory
 from app.llm.base import LLMClient
 from app.schemas import Persona, SocialReaction, Story
@@ -42,12 +47,13 @@ def _memory_fp(memory: list[dict]) -> str:
     if not memory:
         return "nomem"
     raw = "::".join(
-        f"{m.get('post')}|{m.get('sentiment')}|{m.get('engagement')}" for m in memory
+        f"{m.get('post')}|{m.get('sentiment')}|{m.get('engagement')}|{m.get('comment')}"
+        for m in memory
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
 
 
-def _render_memory(memory: list[dict]) -> str:
+def _render_memory(memory: list[dict], scope: str = "creator") -> str:
     """Render recalled reactions as a short first-person history block."""
     if not memory:
         return ""
@@ -63,10 +69,8 @@ def _render_memory(memory: list[dict]) -> str:
         if comment:
             line += f' and commented "{comment}"'
         lines.append(line)
-    return (
-        "YOUR HISTORY WITH THIS CREATOR (react as someone who remembers):\n"
-        + "\n".join(lines)
-    )
+    label = "SHOW" if scope == "show" else "CREATOR"
+    return f"YOUR HISTORY WITH THIS {label} (react as someone who remembers):\n" + "\n".join(lines)
 
 
 def build_social_prompt(
@@ -160,9 +164,6 @@ async def run_social_reactions(
     canon_key = canon_fp or "nocanon"
     images = story_images(story)
     total = len(personas)
-    # Count agents that recalled real prior history, so we can surface the
-    # collective memory read as ONE activity event (per-agent reads would flood
-    # the feed at panel scale). This is the visible proof the agents are stateful.
     recalled = 0
 
     async def _one(persona: Persona) -> tuple[Persona, SocialReaction]:
@@ -194,7 +195,7 @@ async def run_social_reactions(
                 try:
                     return persona, SocialReaction.model_validate(cached)
                 except Exception:  # noqa: BLE001 - stale/corrupt entry, regenerate
-                    pass
+                    logger.debug("Ignoring stale social-reaction cache entry for %s", persona.id)
 
         async with sem:
             reaction = await _react_with_retry(
@@ -229,14 +230,12 @@ async def run_social_reactions(
                     "reaction": reaction_view(persona, reaction).model_dump(),
                 }
             )
-    # Surface the collective recall as one read: proof the agents remembered
-    # their own past reactions before responding (statefulness across posts).
-    if settings.sim_agentic and recalled:
+    if settings.sim_agentic:
         record_activity(
             "read",
             "recall_member_memory",
             source,
-            f"{recalled} of {total} agents recalled their prior reactions from shared memory",
+            f"{recalled} of {total} agents recalled prior reactions from shared memory",
             {"agents_recalled": recalled, "panel": total},
         )
     return pairs, dropped

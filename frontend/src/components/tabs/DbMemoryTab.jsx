@@ -207,55 +207,6 @@ function Neo4jLink({ health }) {
   )
 }
 
-/**
- * Segmented control switching the graph/facts view between "your story" (only
- * what this session ingested) and the full shared canon (incl. the seeded demo).
- */
-function ScopeToggle({ scope, setScope }) {
-  const opts = [
-    { id: 'session', label: 'Your story' },
-    { id: 'all', label: 'Full canon' },
-  ]
-  return (
-    <div
-      role="tablist"
-      aria-label="Graph scope"
-      style={{
-        display: 'inline-flex',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-pill)',
-        overflow: 'hidden',
-        background: 'var(--surface-raised)',
-      }}
-    >
-      {opts.map((o) => {
-        const on = scope === o.id
-        return (
-          <button
-            key={o.id}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            onClick={() => setScope(o.id)}
-            style={{
-              font: 'inherit',
-              fontSize: 12.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: '6px 15px',
-              border: 'none',
-              background: on ? 'var(--ink)' : 'transparent',
-              color: on ? '#fff' : 'var(--muted)',
-            }}
-          >
-            {o.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 /** One clickable stat tile — the entry point to a drill-down. */
 function StatTile({ value, label, tone, active, disabled, onClick }) {
   return (
@@ -512,7 +463,7 @@ export default function DbMemoryTab({
   refresh,
   live,
   setLive,
-  scope = 'all',
+  scope,
   setScope,
 }) {
   const [selected, setSelected] = useState(null)
@@ -520,7 +471,6 @@ export default function DbMemoryTab({
   const g = graph.data
   const firstLoad = !a && activity.loading
   const browserUrl = (health.data && health.data.browser_url) || NEO4J_BROWSER_FALLBACK
-  const sessionScope = scope === 'session'
 
   const tiles = [
     { key: 'nodes', value: g ? g.nodeCount : '—', label: 'Entities (nodes)', tone: 'ink' },
@@ -559,17 +509,52 @@ export default function DbMemoryTab({
         </div>
       </div>
 
-      {/* Scope switch: your story vs the full shared canon */}
-      {setScope && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <ScopeToggle scope={scope} setScope={setScope} />
-          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
-            {sessionScope
-              ? 'Only the canon you ingested this session — separated from the demo.'
-              : 'The full shared canon, including the seeded demo story.'}
-          </span>
-        </div>
-      )}
+      <div
+        aria-label="Canon graph scope"
+        style={{
+          display: 'inline-flex',
+          alignSelf: 'flex-start',
+          padding: 4,
+          gap: 4,
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--surface-raised)',
+        }}
+      >
+        {[
+          ['session', 'Your story'],
+          ['full', 'Full canon'],
+        ].map(([value, label]) => {
+          const active = scope === value
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setScope(value)}
+              style={{
+                minHeight: 44,
+                padding: '8px 16px',
+                border: active ? '1px solid var(--ink)' : '1px solid transparent',
+                borderRadius: 'var(--radius-sm)',
+                background: active ? 'var(--ink)' : 'transparent',
+                color: active ? 'white' : 'var(--muted)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                fontWeight: 650,
+                cursor: 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+      <p style={{ margin: '-22px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)' }}>
+        {scope === 'session'
+          ? 'Only canon ingested in this browser tab. Seeded ANDHERA data is excluded.'
+          : 'All persisted canon, including the seeded ANDHERA demo and every session.'}
+      </p>
 
       {/* Clickable stat strip */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, flexWrap: 'wrap', marginLeft: -14 }}>
@@ -630,11 +615,11 @@ export default function DbMemoryTab({
             {graph.error && <ErrorState message={graph.error} />}
             {g && g.isEmpty && (
               <EmptyState
-                title={sessionScope ? 'Nothing from this session yet' : 'Graph is empty'}
+                title={scope === 'session' ? 'Your story has not been ingested yet' : 'Graph is empty'}
                 hint={
-                  sessionScope
-                    ? 'Ingest an episode in the Story Canon tab and your story shows up here — or switch to “Full canon” to see the seeded demo.'
-                    : 'Ingest an episode in the Story Canon tab to build the shared memory.'
+                  scope === 'session'
+                    ? 'Ingest the current episode in Story Canon. The seeded demo stays hidden here.'
+                    : 'Ingest an episode in the Story Canon tab to build shared memory.'
                 }
               />
             )}

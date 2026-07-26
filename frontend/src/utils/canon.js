@@ -261,42 +261,159 @@ export function emptyPlanner() {
   return {
     running: false,
     error: null,
+    phase: null,
+    phaseLabel: '',
     baseline: null,
+    baselineSampleSize: 0,
+    baselineCi95: 0,
     candidates: [],
     best: null,
     rounds: 0,
-    audienceSource: null, // "living" (persisted KG audience) | "default"
-    panelSize: 0,
+    progress: { completed: 0, dropped: 0, total: 0, percent: 0 },
+    meta: {
+      panelRequested: 1000,
+      uniqueAgents: 0,
+      scoutSize: 100,
+      candidateCount: 0,
+      finalistCount: 3,
+      plannedEvaluations: 0,
+      completedEvaluations: 0,
+      memoryHits: 0,
+      audienceSource: '',
+      model: '',
+      agentic: true,
+      cachedAgents: 0,
+      verificationCachedAgents: 0,
+      experimentArchived: false,
+      canonScope: 'session',
+      canonNodesLoaded: 0,
+    },
+    recentAgents: [],
+    runningScores: {},
   }
+}
+
+function upsertPlannerCandidate(candidates, candidate) {
+  const index = candidates.findIndex((item) => item.id === candidate.id)
+  if (index < 0) return [...candidates, candidate]
+  const next = [...candidates]
+  next[index] = { ...next[index], ...candidate }
+  return next
 }
 
 /** Fold one streamed beam-search event into planner state (pure). */
 export function reducePlanner(state, ev) {
   switch (ev.type) {
+    case 'phase_started':
+      return {
+        ...state,
+        phase: ev.phase,
+        phaseLabel: ev.label || '',
+        progress: { completed: 0, dropped: 0, total: ev.total || 0, percent: 0 },
+        recentAgents: [],
+        meta: {
+          ...state.meta,
+          plannedEvaluations: ev.planned_evaluations ?? state.meta.plannedEvaluations,
+        },
+      }
+    case 'run_started':
+      return {
+        ...state,
+        meta: {
+          ...state.meta,
+          panelRequested: ev.panel_requested ?? state.meta.panelRequested,
+          uniqueAgents: ev.unique_agents ?? 0,
+          scoutSize: ev.scout_size ?? state.meta.scoutSize,
+          candidateCount: ev.candidate_count ?? 0,
+          finalistCount: ev.finalist_count ?? 0,
+          memoryHits: ev.memory_hits ?? 0,
+          audienceSource: ev.audience_source || '',
+          model: ev.model || '',
+          agentic: Boolean(ev.agentic),
+          sharedCanonLoaded: Boolean(ev.shared_canon_loaded),
+          canonScope: ev.canon_scope || 'session',
+          canonNodesLoaded: ev.canon_nodes_loaded || 0,
+        },
+      }
+    case 'candidate_generated':
+      return {
+        ...state,
+        candidates: upsertPlannerCandidate(state.candidates, {
+          id: ev.id,
+          parentId: ev.parent_id,
+          depth: ev.depth,
+          hookScore: null,
+          delta: null,
+          sampleSize: 0,
+          ci95: 0,
+          stage: 'generated',
+          preview: ev.preview,
+        }),
+      }
+    case 'agent_scored': {
+      const attempted = (ev.completed || 0) + (ev.dropped || 0)
+      const total = ev.total || state.progress.total
+      const agent = ev.persona
+        ? {
+            ...ev.persona,
+            memoryItemsLoaded: ev.memory_items_loaded || 0,
+            cached: Boolean(ev.cached),
+          }
+        : null
+      return {
+        ...state,
+        progress: {
+          completed: ev.completed || 0,
+          dropped: ev.dropped || 0,
+          total,
+          percent: total ? Math.min(100, (attempted / total) * 100) : 0,
+        },
+        runningScores: ev.running_scores || state.runningScores,
+        recentAgents: agent ? [agent, ...state.recentAgents].slice(0, 5) : state.recentAgents,
+      }
+    }
+    case 'agent_error': {
+      const attempted = (ev.completed || 0) + (ev.dropped || 0)
+      const total = ev.total || state.progress.total
+      return {
+        ...state,
+        progress: {
+          completed: ev.completed || 0,
+          dropped: ev.dropped || 0,
+          total,
+          percent: total ? Math.min(100, (attempted / total) * 100) : 0,
+        },
+      }
+    }
     case 'baseline':
       return {
         ...state,
         baseline: ev.score,
-        audienceSource: ev.audience_source ?? state.audienceSource,
-        panelSize: ev.panel_size ?? state.panelSize,
+        baselineSampleSize: ev.sample_size || 0,
+        baselineCi95: ev.ci95 || 0,
       }
     case 'candidate_scored':
       return {
         ...state,
-        candidates: [
-          ...state.candidates,
-          {
-            id: ev.id,
-            parentId: ev.parent_id,
-            depth: ev.depth,
-            hookScore: ev.hook_score,
-            delta: ev.delta,
-            preview: ev.preview,
-          },
-        ],
+        candidates: upsertPlannerCandidate(state.candidates, {
+          id: ev.id,
+          parentId: ev.parent_id,
+          depth: ev.depth,
+          hookScore: ev.hook_score,
+          delta: ev.delta,
+          sampleSize: ev.sample_size || 0,
+          ci95: ev.ci95 || 0,
+          stage: ev.stage || 'scout',
+          preview: ev.preview,
+        }),
       }
     case 'round_done':
       return { ...state, rounds: ev.round }
+    case 'experiment_archived':
+      return {
+        ...state,
+        meta: { ...state.meta, experimentArchived: Boolean(ev.archived) },
+      }
     case 'done': {
       const tree = ev.result || {}
       const cands = tree.candidates || []
@@ -305,12 +422,64 @@ export function reducePlanner(state, ev) {
         ...state,
         running: false,
         baseline: tree.baseline_score ?? state.baseline,
+        baselineSampleSize:
+          cands.find((candidate) => candidate.id === 'root')?.sample_size ??
+          state.baselineSampleSize,
+        baselineCi95:
+          cands.find((candidate) => candidate.id === 'root')?.ci95 ?? state.baselineCi95,
         rounds: tree.rounds ?? state.rounds,
-        audienceSource: tree.audience_source ?? state.audienceSource,
-        panelSize: tree.panel_size ?? state.panelSize,
+        candidates: cands
+          .filter((candidate) => candidate.id !== 'root')
+          .map((candidate) => ({
+            id: candidate.id,
+            text: candidate.text,
+            preview: candidate.text,
+            hookScore: candidate.hook_score,
+            delta: candidate.delta,
+            parentId: candidate.parent_id,
+            depth: candidate.depth,
+            sampleSize: candidate.sample_size || 0,
+            ci95: candidate.ci95 || 0,
+            stage: candidate.stage,
+          })),
         best: best
-          ? { id: best.id, text: best.text, hookScore: best.hook_score, delta: best.delta }
+          ? {
+              id: best.id,
+              text: best.text,
+              hookScore: best.hook_score,
+              delta: best.delta,
+              sampleSize: best.sample_size || 0,
+              ci95: best.ci95 || 0,
+              stage: best.stage,
+            }
           : null,
+        progress: {
+          completed: tree.panel_completed || state.progress.completed,
+          dropped: tree.panel_dropped || 0,
+          total: tree.panel_requested || state.progress.total,
+          percent: 100,
+        },
+        phase: 'complete',
+        phaseLabel: 'Search complete',
+        meta: {
+          ...state.meta,
+          panelRequested: tree.panel_requested ?? state.meta.panelRequested,
+          uniqueAgents: tree.panel_actual ?? state.meta.uniqueAgents,
+          scoutSize: tree.scout_size ?? state.meta.scoutSize,
+          finalistCount: tree.finalist_count ?? state.meta.finalistCount,
+          plannedEvaluations: tree.planned_evaluations ?? state.meta.plannedEvaluations,
+          completedEvaluations:
+            tree.completed_evaluations ?? state.meta.completedEvaluations,
+          memoryHits: tree.memory_hits ?? state.meta.memoryHits,
+          audienceSource: tree.audience_source || state.meta.audienceSource,
+          model: tree.model || state.meta.model,
+          agentic: Boolean(tree.agentic),
+          cachedAgents: tree.cached_agents || 0,
+          verificationCachedAgents: tree.verification_cached_agents || 0,
+          experimentArchived: Boolean(tree.experiment_archived),
+          canonScope: tree.canon_scope || 'session',
+          canonNodesLoaded: tree.canon_nodes_loaded || 0,
+        },
       }
     }
     case 'error':
@@ -352,7 +521,7 @@ export function emptyAgent() {
     log: [],
     decision: null,
     result: null,
-    audienceSource: null, // "living" (persisted KG audience) | "default"
+    audienceSource: null,
     panelSize: 0,
   }
 }
@@ -434,10 +603,10 @@ export function emptyMdp() {
     steps: [],
     final: null,
     best: null,
-    audienceSource: null, // "living" (persisted KG audience) | "default"
+    audienceSource: null,
     panelSize: 0,
-    discount: null, // γ used in the Bellman look-ahead
-    discountedReturn: null, // Σ γ^t · reward_t along the chosen trajectory
+    discount: null,
+    discountedReturn: null,
     policy: null,
   }
 }
@@ -456,8 +625,6 @@ export function reduceMdp(state, ev) {
     case 'iteration_done':
       return {
         ...state,
-        discount: ev.discount ?? state.discount,
-        discountedReturn: ev.discounted_return ?? state.discountedReturn,
         steps: [
           ...state.steps,
           {
@@ -465,12 +632,14 @@ export function reduceMdp(state, ev) {
             reward: ev.reward,
             bestReward: ev.best_reward,
             qValues: ev.q_values || [],
-            qChosen: ev.q_chosen ?? null, // Q(s,a*) = reward + γ·V(s')
-            valueNext: ev.value_next ?? null, // V(s') from the one-step look-ahead
+            qChosen: ev.q_chosen ?? null,
+            valueNext: ev.value_next ?? null,
             state: ev.state || '',
             preview: ev.preview,
           },
         ],
+        discount: ev.discount ?? state.discount,
+        discountedReturn: ev.discounted_return ?? state.discountedReturn,
       }
     case 'done': {
       const r = ev.result || {}

@@ -9,11 +9,15 @@ Exposes a health check, the persona roster, and the three simulation lenses.
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.config import settings
+from app.config import BACKEND_DIR, settings
 from app.db.activity import get_recent_activity_durable
 from app.engine.cache import Cache
 from app.engine.mdp import policy_search
@@ -28,7 +32,11 @@ from app.graph.store import (
     reset_canon_batch,
 )
 from app.lenses.audience import run_audience
-from app.lenses.audience_sim import generate_audience, list_audience, stream_audience_sim
+from app.lenses.audience_sim import (
+    generate_audience,
+    list_audience,
+    stream_audience_sim,
+)
 from app.lenses.cliffhanger import run_cliffhanger
 from app.lenses.plot_holes import find_plot_holes
 from app.lenses.showrunner import run_showrunner
@@ -60,6 +68,15 @@ from app.schemas import (
 )
 
 app = FastAPI(title="Simulated Studio API")
+_expensive_job_lock = asyncio.Lock()
+
+
+def _reject_if_expensive_job_active() -> None:
+    if _expensive_job_lock.locked():
+        raise HTTPException(
+            status_code=429,
+            detail="Another large agent run is active. Try again after it finishes.",
+        )
 
 app.add_middleware(
     CORSMiddleware,
@@ -159,25 +176,18 @@ async def canon_health() -> dict:
 
 @app.get("/api/canon/graph", response_model=CanonGraph)
 async def canon_graph(batch: str | None = None) -> CanonGraph:
-    """Return the story-canon graph (nodes + edges) for visualization.
-
-    Pass ``batch`` to scope the view to just what that browser session ingested
-    ("your story"); omit it for the full canon (incl. the seeded demo).
-    """
+    """Return full canon, or exactly one browser session when ``batch`` is set."""
     return await fetch_full_graph(batch=batch)
 
 
 @app.post("/api/canon/preview", response_model=CanonPreviewResult)
 async def canon_preview(req: IngestRequest) -> CanonPreviewResult:
-    """Extract an episode's canon WITHOUT writing it — the live 'as you type'
-    preview that shows, in real time, the entities/facts the agents will remember.
-
-    Uses the fast audience-tier model so the preview feels responsive; the actual
-    ingest re-extracts with the stronger model for durable quality.
-    """
+    """Extract canon for the live UI preview without writing to Neo4j."""
     try:
         extraction = await extract_canon(
-            req.story, get_llm(), model=settings.model_for("audience")
+            req.story,
+            get_llm(),
+            model=settings.model_for("audience"),
         )
         return CanonPreviewResult(
             extraction=extraction,
@@ -201,12 +211,8 @@ async def canon_ingest(req: IngestRequest) -> IngestResult:
 
 @app.post("/api/canon/reset", response_model=CanonResetResult)
 async def canon_reset(req: CanonResetRequest) -> CanonResetResult:
-    """Clear only what THIS session ingested — never the seeded demo canon."""
-    try:
-        deleted = await reset_canon_batch(req.batch)
-        return CanonResetResult(deleted=deleted, batch=req.batch)
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail=str(e))
+    """Clear only one session's memberships and session-owned graph records."""
+    return await reset_canon_batch(req.batch)
 
 
 @app.get("/api/canon/activity", response_model=ActivityFeed)
@@ -231,10 +237,13 @@ async def canon_facts(batch: str | None = None) -> dict:
     """Atomic canon facts + structural contradictions + dangling clues.
 
     Powers the DB / Memory "Facts tracked" drill-down. ``record=False`` so this
-    read (which the tab polls) never pollutes the activity feed. Pass ``batch`` to
-    scope to just this session's story.
+    read (which the tab polls) never pollutes the activity feed.
     """
-    return await fetch_contradiction_candidates(source="DB / Memory", record=False, batch=batch)
+    return await fetch_contradiction_candidates(
+        source="DB / Memory",
+        record=False,
+        batch=batch,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -254,17 +263,32 @@ async def plot_holes(req: PlotHolesRequest) -> PlotHoleResult:
 @app.post("/api/plan/cliffhanger/stream")
 async def plan_cliffhanger_stream(req: PlanRequest) -> StreamingResponse:
     """Beam-search cliffhanger rewrites, streaming each scored candidate."""
+    _reject_if_expensive_job_active()
+    await _expensive_job_lock.acquire()
     llm = get_llm()
     cache = Cache(settings.cache_dir)
 
     async def run(emit) -> dict:
         tree = await beam_search(
             req.story, req.weak_excerpt, llm, cache,
-            beam_width=req.beam_width or 3, depth=req.depth or 2, on_event=emit,
+            beam_width=req.beam_width or 3,
+            depth=req.depth or 2,
+            panel_size=req.panel_size or settings.planner_panel_default,
+            scout_size=req.scout_size or settings.planner_scout_default,
+            finalist_count=req.finalist_count or settings.planner_finalists_default,
+            canon_batch=req.batch,
+            on_event=emit,
         )
         return tree.model_dump()
 
-    return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
+    async def guarded_events():
+        try:
+            async for event in ndjson_events(run):
+                yield event
+        finally:
+            _expensive_job_lock.release()
+
+    return StreamingResponse(guarded_events(), media_type="application/x-ndjson")
 
 
 # ---------------------------------------------------------------------------
@@ -319,28 +343,38 @@ async def audience_sim_library() -> AudienceLibrary:
 @app.post("/api/audience-sim/generate", response_model=AudienceLibrary)
 async def audience_sim_generate(req: GeneratePersonasRequest) -> AudienceLibrary:
     """Synthesise a diverse audience of listener-agents and persist it for reuse."""
+    _reject_if_expensive_job_active()
+    await _expensive_job_lock.acquire()
     try:
         return await generate_audience(req)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        _expensive_job_lock.release()
 
 
 @app.post("/api/audience-sim/run/stream")
 async def audience_sim_run_stream(req: AudienceSimRequest) -> StreamingResponse:
     """Run the Audience Simulator, streaming each agent's reaction as it lands."""
+    _reject_if_expensive_job_active()
+    await _expensive_job_lock.acquire()
 
     async def run(emit) -> dict:
         return await stream_audience_sim(req, emit)
 
-    return StreamingResponse(ndjson_events(run), media_type="application/x-ndjson")
+    async def guarded_events():
+        try:
+            async for event in ndjson_events(run):
+                yield event
+        finally:
+            _expensive_job_lock.release()
+
+    return StreamingResponse(guarded_events(), media_type="application/x-ndjson")
 
 
 @app.get("/api/audience-sim/memory")
 async def audience_sim_memory(limit: int = 24) -> dict:
-    """The persisted listener population + each member's recently remembered
-    reactions — the judge-facing proof that the audience agents are *stateful
-    across posts* (not one-shot). Best-effort: empty when the graph is disabled.
-    """
+    """Expose recent per-listener memories as judge-facing statefulness proof."""
     from app.graph.audience_store import (
         count_audience_members,
         load_audience_members,
@@ -349,20 +383,26 @@ async def audience_sim_memory(limit: int = 24) -> dict:
 
     members = await load_audience_members(limit=limit, source="DB / Memory")
     total = await count_audience_members()
-    out: list[dict] = []
-    for p in members:
-        mem = await recall_member_memory(p.id, limit=3)
-        out.append({
-            "id": p.id,
-            "name": p.name,
-            "segment": p.segment,
-            "age": p.age,
-            "city": p.city,
-            "memory": mem,
-            "memory_count": len(mem),
-        })
-    remembering = sum(1 for m in out if m["memory_count"] > 0)
-    return {"members": out, "total": total, "shown": len(out), "remembering": remembering}
+    rows: list[dict] = []
+    for persona in members:
+        memory = await recall_member_memory(persona.id, limit=3)
+        rows.append(
+            {
+                "id": persona.id,
+                "name": persona.name,
+                "segment": persona.segment,
+                "age": persona.age,
+                "city": persona.city,
+                "memory": memory,
+                "memory_count": len(memory),
+            }
+        )
+    return {
+        "members": rows,
+        "total": total,
+        "shown": len(rows),
+        "remembering": sum(1 for row in rows if row["memory_count"] > 0),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -371,11 +411,6 @@ async def audience_sim_memory(limit: int = 24) -> dict:
 # Serve the built frontend when it is bundled into the image. This mount MUST
 # stay LAST so its catch-all "/" never shadows /health or the /api/* routes
 # declared above. When no build is present (local dev), this is a no-op.
-import os  # noqa: E402,F401
-from fastapi.staticfiles import StaticFiles  # noqa: E402
-from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
-
-from app.config import BACKEND_DIR  # noqa: E402
 
 static_dir = BACKEND_DIR / "static"
 

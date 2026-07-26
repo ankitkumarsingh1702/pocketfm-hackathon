@@ -44,8 +44,8 @@ async def extract_canon(
 ) -> CanonExtraction:
     """Extract the story canon from one episode. Empty on any failure.
 
-    ``model`` overrides the extraction model — the live preview passes the fast
-    audience-tier model for responsiveness; ingest uses the stronger default.
+    ``model`` lets the non-persisting live preview use the faster audience
+    model; durable ingest keeps the stronger expert model by default.
     """
     try:
         return await llm.structured(

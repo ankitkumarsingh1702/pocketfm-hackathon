@@ -1,9 +1,19 @@
 import { CANON_PANELS } from '../../config/constants'
 import { AGENT_NODES, AGENT_NODE_LABELS } from '../../utils/canon'
 import HowItWorks from '../HowItWorks'
-import { Button, GraphCanvas, GraphLegend, MetricNumber, SurfaceCard, Tabs } from '../primitives'
-import { EmptyState, ErrorState, LoadingState } from '../StateViews'
 import StoryPicker from '../StoryPicker'
+import {
+  Button,
+  Disclosure,
+  GraphCanvas,
+  GraphLegend,
+  MetricNumber,
+  Pill,
+  ProgressLine,
+  SurfaceCard,
+  Tabs,
+} from '../primitives'
+import { EmptyState, ErrorState, LoadingState } from '../StateViews'
 
 /** Plain-language "input → what the AI does → output" for each canon panel. */
 const HOW_IT_WORKS = {
@@ -28,12 +38,15 @@ const HOW_IT_WORKS = {
   planner: [
     { title: 'Give a soft ending', body: 'Paste the episode and the weak ending to improve.' },
     {
-      title: 'Search & score endings',
+      title: 'Search with persistent agents',
       body:
-        'The AI writes several alternative endings and scores each on a simulated listener panel, ' +
-        'keeping the best and improving them — a search tree.',
+        '100 stateful scouts explore every rewrite. The strongest endings and the original are then ' +
+        'rated by the same 1,000 stored listener identities.',
     },
-    { title: 'Take the winner', body: 'The highest-scoring cliffhanger, with its hook-score lift.' },
+    {
+      title: 'Compare the simulated signal',
+      body: 'See the exact response count, formula and point lift. This is not measured listener retention.',
+    },
   ],
   agent: [
     { title: 'Give an episode', body: 'Paste the episode (and optionally a weak beat to fix).' },
@@ -78,7 +91,6 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
-/** Type label + display order for extracted entities. */
 const ENTITY_GROUPS = [
   ['Character', 'Characters'],
   ['Location', 'Locations'],
@@ -87,7 +99,7 @@ const ENTITY_GROUPS = [
   ['Theme', 'Themes'],
 ]
 
-const chip = {
+const extractionChipStyle = {
   fontFamily: 'var(--font-sans)',
   fontSize: 12.5,
   fontWeight: 600,
@@ -99,7 +111,6 @@ const chip = {
   lineHeight: 1.3,
 }
 
-/** One extracted entity group (e.g. "Characters · 3" + name chips). */
 function EntityGroup({ label, items }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -107,9 +118,13 @@ function EntityGroup({ label, items }) {
         {label} · {items.length}
       </SectionLabel>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {items.map((e) => (
-          <span key={e.key || e.name} style={chip} title={e.description || ''}>
-            {e.name}
+        {items.map((entity) => (
+          <span
+            key={entity.key || entity.name}
+            style={extractionChipStyle}
+            title={entity.description || ''}
+          >
+            {entity.name}
           </span>
         ))}
       </div>
@@ -117,107 +132,119 @@ function EntityGroup({ label, items }) {
   )
 }
 
-/**
- * Live "as you type" extraction — shows, in real time, the entities, connections,
- * and atomic facts the agents will remember from THIS script. Nothing is written
- * until you ingest; this is the proof the canon is built from your own words.
- */
+/** Extract-only preview: visible proof of what this script will persist. */
 function LiveExtractionPanel({ preview }) {
   const { loading, data, error } = preview
   if (!loading && !data && !error) return null
 
-  const ex = data?.extraction
-  const entities = ex?.entities || []
-  const relations = ex?.relations || []
-  const facts = ex?.facts || []
-  const nameByKey = {}
-  for (const e of entities) nameByKey[e.key] = e.name
-
+  const extraction = data?.extraction
+  const entities = extraction?.entities || []
+  const relations = extraction?.relations || []
+  const facts = extraction?.facts || []
+  const nameByKey = Object.fromEntries(entities.map((entity) => [entity.key, entity.name]))
   const byType = {}
-  for (const e of entities) (byType[e.type] || (byType[e.type] = [])).push(e)
+  for (const entity of entities) {
+    ;(byType[entity.type] || (byType[entity.type] = [])).push(entity)
+  }
   const groups = [
-    ...ENTITY_GROUPS.filter(([t]) => byType[t]?.length).map(([t, l]) => [l, byType[t]]),
+    ...ENTITY_GROUPS.filter(([type]) => byType[type]?.length).map(([type, label]) => [
+      label,
+      byType[type],
+    ]),
     ...Object.keys(byType)
-      .filter((t) => !ENTITY_GROUPS.some(([k]) => k === t))
-      .map((t) => [t, byType[t]]),
+      .filter((type) => !ENTITY_GROUPS.some(([known]) => known === type))
+      .map((type) => [type, byType[type]]),
   ]
   const hasContent = entities.length > 0 || facts.length > 0
-  const firstLoad = loading && !data
 
   return (
-    <SurfaceCard style={{ marginTop: 4, background: 'var(--surface)' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-        <SectionLabel style={{ fontSize: 11 }}>Live extraction · what the agents will remember</SectionLabel>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-          {firstLoad
-            ? 'reading your script…'
-            : data
-              ? `${data.entity_count} entities · ${data.relation_count} connections · ${data.fact_count} facts${loading ? ' · updating…' : ''}`
-              : ''}
+    <SurfaceCard style={{ marginTop: 18, background: 'var(--surface)' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 10,
+          flexWrap: 'wrap',
+          marginBottom: 14,
+        }}
+      >
+        <SectionLabel>Live extraction · what agents will remember</SectionLabel>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }} aria-live="polite">
+          {data
+            ? `${data.entity_count} entities · ${data.relation_count} connections · ${data.fact_count} facts${loading ? ' · updating…' : ''}`
+            : 'reading your script…'}
         </span>
       </div>
 
-      {firstLoad && <LoadingState label="Extracting canon from your script…" />}
+      {loading && !data && <LoadingState label="Extracting canon from your script…" />}
       {error && !data && (
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-          Live preview unavailable right now — ingesting still works.
+          Live preview is unavailable right now; durable ingest can still be retried.
         </span>
       )}
       {data && !hasContent && !loading && (
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-          No structured canon found yet — name a character, place, or a concrete detail and it will appear here.
+          No durable canon yet. Add a character, place, clue, or concrete fact.
         </span>
       )}
 
       {hasContent && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {groups.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {groups.map(([label, items]) => (
-                <EntityGroup key={label} label={label} items={items} />
-              ))}
-            </div>
-          )}
-
+          {groups.map(([label, items]) => (
+            <EntityGroup key={label} label={label} items={items} />
+          ))}
           {relations.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <SectionLabel style={{ fontSize: 10 }}>Connections · {relations.length}</SectionLabel>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {relations.slice(0, 6).map((r, i) => (
-                  <div key={i} style={{ fontSize: 13, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600 }}>{nameByKey[r.source_key] || r.source_key}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent-text-sm)' }}>
-                      {r.type.replace(/_/g, ' ').toLowerCase()}
-                    </span>
-                    <span style={{ color: 'var(--dim)' }}>→</span>
-                    <span style={{ fontWeight: 600 }}>{nameByKey[r.target_key] || r.target_key}</span>
-                  </div>
-                ))}
-              </div>
+              {relations.slice(0, 6).map((relation, index) => (
+                <div
+                  key={`${relation.source_key}-${relation.type}-${relation.target_key}-${index}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    fontSize: 13,
+                  }}
+                >
+                  <strong>{nameByKey[relation.source_key] || relation.source_key}</strong>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 11,
+                      color: 'var(--accent-text-sm)',
+                    }}
+                  >
+                    {relation.type.replace(/_/g, ' ').toLowerCase()}
+                  </span>
+                  <span style={{ color: 'var(--dim)' }}>→</span>
+                  <strong>{nameByKey[relation.target_key] || relation.target_key}</strong>
+                </div>
+              ))}
             </div>
           )}
-
           {facts.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <SectionLabel style={{ fontSize: 10 }}>Atomic facts · {facts.length}</SectionLabel>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {facts.slice(0, 12).map((f, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: '8px 12px',
-                      border: '1px solid var(--border)',
-                      borderLeft: '3px solid var(--accent)',
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'var(--surface-raised)',
-                      fontSize: 13, color: 'var(--ink)', lineHeight: 1.45,
-                    }}
-                  >
-                    <strong>{nameByKey[f.subject_key] || f.subject_key}</strong>{' '}
-                    <span style={{ color: 'var(--muted)' }}>· {f.predicate} =</span> {f.object}
-                  </div>
-                ))}
-              </div>
+              {facts.slice(0, 12).map((fact, index) => (
+                <div
+                  key={`${fact.subject_key}-${fact.predicate}-${index}`}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid var(--border)',
+                    borderLeft: '3px solid var(--accent)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-raised)',
+                    fontSize: 13,
+                    color: 'var(--ink)',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  <strong>{nameByKey[fact.subject_key] || fact.subject_key}</strong>{' '}
+                  <span style={{ color: 'var(--muted)' }}>· {fact.predicate} =</span>{' '}
+                  {fact.object}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -226,7 +253,7 @@ function LiveExtractionPanel({ preview }) {
   )
 }
 
-/** Composer: title/episode/text + the "Ingest episode" action + live preview. */
+/** Composer: current script + live preview + explicit session-safe persistence. */
 function CanonComposer({
   title,
   setTitle,
@@ -242,13 +269,24 @@ function CanonComposer({
   preview,
   isSample,
   clearText,
-  loadStory,
   resetSession,
   resetting,
+  resetError,
+  loadStory,
+  locked = false,
 }) {
   return (
     <SurfaceCard>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          marginBottom: 14,
+        }}
+      >
         <SectionLabel>Build the canon</SectionLabel>
         {isSample && (
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>
@@ -256,9 +294,16 @@ function CanonComposer({
             <button
               type="button"
               onClick={clearText}
+              disabled={locked}
               style={{
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                font: 'inherit', color: 'var(--accent-text-sm)', fontWeight: 600,
+                minHeight: 44,
+                background: 'none',
+                border: 'none',
+                padding: '8px 0',
+                cursor: locked ? 'default' : 'pointer',
+                font: 'inherit',
+                color: 'var(--accent-text-sm)',
+                fontWeight: 650,
               }}
             >
               clear and write your own
@@ -276,6 +321,7 @@ function CanonComposer({
           style={{ ...inputStyle, flex: '2 1 220px' }}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          disabled={locked}
           placeholder="Show title"
           aria-label="Show title"
         />
@@ -283,6 +329,7 @@ function CanonComposer({
           style={{ ...inputStyle, flex: '1 1 140px' }}
           value={episode}
           onChange={(e) => setEpisode(e.target.value)}
+          disabled={locked}
           placeholder="Episode"
           aria-label="Episode"
         />
@@ -291,18 +338,20 @@ function CanonComposer({
         style={{ ...inputStyle, minHeight: 160, resize: 'vertical', lineHeight: 1.6 }}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Paste an episode script — its characters, clues, and plot threads become canon as you type."
+        disabled={locked}
+        placeholder="Paste an episode script — its characters, clues, and facts appear below as you type."
         aria-label="Episode script"
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
-        <Button onClick={ingest} disabled={!canIngest}>
+        <Button onClick={ingest} disabled={!canIngest || locked}>
           {ingesting ? 'Ingesting…' : 'Ingest episode into canon'}
         </Button>
         {ingestResult && (
           <span style={{ fontSize: 13, color: 'var(--muted)' }}>
             Wrote <strong style={{ color: 'var(--ink)' }}>{ingestResult.nodes_added}</strong> nodes,{' '}
             <strong style={{ color: 'var(--ink)' }}>{ingestResult.edges_added}</strong> edges,{' '}
-            <strong style={{ color: 'var(--ink)' }}>{ingestResult.facts_added ?? 0}</strong> facts to shared memory
+            <strong style={{ color: 'var(--ink)' }}>{ingestResult.facts_added || 0}</strong> facts
+            to this session
             {ingestResult.entities?.length ? ` · ${ingestResult.entities.slice(0, 6).join(', ')}` : ''}
           </span>
         )}
@@ -310,20 +359,30 @@ function CanonComposer({
           <button
             type="button"
             onClick={resetSession}
-            disabled={resetting}
+            disabled={resetting || locked}
             style={{
-              background: 'none', border: 'none', padding: 0,
-              cursor: resetting ? 'default' : 'pointer',
-              font: 'inherit', fontSize: 13, color: 'var(--muted)', textDecoration: 'underline',
+              minHeight: 44,
+              background: 'none',
+              border: 'none',
+              padding: '8px 0',
+              cursor: resetting || locked ? 'default' : 'pointer',
+              font: 'inherit',
+              fontSize: 13,
+              color: 'var(--muted)',
+              textDecoration: 'underline',
             }}
-            title="Removes only what you added this session — the demo canon is untouched"
+            title="Removes only this browser tab's memberships; seeded canon remains untouched"
           >
             {resetting ? 'Clearing…' : "Clear this session's canon"}
           </button>
         )}
         {ingestError && <span style={{ fontSize: 13, color: 'var(--danger)' }}>{ingestError}</span>}
+        {resetError && <span style={{ fontSize: 13, color: 'var(--danger)' }}>{resetError}</span>}
       </div>
-
+      <p style={{ margin: '12px 0 0', fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)' }}>
+        Preview is extract-only. “Ingest” persists this tab’s canon membership in Neo4j; it never
+        replaces or deletes the seeded ANDHERA demo.
+      </p>
       <LiveExtractionPanel preview={preview} />
     </SurfaceCard>
   )
@@ -367,10 +426,9 @@ function CanonGraphPanel({ graph, refresh }) {
       </div>
 
       <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)', maxWidth: 620 }}>
-        This graph is the <strong style={{ color: 'var(--ink)' }}>shared memory</strong> every
-        agent reads before it reacts. The agents are stateful — they remember characters, clues,
-        and plot threads across episodes, and write their verdicts back here. Not stateless. Not
-        amnesiac.
+        This view contains <strong style={{ color: 'var(--ink)' }}>only this browser tab’s story</strong>.
+        The planner reads this same scope before its listener agents react; seeded ANDHERA data is
+        excluded.
       </p>
 
       <GraphLegend stats={stats} />
@@ -483,112 +541,394 @@ function PlotHolesPanel({ plotHoles, runPlotHoles }) {
   )
 }
 
-/**
- * Shows whether a planning lens scored against the persisted "Living Audience"
- * population (the same stateful listeners on the Audience tab) or the built-in
- * default archetypes — i.e. the persona↔machinery wiring, made visible.
- */
-function AudienceSourceBadge({ source, panelSize }) {
-  if (!source) return null
-  const living = source === 'living'
+const plannerMetricStyle = {
+  fontFamily: 'var(--font-sans)',
+  fontVariantNumeric: 'tabular-nums',
+  fontFeatureSettings: '"tnum" 1',
+  fontSize: 'clamp(32px, 7vw, 44px)',
+  lineHeight: 1,
+  fontWeight: 650,
+  letterSpacing: '-0.045em',
+}
+
+function PlannerMetric({ label, value, detail, tone = 'ink' }) {
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 11.5,
-        fontWeight: 600,
-        color: living ? 'var(--red-ink)' : 'var(--muted)',
-        background: living ? 'var(--danger-bg)' : 'var(--surface-raised)',
-        border: `1px solid ${living ? 'var(--danger)' : 'var(--border)'}`,
-        borderRadius: 'var(--radius-pill)',
-        padding: '3px 11px',
-      }}
-      title={
-        living
-          ? 'Scored against the persisted Living Audience — the same stateful listeners from the Audience tab.'
-          : 'No saved audience yet — scored against built-in listeners. Generate an audience to ground this in your real population.'
-      }
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
       <span
         style={{
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          background: living ? 'var(--danger)' : 'var(--dim)',
+          ...plannerMetricStyle,
+          color: tone === 'accent' ? 'var(--accent)' : 'var(--ink)',
         }}
-      />
-      {living ? 'Reward model: Living Audience' : 'Reward model: default archetypes'}
-      {panelSize ? ` · ${panelSize} listeners` : ''}
-    </span>
+      >
+        {value}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 650, color: 'var(--ink)' }}>{label}</span>
+      <span style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--muted)' }}>{detail}</span>
+    </div>
   )
 }
 
-/** Cliffhanger Planner panel — streamed audience-scored beam search. */
-function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner }) {
-  const ranked = [...planner.candidates].sort((a, b) => b.hookScore - a.hookScore)
+/** Cliffhanger Planner panel — streamed, stateful 1,000-agent search. */
+function PlannerPanel({ weakExcerpt, setWeakExcerpt, planner, runPlanner, stopPlanner }) {
+  const ranked = [...planner.candidates]
+    .filter((candidate) => typeof candidate.hookScore === 'number')
+    .sort((a, b) => {
+      if (a.stage === 'verified' && b.stage !== 'verified') return -1
+      if (b.stage === 'verified' && a.stage !== 'verified') return 1
+      return b.hookScore - a.hookScore
+    })
   const best = planner.best
+  const bestIsOriginal = best?.id === 'root'
+  const lift = best?.delta ?? 0
+  const meta = planner.meta
+  const progress = planner.progress
+  const liveBaseline = planner.runningScores?.root
+  const hasResult = planner.baseline != null && best
+  const memoryCoverage = meta.uniqueAgents
+    ? Math.round((meta.memoryHits / meta.uniqueAgents) * 100)
+    : 0
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <SectionLabel>Weak ending to improve</SectionLabel>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div>
+        <label
+          htmlFor="planner-weak-ending"
+          style={{ display: 'block', fontSize: 13, fontWeight: 650, color: 'var(--ink)', marginBottom: 8 }}
+        >
+          Weak ending to improve
+        </label>
+        <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.55, color: 'var(--muted)' }}>
+          The complete episode stays fixed. Only this ending changes between test arms.
+        </p>
+      </div>
       <textarea
+        id="planner-weak-ending"
         style={{ ...inputStyle, minHeight: 100, resize: 'vertical', lineHeight: 1.6 }}
         value={weakExcerpt}
         onChange={(e) => setWeakExcerpt(e.target.value)}
+        disabled={planner.running}
         aria-label="Weak ending"
       />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <Button onClick={runPlanner} disabled={planner.running}>
-          {planner.running ? 'Searching…' : 'Search cliffhangers'}
-        </Button>
-        <AudienceSourceBadge source={planner.audienceSource} panelSize={planner.panelSize} />
-      </div>
+
+      <SurfaceCard
+        style={{
+          padding: 'clamp(18px, 3vw, 28px)',
+          background: 'var(--surface-raised)',
+          borderColor: 'var(--border)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ maxWidth: 650 }}>
+            <div style={{ fontSize: 13, fontWeight: 650, color: 'var(--accent-text-sm)', marginBottom: 8 }}>
+              Audience test setup
+            </div>
+            <h3
+              style={{
+                margin: '0 0 10px',
+                fontSize: 'clamp(22px, 4vw, 32px)',
+                lineHeight: 1.15,
+                letterSpacing: '-0.035em',
+                color: 'var(--ink)',
+              }}
+            >
+              Requested audience: 1,000 listener agents
+            </h3>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: 'var(--muted)' }}>
+              Every requested agent gets a stable identity and listener profile. When the knowledge
+              graph is available, returning agents recall their own show-specific history. Story
+              context comes only from this browser tab’s canon scope, never the seeded ANDHERA demo.
+              This run reports the exact memory and canon coverage it loaded.
+            </p>
+          </div>
+          <div style={{ alignSelf: 'flex-start' }}>
+            {planner.running ? (
+              <Button variant="secondary" onClick={stopPlanner}>
+                Stop search
+              </Button>
+            ) : (
+              <Button onClick={runPlanner}>Run 1,000-agent search</Button>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 18 }}>
+          <Pill label="Scout cohort" value={`${meta.scoutSize ?? 100} agents`} />
+          <Pill
+            label="Requested verification"
+            value={`${(meta.uniqueAgents || 1000).toLocaleString()} agents`}
+            tone="accent"
+          />
+          <Pill label="Finalists" value={meta.finalistCount ?? 3} />
+          <Pill label="Search rounds" value="2" />
+          <Pill
+            label="Canon scope"
+            value={
+              meta.uniqueAgents
+                ? `this session · ${meta.canonNodesLoaded.toLocaleString()} nodes`
+                : 'this browser session'
+            }
+          />
+        </div>
+      </SurfaceCard>
 
       {planner.error && <ErrorState message={planner.error} />}
 
-      {(planner.baseline != null || ranked.length > 0) && (
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 32, flexWrap: 'wrap' }}>
-          {planner.baseline != null && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <MetricNumber value={planner.baseline} size="md" tone="muted" />
-              <SectionLabel style={{ fontSize: 10 }}>Baseline hook</SectionLabel>
+      {(planner.running || planner.phase === 'cancelled') && (
+        <SurfaceCard style={{ padding: 'clamp(18px, 3vw, 28px)' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 650, color: 'var(--accent-text-sm)', marginBottom: 8 }}>
+              Live calculation
+            </div>
+            <h3
+              aria-live="polite"
+              style={{ margin: '0 0 8px', fontSize: 21, letterSpacing: '-0.025em' }}
+            >
+              {planner.phaseLabel || 'Preparing the audience panel'}
+            </h3>
+            {progress.total > 0 && (
+              <p style={{ margin: '0 0 18px', fontSize: 13, color: 'var(--muted)' }}>
+                {progress.completed.toLocaleString()} of {progress.total.toLocaleString()} agents responded
+                {progress.dropped > 0 ? ` · ${progress.dropped} failed after retries` : ''}
+                {typeof liveBaseline === 'number' ? ` · original mean so far ${liveBaseline}` : ''}
+              </p>
+            )}
+            <ProgressLine
+              label={
+                progress.total
+                  ? `${Math.round(progress.percent)}% of this stage complete`
+                  : planner.phaseLabel || 'Preparing'
+              }
+              value={progress.total ? progress.percent : undefined}
+            />
+          </div>
+          {planner.recentAgents.length > 0 && (
+            <div style={{ marginTop: 20, display: 'grid', gap: 8 }}>
+              {planner.recentAgents.slice(0, 3).map((agent) => (
+                <div
+                  key={agent.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                    gap: 12,
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    color: 'var(--muted)',
+                  }}
+                >
+                  <span>
+                    <strong style={{ color: 'var(--ink)' }}>{agent.name}</strong> · {agent.segment}
+                  </span>
+                  <span>
+                    {agent.memoryItemsLoaded > 0
+                      ? `${agent.memoryItemsLoaded} memories read`
+                      : 'new agent · no prior history'}
+                    {agent.cached ? ' · cached result' : ''}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
-          {best && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <MetricNumber value={best.hookScore} size="lg" tone="accent" />
-              <SectionLabel style={{ fontSize: 10 }}>Best · {best.delta > 0 ? `+${best.delta}` : best.delta} lift</SectionLabel>
+        </SurfaceCard>
+      )}
+
+      {hasResult && (
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: 18,
+              padding: '8px 0',
+            }}
+          >
+            <PlannerMetric
+              label="Original ending score"
+              value={`${planner.baseline} / 100`}
+              detail={`Average from ${planner.baselineSampleSize.toLocaleString()} completed agents · ±${planner.baselineCi95} points`}
+            />
+            <PlannerMetric
+              label={bestIsOriginal ? 'Original remains strongest' : 'Best ending score'}
+              value={`${best.hookScore} / 100`}
+              detail={`${best.sampleSize.toLocaleString()} matched agent ratings · ±${best.ci95} points`}
+              tone="accent"
+            />
+            <PlannerMetric
+              label="Estimated lift"
+              value={`${lift > 0 ? '+' : ''}${lift} points`}
+              detail="Best ending mean − original ending mean"
+              tone={lift > 0 ? 'accent' : 'ink'}
+            />
+          </div>
+
+          <SurfaceCard
+            style={{
+              padding: '18px 20px',
+              background: 'var(--danger-bg)',
+              borderColor: 'var(--danger)',
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 650, color: 'var(--red-ink)', marginBottom: 5 }}>
+              Simulated research signal — not real listener retention
             </div>
-          )}
-        </div>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--ink)' }}>
+              This score is the average modeled hook strength across the simulated panel. Use it to
+              compare endings, then validate the winner with production listener data.
+            </p>
+          </SurfaceCard>
+        </>
       )}
 
       {ranked.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {ranked.map((c) => {
             const isBest = best && c.id === best.id
+            const verified = c.stage === 'verified'
             return (
-              <SurfaceCard key={c.id} elevated={isBest} style={{ padding: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>
-                    {c.hookScore}
+              <SurfaceCard
+                key={c.id}
+                elevated={isBest}
+                style={{
+                  padding: 'var(--space-4)',
+                  borderColor: isBest ? 'var(--accent)' : 'var(--border)',
+                  background: isBest ? 'var(--danger-bg)' : 'var(--surface-raised)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontVariantNumeric: 'tabular-nums',
+                      fontWeight: 650,
+                      fontSize: 18,
+                      color: 'var(--ink)',
+                    }}
+                  >
+                    {c.hookScore} / 100
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: c.delta >= 0 ? 'var(--accent-text-sm)' : 'var(--muted)' }}>
-                    {c.delta > 0 ? `+${c.delta}` : c.delta}
+                  <span style={{ fontSize: 12, fontWeight: 650, color: c.delta >= 0 ? 'var(--accent-text-sm)' : 'var(--muted)' }}>
+                    {c.delta > 0 ? `+${c.delta}` : c.delta} points{' '}
+                    {verified ? 'vs full-panel original' : 'vs scout original'}
                   </span>
-                  <span className="label-upper" style={{ fontSize: 10 }}>
-                    depth {c.depth}
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                    {verified ? 'Full-panel verified' : 'Scout estimate'} · {c.sampleSize.toLocaleString()} agents
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+                    Round {c.depth} refinement
                   </span>
                 </div>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
-                  {isBest && best.text ? best.text : c.preview}
+                  {c.text || (isBest && best.text ? best.text : c.preview)}
                 </p>
               </SurfaceCard>
             )
           })}
         </div>
       )}
+
+      <SurfaceCard style={{ padding: '10px 20px' }}>
+        <Disclosure
+          summary={
+            <span style={{ fontSize: 14, fontWeight: 650, color: 'var(--ink)' }}>
+              How these scores are calculated
+            </span>
+          }
+          defaultOpen
+        >
+          <div style={{ padding: '2px 0 18px 20px', display: 'grid', gap: 12 }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.65, color: 'var(--muted)' }}>
+              Each agent reviews the original and all candidate endings in one matched comparison
+              alongside the complete episode. It uses its stable listener profile, recalls up to four
+              show-specific past reactions when available, reads only this browser session’s story
+              canon, and returns a 0–100 hook score for every ending.
+            </p>
+            <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--ink)' }}>
+              <div>
+                <strong>Original ending score</strong> = sum of successful original-ending scores ÷
+                successful responses.
+              </div>
+              <div>
+                <strong>Best ending score</strong> = the same mean from the same verification cohort.
+              </div>
+              <div>
+                <strong>Lift</strong> = best ending score − original ending score. It is a point
+                difference, not a percentage.
+              </div>
+            </div>
+          </div>
+        </Disclosure>
+        <Disclosure
+          summary={
+            <span style={{ fontSize: 14, fontWeight: 650, color: 'var(--ink)' }}>
+              Stateful memory and experiment details
+            </span>
+          }
+        >
+          <div style={{ padding: '2px 0 18px 20px', display: 'grid', gap: 10 }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.65, color: 'var(--muted)' }}>
+              Personal memory is frozen before the comparison so an earlier candidate cannot affect
+              a later candidate. The winning experiment is archived separately from published
+              listening history, so agents never “remember” an ending that listeners have not heard.
+              “Search round” means rewrite-and-test refinement, not model reasoning depth.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Pill
+                label="Personal memory recalled"
+                value={
+                  meta.uniqueAgents
+                    ? `${meta.memoryHits.toLocaleString()} agents (${memoryCoverage}%)`
+                    : 'shown after start'
+                }
+                tone="accent"
+              />
+              <Pill
+                label="New agents"
+                value={
+                  meta.uniqueAgents
+                    ? Math.max(0, meta.uniqueAgents - meta.memoryHits).toLocaleString()
+                    : '—'
+                }
+              />
+              <Pill label="Audience source" value={meta.audienceSource || 'knowledge graph'} />
+              <Pill
+                label="Session canon loaded"
+                value={`${meta.canonNodesLoaded.toLocaleString()} nodes`}
+              />
+              <Pill label="Model" value={meta.model || 'shown after start'} />
+              <Pill
+                label="Experiment graph archive"
+                value={meta.experimentArchived ? 'complete' : hasResult ? 'not persisted' : 'pending'}
+              />
+              {meta.verificationCachedAgents > 0 && (
+                <Pill
+                  label="Verification cache"
+                  value={`${meta.verificationCachedAgents.toLocaleString()} reused · ${Math.max(
+                    0,
+                    planner.baselineSampleSize - meta.verificationCachedAgents,
+                  ).toLocaleString()} fresh`}
+                />
+              )}
+              {meta.completedEvaluations > 0 && (
+                <Pill
+                  label="Agent evaluations"
+                  value={`${meta.completedEvaluations.toLocaleString()} / ${meta.plannedEvaluations.toLocaleString()}`}
+                />
+              )}
+            </div>
+          </div>
+        </Disclosure>
+        <Disclosure
+          summary={
+            <span style={{ fontSize: 14, fontWeight: 650, color: 'var(--ink)' }}>
+              Statistical precision and limitations
+            </span>
+          }
+        >
+          <p style={{ margin: 0, padding: '2px 0 18px 20px', fontSize: 13, lineHeight: 1.65, color: 'var(--muted)' }}>
+            The ± value is an approximate 95% interval around the simulated panel mean. It does not
+            measure prediction accuracy against real PocketFM listeners, and model-generated agents
+            are not independent human respondents. No separate uncertainty interval is claimed for lift.
+          </p>
+        </Disclosure>
+      </SurfaceCard>
     </div>
   )
 }
@@ -597,6 +937,18 @@ const STATUS_GLYPH = {
   pending: { glyph: '○', color: 'var(--dim)' },
   running: { glyph: '⟳', color: 'var(--accent)' },
   done: { glyph: '✓', color: 'var(--success)' },
+}
+
+function AudienceSourceBadge({ source, panelSize }) {
+  if (!source) return null
+  const living = source === 'living'
+  return (
+    <Pill
+      label="Reward model"
+      value={`${living ? 'Living Audience' : 'default archetypes'}${panelSize ? ` · ${panelSize}` : ''}`}
+      tone={living ? 'accent' : undefined}
+    />
+  )
 }
 
 /** Showrunner Agent panel — the state-graph loop, streamed node by node. */
@@ -699,104 +1051,7 @@ function RewardCurve({ baseline, steps }) {
   )
 }
 
-/** Candidate Q-values for one MDP step; the chosen (argmax) action is highlighted. */
-function QChips({ values, chosenReward }) {
-  if (!values || values.length === 0) return null
-  const max = Math.max(...values)
-  const target = chosenReward ?? max
-  let marked = false
-  return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-      {values.map((q, i) => {
-        // Highlight the single chosen action (first value equal to the target).
-        const chosen = !marked && q === target
-        if (chosen) marked = true
-        return (
-          <span
-            key={i}
-            title={chosen ? 'Chosen action (argmax reward)' : 'Candidate action Q-value'}
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              fontWeight: 600,
-              color: chosen ? 'var(--red-ink)' : 'var(--muted)',
-              background: chosen ? 'var(--danger-bg)' : 'var(--surface-raised)',
-              border: `1px solid ${chosen ? 'var(--danger)' : 'var(--border)'}`,
-              borderRadius: 'var(--radius-sm)',
-              padding: '2px 8px',
-            }}
-          >
-            {q}
-          </span>
-        )
-      })}
-    </div>
-  )
-}
-
-/** Per-iteration MDP trace: the state, the candidate Q-values scored on the
- *  audience, and the discounted one-step look-ahead value of the chosen action. */
-function MdpSteps({ steps, discount }) {
-  if (!steps || steps.length === 0) return null
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <SectionLabel style={{ fontSize: 10 }}>Policy trace · state → actions → value</SectionLabel>
-      {steps.map((s) => (
-        <div
-          key={s.iteration}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            padding: '10px 14px',
-            border: '1px solid var(--border)',
-            borderLeft: '3px solid var(--accent)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-raised)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span className="label-upper" style={{ fontSize: 10 }}>
-              Step {s.iteration}
-            </span>
-            {s.state && (
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--muted)' }}>
-                {s.state}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Q(s,a):</span>
-            <QChips values={s.qValues} chosenReward={s.reward} />
-          </div>
-          {s.qChosen != null && (
-            <div style={{ fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.5 }}>
-              <span style={{ color: 'var(--muted)' }}>Q(s,a*) = reward + γ·V(s′) = </span>
-              <strong style={{ fontFamily: 'var(--font-mono)' }}>{s.reward}</strong>
-              {s.valueNext != null && discount != null && (
-                <>
-                  {' '}
-                  + {discount}·<strong style={{ fontFamily: 'var(--font-mono)' }}>{s.valueNext}</strong>
-                </>
-              )}
-              {' = '}
-              <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-text-sm)' }}>
-                {s.qChosen}
-              </strong>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/**
- * MDP Optimizer panel — a finite-horizon MDP: the state transitions each step,
- * the audience simulator is the reward model, and the chosen action's value uses
- * a discounted (γ) one-step Bellman look-ahead. Q-values, state, and the
- * discounted return are all surfaced so the "MDP" is provable, not just a label.
- */
+/** MDP Optimizer panel — policy search with the audience as the reward model. */
 function MdpPanel({ mdp, runMdp }) {
   const lift = mdp.final != null && mdp.baseline != null ? Math.round((mdp.final - mdp.baseline) * 10) / 10 : null
   return (
@@ -806,10 +1061,10 @@ function MdpPanel({ mdp, runMdp }) {
           {mdp.running ? 'Optimizing…' : 'Run policy search'}
         </Button>
         <AudienceSourceBadge source={mdp.audienceSource} panelSize={mdp.panelSize} />
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          State = story + canon · Action = candidate beat · Reward = simulated hook · γ look-ahead
+        </span>
       </div>
-      <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-        State = story-so-far + canon · Action = candidate beat · Reward = simulated hook · γ look-ahead
-      </span>
 
       {mdp.error && <ErrorState message={mdp.error} />}
 
@@ -846,7 +1101,19 @@ function MdpPanel({ mdp, runMdp }) {
           <SurfaceCard style={{ padding: 'var(--space-4)' }}>
             <RewardCurve baseline={mdp.baseline} steps={mdp.steps} />
           </SurfaceCard>
-          <MdpSteps steps={mdp.steps} discount={mdp.discount} />
+          {mdp.steps.length > 0 && (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {mdp.steps.map((step) => (
+                <SurfaceCard key={step.iteration} style={{ padding: '12px 14px' }}>
+                  <SectionLabel style={{ fontSize: 10 }}>Step {step.iteration}</SectionLabel>
+                  <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+                    {step.state || 'Updated story state'} · immediate reward {step.reward}
+                    {step.qChosen != null ? ` · chosen Q-value ${step.qChosen}` : ''}
+                  </p>
+                </SurfaceCard>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -870,7 +1137,7 @@ export default function StoryCanonTab(props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingTop: 4 }}>
-      <CanonComposer {...props} />
+      <CanonComposer {...props} locked={props.planner?.running} />
 
       {CANON_PANELS.length > 1 && (
         <Tabs tabs={CANON_PANELS} active={activePanel} onChange={setActivePanel} />
@@ -888,6 +1155,7 @@ export default function StoryCanonTab(props) {
           setWeakExcerpt={props.setWeakExcerpt}
           planner={props.planner}
           runPlanner={props.runPlanner}
+          stopPlanner={props.stopPlanner}
         />
       )}
       {activePanel === 'agent' && <ShowrunnerPanel agent={props.agent} runAgent={props.runAgent} />}
